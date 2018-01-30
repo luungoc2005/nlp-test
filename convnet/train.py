@@ -9,7 +9,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 
 from convnet.model import build_model
 from model_utils import get_tokenizer_from_file, get_inputs, fit_embedding_layers
-from config import WORDS_PATH
+from config import WORDS_PATH, BATCH_SIZE
 
 BASE_PATH = path.join(getcwd(), 'convnet/')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
@@ -53,7 +53,7 @@ def train_model(X_train,
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     
-    batch_size = min(512, len(X_train))
+    batch_size = min(BATCH_SIZE, len(X_train))
 
     # Workaround for a tqdm issue
     # https://github.com/tqdm/tqdm/issues/481

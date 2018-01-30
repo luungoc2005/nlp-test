@@ -1,5 +1,9 @@
 botbot-nlp
 
+# Quick start
+- See the .ipynb files (viewable on Github) for instructions and demo using the script
+- Complete the environmental setup to run the .ipynb files
+
 # Environmental setup:
 
 1. Download GloVE word vectors

@@ -9,5 +9,7 @@ MAX_NUM_WORDS = 21000 # Max vocabulary size (plus some extra vocab by the traini
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 256
 
+BATCH_SIZE = 32
+
 # ConvNet configs
 FILTER_SIZES = [3, 4, 5]
