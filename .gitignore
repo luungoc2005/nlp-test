@@ -58,3 +58,8 @@ docs/_build/
 target/
 
 data/glove/
+\.ipynb_checkpoints/
+
+convnet/logs/
+
+convnet/model/

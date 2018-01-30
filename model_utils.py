@@ -13,16 +13,16 @@ from config import MAX_NUM_WORDS, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM
 POS_TAGS = ['#'] + list(load('help/tagsets/upenn_tagset.pickle').keys())
 POS_TAGS_COUNT = len(POS_TAGS)
 
-def get_tokenizer(input_sequences):
-    tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
+def get_tokenizer(input_sequences, tokenizer_class=Tokenizer):
+    tokenizer = tokenizer_class(num_words=MAX_NUM_WORDS)
     tokenizer.fit_on_texts(input_sequences)
 
     return tokenizer
 
-def get_tokenizer_from_file(input_file):
+def get_tokenizer_from_file(input_file, tokenizer_class=Tokenizer):
     with open(WORDS_PATH, 'r') as words_file:
         content = words_file.readlines()
-    tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
+    tokenizer = tokenizer_class(num_words=MAX_NUM_WORDS)
     tokenizer.fit_on_texts(content)
 
     return tokenizer

@@ -1,4 +1,5 @@
 import pickle
+import json
 
 from os import path, getcwd
 from tqdm import tqdm
@@ -15,16 +16,28 @@ LOG_DIR = path.join(BASE_PATH, 'logs/')
 CHECKPOINT_PATH = path.join(BASE_PATH, 'model/weights-{epoch:02d}-{loss:.4f}.h5')
 SAVE_PATH = path.join(BASE_PATH, 'model/model.h5')
 TOKENIZER_PATH = path.join(BASE_PATH, 'model/tokenizer.pickle')
+CLASSES_PATH = path.join(BASE_PATH, 'model/classes.json')
 
 def train_model(X_train, 
                 y_train, 
-                num_classes=10, 
-                model_path=None, 
+                classes=None, 
+                tokenizer_path=None,
+                model_path=None,
+                non_static=True,
                 use_tqdm=True):
-    tokenizer = get_tokenizer_from_file(WORDS_PATH)
+    if tokenizer_path is None:
+        tokenizer = get_tokenizer_from_file(WORDS_PATH)
+        tokenizer.fit_on_texts(X_train) # Add samples-unique vocabulary for the tokenizer
 
-    with open(TOKENIZER_PATH, 'wb') as tokenizer_file:
-        pickle.dump(tokenizer, tokenizer_file)
+        with open(TOKENIZER_PATH, 'wb') as tokenizer_file:
+            pickle.dump(tokenizer, tokenizer_file)
+    else:
+        with open(tokenizer_path, 'rb') as tokenizer_file:
+            tokenizer = pickle.load(tokenizer_file)
+
+    num_classes = len(classes)
+    with open(CLASSES_PATH, 'w') as classes_file:
+        json.dump(classes, classes_file, indent=4)
 
     X_tokens, X_pos = get_inputs(X_train, tokenizer)
 
@@ -32,7 +45,7 @@ def train_model(X_train,
     # print(X_pos.shape)
 
     if model_path is None:
-        model = build_model(tokenizer, num_classes=num_classes)
+        model = build_model(tokenizer, num_classes=num_classes, non_static=non_static)
     else:
         model = load_model(model_path)
 
@@ -40,7 +53,7 @@ def train_model(X_train,
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     
-    batch_size = min(32, len(X_train))
+    batch_size = min(512, len(X_train))
 
     # Workaround for a tqdm issue
     # https://github.com/tqdm/tqdm/issues/481
