@@ -10,8 +10,8 @@ def build_model(tokenizer, num_classes=10, non_static=True):
     model = IntentConvNet( \
         tokens_input=input_layers['tokens_input'],
         pos_input=input_layers['pos_input'],
-        static_embedding_layer=input_layers['static_embedding_layer'] if non_static else None,
-        non_static_embedding_layer=input_layers['non_static_embedding_layer'],
+        static_embedding_layer=input_layers['static_embedding_layer'],
+        non_static_embedding_layer=input_layers['non_static_embedding_layer'] if non_static else None,
         num_classes=num_classes)
 
     return model

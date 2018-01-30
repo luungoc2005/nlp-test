@@ -10,16 +10,28 @@ botbot-nlp
 2. Setup Python environment:
 - Download Anaconda/Miniconda for Python 3.6
 - Create a new environment for the project by running `conda create --name botbot-nlp python=3.6`
-- Switch to the newly created environment by running `source activate botbot-nlp`
+- Switch to the newly created environment by running `source activate botbot-nlp` (`activate botbot-nlp` inside Anaconda Prompt on Windows)
 - Install dependencies by running `pip install -r requirements.txt`
 - Install any missing dependencies (because of platform differences)
 
 3. Install HDF5 for Keras model saving/loading
+- Install HDF5 from [https://support.hdfgroup.org/HDF5/](https://support.hdfgroup.org/HDF5/) or by using `homebrew`:
+- Instructions using `homebrew` (on UNIX):
+```
+brew tap homebrew/science
+brew install hdf5
+```
+
+- Activate the environment by `source activate botbot-nlp`
+- Install h5py by running `pip install h5py`
 
 4. Download NLTK data:
+- Activate the environment by `source activate botbot-nlp`
 - Run `python -m nltk.downloader all`
 
 5. Using Jupyter notebook for evaluation
+- Activate the environment by `source activate botbot-nlp`
+- Navigate to the root directory by `cd`
 - Run `jupyter notebook`. A browser tab should open and navigate to jupyter notebook at `localhost:8888` by default
 - Open `entities_train.ipynb` inside the notebook
 - Click Kernel > Run All to start training
@@ -37,7 +49,7 @@ Using GPU will massively speed up training and inference time (brings training f
 
 - Follow Tensorflow-GPU setup instructions at [https://www.tensorflow.org/install/install_linux](https://www.tensorflow.org/install/install_linux) (Including installing the exact CUDA & CuDNN versions - e.g if using Tensorflow 1.5.0 then CUDA 9.0 and CuDNN v7.0 is required even if newer versions exist)
 - Run `source activate botbot-nlp`
-- Run `pip install --upgrade tensorflow-gpu`
+- Run `pip uninstall tensorflow` then `pip install --upgrade tensorflow-gpu`
 
 5. Using Tensorboard
 - Navigate to the respective models' folders (`convnet` and `bilstm`)
@@ -56,5 +68,5 @@ Models:
 
 Other:
 
-- Setup a docker image for ease setting up
+- Setup a docker image for ease getting started
 - Setup a small Flask server and CLI for ease in using the project
