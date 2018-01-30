@@ -15,7 +15,7 @@ botbot-nlp
 - Download Anaconda/Miniconda for Python 3.6
 - Create a new environment for the project by running `conda create --name botbot-nlp python=3.6`
 - Switch to the newly created environment by running `source activate botbot-nlp` (`activate botbot-nlp` inside Anaconda Prompt on Windows)
-- Install dependencies by running `pip install -r requirements.txt`
+- Install dependencies by running `pip install -r requirements.txt` or `pip install -r requirements_win.txt` for Windows
 - Install any missing dependencies (because of platform differences)
 
 3. Install HDF5 for Keras model saving/loading
@@ -40,16 +40,15 @@ brew install hdf5
 - Open `entities_train.ipynb` inside the notebook
 - Click Kernel > Run All to start training
 
-Note: if the progress bars doesn't show up properly during training, run the following commands
-
-```
-pip install ipywidgets
-jupyter nbextension enable --py --sys-prefix widgetsnbextension
-```
+Note: if the progress bars doesn't show up properly during training, run `conda install -c conda-forge ipywidgets`
 
 4. Using GPU
 
 Using GPU will massively speed up training and inference time (brings training from hours of CPU time to about an hour or a few minutes depending on GPU spec)
+
+e.g:
+Training on CPU: Intel Core i7-4710HQ @2.7Ghz: ~45m/epoch - 12 epochs to reach 87% accuracy
+Training on GPU: same machine, NVIDIA GeForce GTX 850M: ~4m/epoch 
 
 - Follow Tensorflow-GPU setup instructions at [https://www.tensorflow.org/install/install_linux](https://www.tensorflow.org/install/install_linux) (Including installing the exact CUDA & CuDNN versions - e.g if using Tensorflow 1.5.0 then CUDA 9.0 and CuDNN v7.0 is required even if newer versions exist)
 - Run `source activate botbot-nlp`
