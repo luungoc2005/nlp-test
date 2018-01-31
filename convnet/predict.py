@@ -1,5 +1,6 @@
 from keras.models import load_model
 from model_utils import get_inputs
+from config import BATCH_SIZE
 import pickle
 import json
 
@@ -27,19 +28,37 @@ def load_classes(classes_path='', ignore_cache=False):
             CLASSES = json.load(classes_file)
     return CLASSES
 
-def run_predict(text, classes=None, model=None, tokenizer=None):
+def run_predict(text, model=None, tokenizer=None):
+    """
+    Runs prediction with the cached model
+    Accepts input as a list of text or a singular string
+    """
+
     model = load_saved_model() if model is None else model
     tokenizer = load_tokenizer() if tokenizer is None else tokenizer
-    classes = load_classes() if classes is None else classes
 
-    X_tokens, X_pos = get_inputs([text], tokenizer)
+    if isinstance(text, list):
+        input_data = text
+    else:
+        input_data = [text]
 
-    result = model.predict([text], batch_size=1, verbose=0)
+    batch_size = min(BATCH_SIZE, len(input_data))
 
-    max_point = result[0][0].argmax()
+    X_tokens, X_pos = get_inputs(input_data, tokenizer)
 
-    proba = result[0][0][max_point] * 100
-
-    print((classes[max_point], proba))
+    result = model.predict([X_tokens, X_pos], batch_size=batch_size, verbose=0)
 
     return result
+
+def interpret_netout(result, classes=None):
+    """
+    Generator for interpreting network outputs
+    """
+
+    classes = load_classes() if classes is None else classes
+
+    for result_item in result:
+        max_point = result_item.argmax()
+        proba = result_item[max_point] * 100
+        
+        yield (classes[max_point], proba)
