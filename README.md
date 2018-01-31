@@ -2,6 +2,9 @@ botbot-nlp
 
 # Quick start
 - See the .ipynb files (viewable on Github) for instructions and demo using the script
+
+[entities_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_train.ipynb) for the intent classification model results
+
 - Complete the environmental setup to run the .ipynb files
 
 # Environmental setup:
@@ -67,6 +70,7 @@ Models:
 
 - Try replacing ConvNet Dense layers by AveragePooling layers for reduced number of parameters (faster training)
 - Implement transfer learning (Dropping the last Dense layer & Modifying Embedding layer to reuse old weights - Important - this will massively speed up training when editing models)
+- Implement Attention layers
 - Explore RNN/LSTM-based architectures for classification (requires large text corpus)
 
 Other:
