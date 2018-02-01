@@ -2,6 +2,7 @@ from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concaten
 from keras.models import Model
 
 from config import FILTER_SIZES, MAX_SEQUENCE_LENGTH, SENTENCE_DIM
+from net_utils import apply_attention
 from model_utils import fit_embedding_layers
 
 def build_model(tokenizer, num_classes=10, non_static=True):
@@ -26,12 +27,20 @@ def IntentConvNet(tokens_input=None,
     non_static_channels = FILTER_SIZES[:]
     pos_channels = FILTER_SIZES[:]
 
+    static_attn_input = apply_attention(static_embedding_layer, 
+                                        name='static_attention_vec')
+    if non_static_embedding_layer is not None:
+        non_static_attn_input = apply_attention(non_static_embedding_layer, 
+                                                name='non_static_attention_vec')
+    pos_attn_input = apply_attention(pos_input, 
+                                     name='pos_attention_vec')
+
     for i, filter_size in enumerate(FILTER_SIZES):
         static_channels[i] = \
             Conv1D(MAX_SEQUENCE_LENGTH,
                    filter_size,
                    activation='relu',
-                   padding='valid')(static_embedding_layer)
+                   padding='valid')(static_attn_input)
         static_channels[i] = \
             MaxPooling1D(MAX_SEQUENCE_LENGTH - filter_size + 1) \
             (static_channels[i])
@@ -41,7 +50,7 @@ def IntentConvNet(tokens_input=None,
                 Conv1D(MAX_SEQUENCE_LENGTH,
                     filter_size,
                     activation='relu',
-                    padding='valid')(non_static_embedding_layer)
+                    padding='valid')(non_static_attn_input)
             non_static_channels[i] = \
                 MaxPooling1D(MAX_SEQUENCE_LENGTH - filter_size + 1) \
                 (non_static_channels[i])
@@ -50,7 +59,7 @@ def IntentConvNet(tokens_input=None,
             Conv1D(MAX_SEQUENCE_LENGTH,
                    filter_size,
                    activation='relu',
-                   padding='valid')(pos_input)
+                   padding='valid')(pos_attn_input)
         pos_channels[i] = \
             MaxPooling1D(MAX_SEQUENCE_LENGTH - filter_size + 1) \
             (pos_channels[i])

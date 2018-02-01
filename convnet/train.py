@@ -23,6 +23,7 @@ def train_model(X_train,
                 classes=None, 
                 tokenizer_path=None,
                 model_path=None,
+                load_weights_only=True,
                 non_static=True,
                 use_tqdm=True):
     if tokenizer_path is None:
@@ -44,15 +45,18 @@ def train_model(X_train,
     # print(X_tokens.shape)
     # print(X_pos.shape)
 
-    if model_path is None:
+    if model_path is None or load_weights_only:
         model = build_model(tokenizer, num_classes=num_classes, non_static=non_static)
     else:
-        model = load_model(model_path)
+        model = load_model(model_path, compile=False)
 
     model.compile(optimizer='adam', 
         loss='categorical_crossentropy',
         metrics=['accuracy'])
     
+    if not model_path is None and load_weights_only and path.isfile(model_path):
+        model.load_weights(model_path, by_name=True)
+
     batch_size = min(BATCH_SIZE, len(X_train))
 
     # Workaround for a tqdm issue

@@ -45,7 +45,9 @@ brew install hdf5
 
 Note: if the progress bars doesn't show up properly during training, run `conda install -c conda-forge ipywidgets`
 
-4. Using GPU
+## Extras
+
+6. Using GPU
 
 Using GPU will massively speed up training and inference time (brings training from hours of CPU time to about an hour or a few minutes depending on GPU spec)
 
@@ -57,7 +59,7 @@ Training on GPU: same machine, NVIDIA GeForce GTX 850M: ~4m/epoch
 - Run `source activate botbot-nlp`
 - Run `pip uninstall tensorflow` then `pip install --upgrade tensorflow-gpu`
 
-5. Using Tensorboard
+7. Using Tensorboard
 - Navigate to the respective models' folders (`convnet` and `bilstm`)
 - Run `tensorboard --logdir=./logs`
 - Navigate to [localhost:6006](localhost:6006) to see training graphs
