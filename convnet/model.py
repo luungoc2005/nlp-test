@@ -31,7 +31,7 @@ def IntentConvNet(tokens_input=None,
     time_steps = int(static_embedding_layer.shape[1])
     input_dim = int(static_embedding_layer.shape[2])
 
-    pos_attn = GRU(64)(pos_input)
+    pos_attn = GRU(64, activation='relu')(pos_input)
     pos_attn = Dropout(0.5)(pos_attn)
     pos_attn = Dense(time_steps,
                      activation='softmax',
