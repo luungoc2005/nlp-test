@@ -1,5 +1,7 @@
-from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate
+from keras.layers import GRU, Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
+from keras.layers.core import RepeatVector, Permute
 from keras.models import Model
+from keras import backend as K
 
 from config import FILTER_SIZES, MAX_SEQUENCE_LENGTH, SENTENCE_DIM
 from net_utils import apply_attention
@@ -25,15 +27,20 @@ def IntentConvNet(tokens_input=None,
     # Allocate space for the 3 channels
     static_channels = FILTER_SIZES[:]
     non_static_channels = FILTER_SIZES[:]
-    pos_channels = FILTER_SIZES[:]
 
-    static_attn_input = apply_attention(static_embedding_layer, 
-                                        name='static_attention_vec')
-    if non_static_embedding_layer is not None:
-        non_static_attn_input = apply_attention(non_static_embedding_layer, 
-                                                name='non_static_attention_vec')
-    pos_attn_input = apply_attention(pos_input, 
-                                     name='pos_attention_vec')
+    time_steps = int(static_embedding_layer.shape[1])
+    input_dim = int(static_embedding_layer.shape[2])
+
+    pos_attn = GRU(64)(pos_input)
+    pos_attn = Dropout(0.5)(pos_attn)
+    pos_attn = Dense(time_steps,
+                     activation='softmax',
+                     name='pos_attention_vec')(pos_attn)
+    pos_attn = RepeatVector(input_dim)(pos_attn)
+    pos_attn = Permute((2, 1))(pos_attn)
+
+    static_attn_input = multiply([static_embedding_layer, pos_attn])
+    non_static_attn_input = multiply([static_embedding_layer, pos_attn])
 
     for i, filter_size in enumerate(FILTER_SIZES):
         static_channels[i] = \
@@ -55,15 +62,6 @@ def IntentConvNet(tokens_input=None,
                 MaxPooling1D(MAX_SEQUENCE_LENGTH - filter_size + 1) \
                 (non_static_channels[i])
 
-        pos_channels[i] = \
-            Conv1D(MAX_SEQUENCE_LENGTH,
-                   filter_size,
-                   activation='relu',
-                   padding='valid')(pos_attn_input)
-        pos_channels[i] = \
-            MaxPooling1D(MAX_SEQUENCE_LENGTH - filter_size + 1) \
-            (pos_channels[i])
-
     static_conv = concatenate(static_channels)
     static_conv = Flatten()(static_conv)
     static_conv = Dropout(0.3)(static_conv)
@@ -77,16 +75,10 @@ def IntentConvNet(tokens_input=None,
         output_non_static = Dense(SENTENCE_DIM, activation='relu', name='non_static_output') \
                             (non_static_conv)
 
-    pos_conv = concatenate(pos_channels)
-    pos_conv = Flatten()(pos_conv)
-    pos_conv = Dropout(0.3)(pos_conv)
-    output_pos = Dense(SENTENCE_DIM, activation='relu', name='pos_output') \
-                 (pos_conv)
-
     if non_static_embedding_layer is not None:
-        x = concatenate([output_static, output_non_static, output_pos])
+        x = concatenate([output_static, output_non_static])
     else:
-        x = concatenate([output_static, output_pos])
+        x = output_static
     
     main_output = Dense(num_classes, activation='softmax', name='main_output')(x)
 

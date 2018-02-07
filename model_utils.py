@@ -8,6 +8,7 @@ from nltk import pos_tag
 from glove_utils import init_glove
 from config import WORDS_PATH
 from config import MAX_NUM_WORDS, MAX_SEQUENCE_LENGTH, EMBEDDING_DIM
+from types import MethodType
 
 # Get NLTK POS tags. Then append '#' (empty value) to the list
 POS_TAGS = ['#'] + list(load('help/tagsets/upenn_tagset.pickle').keys())
@@ -16,7 +17,13 @@ POS_TAGS_COUNT = len(POS_TAGS)
 def get_tokenizer(input_sequences, tokenizer_class=Tokenizer):
     tokenizer = tokenizer_class(num_words=MAX_NUM_WORDS)
     tokenizer.fit_on_texts(input_sequences)
+    tokenizer = add_word_map(tokenizer, force=True)
 
+    return tokenizer
+
+def add_word_map(tokenizer, force=False):
+    if force or not hasattr(tokenizer, 'word_map'):
+        tokenizer.word_map = dict(map(reversed, tokenizer.word_index.items()))
     return tokenizer
 
 def get_tokenizer_from_file(input_file, tokenizer_class=Tokenizer):
@@ -29,6 +36,14 @@ def get_tokenizer_from_file(input_file, tokenizer_class=Tokenizer):
 
 def get_inputs(input_sequences, tokenizer):
     token_sequences = tokenizer.texts_to_sequences(input_sequences)
+
+    tokenizer = add_word_map(tokenizer)
+
+    transformed_sequences = [
+        ' '.join([tokenizer.word_map.get(word, '') for word in sequence])
+        for sequence in token_sequences
+    ]
+
     token_sequences = pad_sequences(token_sequences, maxlen=MAX_SEQUENCE_LENGTH)
 
     pos_sequences = [
@@ -36,7 +51,7 @@ def get_inputs(input_sequences, tokenizer):
             POS_TAGS.index(tag)
             for token, tag in list(pos_tag(item))
         ], dtype='int32')
-        for item in input_sequences
+        for item in transformed_sequences
     ]
     pos_sequences = pad_sequences(pos_sequences,
                                   maxlen=MAX_SEQUENCE_LENGTH,
