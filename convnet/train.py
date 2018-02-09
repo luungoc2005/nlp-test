@@ -9,6 +9,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 
 from convnet.model import build_model
 from model_utils import get_tokenizer_from_file, get_inputs, fit_embedding_layers
+from net_utils import CyclicLR
 from config import WORDS_PATH, BATCH_SIZE
 
 BASE_PATH = path.join(getcwd(), 'convnet/')
@@ -63,6 +64,7 @@ def train_model(X_train,
     # https://github.com/tqdm/tqdm/issues/481
     tqdm.monitor_interval = 0
     callbacks = [
+        CyclicLR(mode='triangular2'),
         TensorBoard(log_dir=LOG_DIR,
             write_graph=True,
             write_images=True, 

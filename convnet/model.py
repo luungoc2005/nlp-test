@@ -1,4 +1,4 @@
-from keras.layers import Bidirectional, CuDNNLSTM, Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
+from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
 from keras.layers.core import RepeatVector, Permute
 from keras.models import Model
 from keras import backend as K
@@ -31,13 +31,12 @@ def IntentConvNet(tokens_input=None,
     time_steps = int(static_embedding_layer.shape[1])
     input_dim = int(static_embedding_layer.shape[2])
 
-    pos_attn = Bidirectional(CuDNNLSTM(32))(pos_input)
+    pos_attn = Dense(64)(pos_input) # single layer perceptron
+    # pos_attn = Bidirectional(CuDNNLSTM(32))(pos_input)
     pos_attn = Dropout(0.5)(pos_attn)
-    pos_attn = Dense(time_steps,
-                     activation='softmax',
-                     name='pos_attention_vec')(pos_attn)
+    pos_attn = Dense(time_steps, activation='softmax')(pos_attn)
     pos_attn = RepeatVector(input_dim)(pos_attn)
-    pos_attn = Permute((2, 1))(pos_attn)
+    pos_attn = Permute((2, 1), name='pos_attention_vec')(pos_attn)
 
     static_attn_input = multiply([static_embedding_layer, pos_attn])
     non_static_attn_input = multiply([static_embedding_layer, pos_attn])
