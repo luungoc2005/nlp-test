@@ -1,5 +1,5 @@
 from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
-from keras.layers.core import RepeatVector, Permute
+from keras.layers.core import Lambda, RepeatVector, Permute, Reshape
 from keras.models import Model
 from keras import backend as K
 
@@ -28,14 +28,17 @@ def IntentConvNet(tokens_input=None,
     static_channels = FILTER_SIZES[:]
     non_static_channels = FILTER_SIZES[:]
 
-    time_steps = int(static_embedding_layer.shape[1])
-    input_dim = int(static_embedding_layer.shape[2])
-
-    pos_attn = Dense(64)(pos_input) # single layer perceptron
+    time_steps = int(pos_input.shape[1])
+    input_dim = int(pos_input.shape[2])
+    embedding_input_dim = int(static_embedding_layer.shape[2])
+    
+    pos_attn = Permute((2, 1))(pos_input)
+    pos_attn = Reshape((input_dim, time_steps))(pos_attn)
     # pos_attn = Bidirectional(CuDNNLSTM(32))(pos_input)
+    pos_attn = Dense(time_steps, activation='softmax')(pos_attn) # single layer perceptron
     pos_attn = Dropout(0.5)(pos_attn)
-    pos_attn = Dense(time_steps, activation='softmax')(pos_attn)
-    pos_attn = RepeatVector(input_dim)(pos_attn)
+    pos_attn = Lambda(lambda x: K.mean(x, axis=1), name = 'dim_reduction')(pos_attn)
+    pos_attn = RepeatVector(embedding_input_dim)(pos_attn)
     pos_attn = Permute((2, 1), name='pos_attention_vec')(pos_attn)
 
     static_attn_input = multiply([static_embedding_layer, pos_attn])
