@@ -1,4 +1,4 @@
-from keras.layers import LSTM, Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
+from keras.layers import Bidirectional, CuDNNLSTM, Conv1D, MaxPooling1D, Flatten, Dense, Dropout, concatenate, multiply
 from keras.layers.core import RepeatVector, Permute
 from keras.models import Model
 from keras import backend as K
@@ -31,7 +31,7 @@ def IntentConvNet(tokens_input=None,
     time_steps = int(static_embedding_layer.shape[1])
     input_dim = int(static_embedding_layer.shape[2])
 
-    pos_attn = LSTM(64)(pos_input)
+    pos_attn = Bidirectional(CuDNNLSTM(32))(pos_input)
     pos_attn = Dropout(0.5)(pos_attn)
     pos_attn = Dense(time_steps,
                      activation='softmax',
