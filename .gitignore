@@ -63,3 +63,9 @@ data/glove/
 convnet/logs/
 
 convnet/model/
+
+fastText/
+*.json
+*.bin
+
+\.DS_Store
