@@ -4,8 +4,8 @@ import torch.optim as optim
 from tqdm import tqdm, trange
 from fastText import FastText
 from nltk import wordpunct_tokenize
-from config import FASTTEXT_PATH
-from .constants import START_TAG, STOP_TAG
+from config import FASTTEXT_PATH, START_TAG, STOP_TAG
+
 from .model import BiLSTM_CRF
 from .utils import prepare_vec_sequence
 

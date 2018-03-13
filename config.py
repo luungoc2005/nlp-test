@@ -12,5 +12,11 @@ SENTENCE_DIM = 256
 
 BATCH_SIZE = 32
 
-# ConvNet configs
+# ConvNet configs (deprecated)
 FILTER_SIZES = [3, 4, 5]
+
+# BiLSTM-CRF configs
+START_TAG = "<START>"
+STOP_TAG = "<STOP>"
+EMBEDDING_DIM = 300
+HIDDEN_DIM = 128
