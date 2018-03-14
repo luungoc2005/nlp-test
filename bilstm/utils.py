@@ -67,8 +67,14 @@ def get_datetime_hostname():
 """
 Small modification to NLTK wordpunct_tokenize
 Because NLTK's won't split on '_' or numbers
+
 Reference: https://github.com/nltk/nltk/issues/1900
+
+This function will treat spaces as separate tokens as well
+Which helps with reconstruction.
+
+Use nltk function instead for testing with tagging datasets
 """
-_rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
+_rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|\s+|[^a-zA-Z\d\s]+')
 def wordpunct_tokenize(sent):
     return _rt.tokenize(sent)

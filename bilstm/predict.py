@@ -27,7 +27,7 @@ def predict(model, input_data, tag_to_ix):
 
         entities = {}
         entity_name = ''
-        buffer = ''
+        buffer = []
         print(tag_seq)
 
         for idx, tag in enumerate(tag_seq):
@@ -41,25 +41,14 @@ def predict(model, input_data, tag_to_ix):
                     # Flush the previous entity
                     if not entity_name in entities:
                         entities[entity_name] = []
-                        entities[entity_name].append(buffer)
-                        buffer = ''
+                        entities[entity_name].append(''.join(buffer))
+                        buffer = []
 
                 entity_name = new_entity_name
             
             # If idx is currently inside a tag
             if entity_name != '':
-                # Attempt to join the string splitted by wordpunct_tokenize
-                if buffer == '':
-                    buffer = tokens_in[idx]
-                else:
-                    # If either the current token is a punctuation or digit
-                    if tokens_in[idx] in punctuations or \
-                        tokens_in[idx].isdigit() or \
-                        (idx > 0 and (tokens_in[idx-1] in punctuations or \
-                            tokens_in[idx-1].isdigit())):
-                        buffer += tokens_in[idx]
-                    else:
-                        buffer += ' ' + tokens_in[idx]
+                buffer.append(tokens_in[idx])
 
                 # Going outside the tag
                 if idx == len(tag_seq) or \
@@ -68,8 +57,8 @@ def predict(model, input_data, tag_to_ix):
 
                     if not entity_name in entities:
                         entities[entity_name] = []
-                    entities[entity_name].append(buffer)
-                    buffer = ''
+                    entities[entity_name].append(''.join(buffer))
+                    buffer = []
                     entity_name = ''
 
         result.append(entities)
