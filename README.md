@@ -3,7 +3,13 @@
 ## Quick start
 - See the .ipynb files (viewable on Github) for instructions and demo using the script
 
-[entities_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_train.ipynb) for the intent classification model results
+- Intent classification:
+[intents_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/intents_train.ipynb)
+[intents_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/intents_predict.ipynb)
+
+- Entities recognition:
+[entities_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_train.ipynb)
+[entities_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_predict.ipynb)
 
 - Complete the environmental setup to run the .ipynb files
 
