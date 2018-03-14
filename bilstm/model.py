@@ -51,22 +51,12 @@ class BiLSTM_CRF(nn.Module):
 
         # Iterate through the sentence
         for feat in feats:
-            alphas_t = []  # The forward variables at this timestep
-            for next_tag in range(self.tagset_size):
-                # broadcast the emission score: it is the same regardless of
-                # the previous tag
-                emit_score = feat[next_tag].view(
-                    1, -1).expand(1, self.tagset_size)
-                # the ith entry of trans_score is the score of transitioning to
-                # next_tag from i
-                trans_score = self.transitions[next_tag].view(1, -1)
-                # The ith entry of next_tag_var is the value for the
-                # edge (i -> next_tag) before we do log-sum-exp
-                next_tag_var = forward_var + trans_score + emit_score
-                # The forward variable for this tag is log-sum-exp of all the
-                # scores.
-                alphas_t.append(log_sum_exp(next_tag_var))
-            forward_var = torch.cat(alphas_t).view(1, -1)
+            emit_score = feat.view(-1, 1)
+            tag_var = forward_var + self.transitions + emit_score
+            max_tag_var, _ = torch.max(tag_var, dim=1)
+            tag_var = tag_var - max_tag_var.view(-1, 1)
+            forward_var = max_tag_var + torch.log(torch.sum(torch.exp(tag_var), dim=1)).view(1, -1)
+        
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         alpha = log_sum_exp(terminal_var)
         return alpha
