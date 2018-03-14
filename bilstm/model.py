@@ -8,7 +8,7 @@ from .utils import to_scalar, argmax, prepare_sequence, log_sum_exp
 class BiLSTM_CRF(nn.Module):
 
     def __init__(self, 
-                 tag_to_ix, 
+                 tag_to_ix,
                  embedding_dim = None, 
                  hidden_dim = None):
         super(BiLSTM_CRF, self).__init__()
@@ -17,7 +17,8 @@ class BiLSTM_CRF(nn.Module):
         self.tag_to_ix = tag_to_ix
         self.tagset_size = len(tag_to_ix)
 
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim  // 2,
+        self.lstm = nn.LSTM(self.embedding_dim, 
+                            self.hidden_dim // 2,
                             num_layers=1, bidirectional=True)
 
         # Maps the output of the LSTM into tag space.

@@ -2,118 +2,152 @@ import torch
 import torch.optim as optim
 
 from tqdm import tqdm, trange
-from fastText import FastText
-from nltk import wordpunct_tokenize
-from config import FASTTEXT_PATH, START_TAG, STOP_TAG
+from config import START_TAG, STOP_TAG
 
-from .model import BiLSTM_CRF
-from .utils import prepare_vec_sequence
+from tensorboardX import SummaryWriter
+from os import path, getcwd
 
-training_data = [(
-    'My email address is at luungoc2005@gmail.com',
-    '- - - - - EMAIL EMAIL EMAIL EMAIL EMAIL'
-), (
-    'Contact me at contact@2359media.net',
-    '- - - EMAIL EMAIL EMAIL EMAIL EMAIL'
-), (
-    'test.email@microsoft.com is a testing email address',
-    'EMAIL EMAIL EMAIL EMAIL EMAIL EMAIL EMAIL - - - - -'
-), (
-    'Any inquiries email thesloth_197@gmail.com for assistance',
-    '- - - EMAIL EMAIL EMAIL EMAIL EMAIL - -'
-)]
+from bilstm.model import BiLSTM_CRF
+from bilstm.utils import get_datetime_hostname, prepare_vec_sequence, process_input, word_to_vec
+import time
+import math
 
-test_data = [
-    'Contact us: hello_vietnam@yahoo.com',
-    'hello.sunbox@gmail.com - drop us an email here!~'
-]
+# Helper functions for time remaining
+def asMinutes(s):
+    m = math.floor(s / 60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
 
-tag_to_ix = {
-    '-': 0,
-    'EMAIL': 1,
-    START_TAG: 2,
-    STOP_TAG: 3
-}
 
-WORD_EMBEDDINGS = {}
-fastText_model = None
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    if percent != 0:
+        es = s / (percent)
+        rs = es - s
+    else:
+        rs = 0
+    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-def word_to_vec(word):
-    global fastText_model, WORD_EMBEDDINGS
-    if not fastText_model:
-        print('Loading fastText model...', end='', flush=True)
-        fastText_model = FastText.load_model(FASTTEXT_PATH)
-        print('Done.')
-    
-    if word not in WORD_EMBEDDINGS:
-        WORD_EMBEDDINGS[word] = fastText_model.get_word_vector(word)
-    return WORD_EMBEDDINGS[word]
+BASE_PATH = path.join(getcwd(), 'bilstm/')
+SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
+LOG_DIR = path.join(BASE_PATH, 'logs/')
 
-def process_input(data):
-    return [
-        (wordpunct_tokenize(sent), tags.split())
-        for (sent, tags) in data
-    ]
+torch.manual_seed(7)
 
-def train(data, tag_to_ix, test_data = None):
-    global fastText_model
+def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
+    model.zero_grad()
 
-    model = BiLSTM_CRF(tag_to_ix)
-    optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-4)
+    # Prepare training data
+    sentence_in = prepare_vec_sequence(input_variable, word_to_vec)
+    targets = torch.LongTensor([tag_to_ix[t] for t in target_variable])
+
+    # Run the forward pass.
+    neg_log_likelihood = model.neg_log_likelihood(sentence_in, targets)
+
+    # Compute the loss, gradients, and update the parameters by
+    # calling optimizer.step()
+    neg_log_likelihood.backward()
+    optimizer.step()
+
+    return neg_log_likelihood.data[0]
+
+def trainIters(data, 
+               tag_to_ix,
+               n_iters=50,
+               log_every=10,
+               learning_rate=0.01,
+               weight_decay=1e-4,
+               verbose=2):
+    # Invert the tag dictionary
+    ix_to_tag = {value: key for key, value in tag_to_ix.items()}
+
     input_data = process_input(data)
-
     # Check input lengths
     for idx, (sentence, tags) in enumerate(input_data):
         if len(sentence) != len(tags):
             print('Warning: Size of sentence and tags didn\'t match')
-            print('For sample: %s' % data[idx])
+            print('For sample: %s' % str(data[idx][0]))
+            print('Lengths: %s' % str((len(sentence), len(tags))))
             return
 
-    # Check pre-training predictions
-    print('Pre-training results')
-    precheck_sent = prepare_vec_sequence(input_data[0][0], word_to_vec)
-    precheck_tags = torch.LongTensor([tag_to_ix[t] for t in input_data[0][1]])
-    print(model(precheck_sent))
+    model = BiLSTM_CRF(tag_to_ix)
+    optimizer = optim.SGD(
+        model.parameters(), 
+        lr=learning_rate, 
+        weight_decay=weight_decay)
 
-    last_loss = 0
+    LOSS_LOG_FILE = path.join(LOG_DIR, 'neg_loss')
+    INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
+    writer = SummaryWriter(log_dir=INST_LOG_DIR)
 
-    for epoch in trange(25, desc='Epochs', leave=False):
-        for sentence, tags in tqdm(input_data, desc=last_loss):
-            model.zero_grad()
+    loss_total = 0
+    print_loss_total = 0
 
-            # Prepare training data
-            sentence_in = prepare_vec_sequence(sentence, word_to_vec)
-            targets = torch.LongTensor([tag_to_ix[t] for t in tags])
+    if verbose == 2:
+        iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
+        epoch_iterator = tqdm(input_data)
+    else:
+        iterator = range(1, n_iters + 1)
+        epoch_iterator = input_data
+    
+    # For timing with verbose=1
 
-            # Run the forward pass.
-            neg_log_likelihood = model.neg_log_likelihood(sentence_in, targets)
-            last_loss += neg_log_likelihood
+    start = time.time()
+    for epoch in iterator:
+        for sentence, tags in epoch_iterator:
+            loss = _train(sentence, tags, tag_to_ix, model, optimizer)
+            loss_total += loss
+            print_loss_total += loss
+        
+        writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+        loss_total = 0
 
-            # Compute the loss, gradients, and update the parameters by
-            # calling optimizer.step()
-            neg_log_likelihood.backward()
-            optimizer.step()
-        last_loss = 0
+        if epoch % log_every == 0:
+            accuracy = evaluate(model, data, tag_to_ix)
 
-    # Check post-training predictions:
-    print('')
-    print('Post-training results:')
-    precheck_sent = prepare_vec_sequence(input_data[0][0], word_to_vec)
-    precheck_tags = torch.LongTensor([tag_to_ix[t] for t in input_data[0][1]])
-    print(model(precheck_sent))
+            precheck_sent = prepare_vec_sequence(input_data[0][0], word_to_vec)
+            _, tag_seq = model(precheck_sent)
+            tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
+            writer.add_text(
+                'Training predictions',
+                (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' % \
+                    (str(input_data[0][0]), 
+                    str(input_data[0][1]), 
+                    str(tag_interpreted), 
+                    accuracy)),
+                epoch)
+            
+            if verbose == 1:
+                print_loss_avg = print_loss_total / log_every
+                progress = float(epoch) / float(n_iters)
+                print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
+                    epoch, 
+                    progress * 100, 
+                    print_loss_avg))
+            
+            print_loss_total = 0
 
-    # Test the model on test data:
-    if test_data:
-        for sentence in test_data:
-            sequence_in = wordpunct_tokenize(sentence)
-            sentence_in = prepare_vec_sequence(sequence_in, word_to_vec)
-            score, tag_seq = model(sentence_in)
-            email_out = ''
-            for idx, tag in enumerate(tag_seq):
-                if tag == tag_to_ix['EMAIL']:
-                    email_out += sequence_in[idx]
-            print('Test sample: %s' % sentence)
-            print('Result: %s (%s, %s)' % email_out)
+    torch.save(model.state_dict(), SAVE_PATH)
 
-    del fastText_model
+    LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
+    writer.export_scalars_to_json(LOG_JSON)
+    writer.close()
+
     return model
+
+def evaluate(model, data, tag_to_ix):
+    correct = 0
+    total = 0
+    input_data = process_input(data)
+    for idx, (sentence, tags) in enumerate(input_data):
+        precheck_sent = prepare_vec_sequence(sentence, word_to_vec)
+        precheck_tags = [tag_to_ix[t] for t in tags]
+        _, tag_seq = model(precheck_sent)
+
+        # Compare precheck_tags and tag_seq
+        total += len(tag_seq)
+        for idx, _ in enumerate(tag_seq):
+            if tag_seq[idx] == precheck_tags[idx]:
+                correct += 1
+    return float(correct) / float(total)
