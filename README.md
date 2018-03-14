@@ -51,18 +51,20 @@ Note: if the progress bars doesn't show up properly during training, run `conda 
 Using GPU will massively speed up training and inference time (brings training from hours of CPU time to about an hour or a few minutes depending on GPU spec)
 
 e.g:
-Training on CPU: Intel Core i7-4710HQ @2.7Ghz: ~45m/epoch - 12 epochs to reach 87% accuracy
-Training on GPU: same machine, NVIDIA GeForce GTX 850M: ~4m/epoch 
+- Training on CPU: Intel Core i7-4710HQ @2.7Ghz: ~45m/epoch - 12 epochs to reach 87% accuracy
+- Training on GPU: same machine, NVIDIA GeForce GTX 850M: ~4m/epoch 
 
 - Follow Tensorflow-GPU setup instructions at [https://www.tensorflow.org/install/install_linux](https://www.tensorflow.org/install/install_linux) (Including installing the exact CUDA & CuDNN versions - e.g if using Tensorflow 1.5.0 then CUDA 9.0 and CuDNN v7.0 is required even if newer versions exist)
 - Run `source activate botbot-nlp`
-- Run `pip uninstall tensorflow` then `pip install --upgrade tensorflow-gpu`
+- Use the commands for specific platforms on [http://pytorch.org/](http://pytorch.org/) to install PyTorch
+- (Run `pip uninstall tensorflow` then `pip install --upgrade tensorflow-gpu`)
 
 2. Using Tensorboard
 - Run `tensorboard --logdir=bilstm/logs/`
 - Navigate to [localhost:6006](localhost:6006) to see training graphs
 
 (These steps are completely optional but are used for deprecated code paths / might help with experimenting)
+
 3. Install HDF5 for Keras model saving/loading
 - Install HDF5 from [https://support.hdfgroup.org/HDF5/](https://support.hdfgroup.org/HDF5/) or by using `homebrew`:
 - Instructions using `homebrew` (on UNIX):
