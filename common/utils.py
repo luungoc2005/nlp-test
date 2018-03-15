@@ -18,12 +18,6 @@ def argmax(vec):
     _, idx = torch.max(vec, 1)
     return to_scalar(idx)
 
-def process_input(data):
-    return [
-        (wordpunct_space_tokenize(sent), tags.split())
-        for (sent, tags) in data
-    ]
-
 def prepare_sequence(seq, to_ix):
     idxs = [to_ix[w] for w in seq]
     tensor = torch.LongTensor(idxs)
@@ -75,8 +69,12 @@ Which helps with reconstruction.
 
 Use nltk function instead for testing with tagging datasets
 """
-_rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|\s+|[^a-zA-Z\d\s]+')
+_rts = RegexpTokenizer(r'[a-zA-Z]+|\d+|\s+|[^a-zA-Z\d\s]+')
 def wordpunct_space_tokenize(sent):
+    return _rts.tokenize(sent)
+
+_rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
+def wordpunct_tokenize(sent):
     return _rt.tokenize(sent)
 
 import time
