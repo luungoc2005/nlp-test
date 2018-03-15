@@ -94,28 +94,22 @@ class BiLSTM_CRF(nn.Module):
         # forward_var at step i holds the viterbi variables for step i-1
         forward_var = autograd.Variable(init_vvars)
         for feat in feats:
-            bptrs_t = []  # holds the backpointers for this step
-            viterbivars_t = []  # holds the viterbi variables for this step
-
-            for next_tag in range(self.tagset_size):
-                # next_tag_var[i] holds the viterbi variable for tag i at the
-                # previous step, plus the score of transitioning
-                # from tag i to next_tag.
-                # We don't include the emission scores here because the max
-                # does not depend on them (we add them in below)
-                next_tag_var = forward_var + self.transitions[next_tag]
-                best_tag_id = argmax(next_tag_var)
-                bptrs_t.append(best_tag_id)
-                viterbivars_t.append(next_tag_var[0][best_tag_id])
-            # Now add in the emission scores, and assign forward_var to the set
-            # of viterbi variables we just computed
-            forward_var = (torch.cat(viterbivars_t) + feat).view(1, -1)
+            next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
+            _, bptrs_t = torch.max(next_tag_var, dim=1)
+            bptrs_t = bptrs_t.squeeze().data.cpu().numpy()
+            next_tag_var = next_tag_var.data.cpu().numpy()
+            viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
+            viterbivars_t = autograd.Variable(torch.FloatTensor(viterbivars_t))
+            forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
 
         # Transition to STOP_TAG
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
-        best_tag_id = argmax(terminal_var)
-        path_score = terminal_var[0][best_tag_id]
+        terminal_var.data[self.tag_to_ix[STOP_TAG]] = -10000.
+        terminal_var.data[self.tag_to_ix[START_TAG]] = -10000.
+        
+        best_tag_id = argmax(terminal_var.unsqueeze(0))
+        path_score = terminal_var[best_tag_id]
 
         # Follow the back pointers to decode the best path.
         best_path = [best_tag_id]

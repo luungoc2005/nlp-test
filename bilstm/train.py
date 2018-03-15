@@ -56,8 +56,9 @@ def trainIters(data,
                tag_to_ix,
                n_iters=50,
                log_every=10,
+               optimizer='adam',
                learning_rate=0.01,
-               weight_decay=0,
+               weight_decay=None,
                verbose=2):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
@@ -74,10 +75,18 @@ def trainIters(data,
     model = BiLSTM_CRF(tag_to_ix)
 
     # weight_decay = 1e-4 by default for SGD
-    optimizer = optim.Adam(
-        model.parameters(), 
-        lr=learning_rate,
-        weight_decay=weight_decay)
+    if optimizer == 'adam':
+        weight_decay = weight_decay or 0
+        model_optimizer = optim.Adam(
+            model.parameters(), 
+            lr=learning_rate,
+            weight_decay=weight_decay)
+    else:
+        weight_decay = weight_decay or 1e-4
+        model_optimizer = optim.SGD(
+            model.parameters(), 
+            lr=learning_rate,
+            weight_decay=weight_decay)
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'neg_loss')
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
@@ -98,7 +107,7 @@ def trainIters(data,
     start = time.time()
     for epoch in iterator:
         for sentence, tags in epoch_iterator:
-            loss = _train(sentence, tags, tag_to_ix, model, optimizer)
+            loss = _train(sentence, tags, tag_to_ix, model, model_optimizer)
             loss_total += loss
             print_loss_total += loss
         
