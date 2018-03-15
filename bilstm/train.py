@@ -57,7 +57,7 @@ def trainIters(data,
                n_iters=50,
                log_every=10,
                learning_rate=0.01,
-               weight_decay=1e-4,
+               weight_decay=0,
                verbose=2):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
@@ -72,9 +72,11 @@ def trainIters(data,
             return
 
     model = BiLSTM_CRF(tag_to_ix)
-    optimizer = optim.SGD(
+
+    # weight_decay = 1e-4 by default for SGD
+    optimizer = optim.Adam(
         model.parameters(), 
-        lr=learning_rate, 
+        lr=learning_rate,
         weight_decay=weight_decay)
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'neg_loss')

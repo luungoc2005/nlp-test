@@ -10,16 +10,19 @@ class BiLSTM_CRF(nn.Module):
     def __init__(self, 
                  tag_to_ix,
                  embedding_dim = None, 
-                 hidden_dim = None):
+                 hidden_dim = None,
+                 dropout_keep_prob = 0.5):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.hidden_dim = hidden_dim or HIDDEN_DIM
         self.tag_to_ix = tag_to_ix
+        self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
 
         self.lstm = nn.LSTM(self.embedding_dim, 
                             self.hidden_dim // 2,
                             num_layers=1, bidirectional=True)
+        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
 
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(self.hidden_dim, self.tagset_size)
@@ -66,6 +69,7 @@ class BiLSTM_CRF(nn.Module):
         embeds = sentence.view(len(sentence), 1, -1)
         lstm_out, self.hidden = self.lstm(embeds, self.hidden)
         lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
+        lstm_out = self.dropout(lstm_out)
         lstm_feats = self.hidden2tag(lstm_out)
         return lstm_feats
 
