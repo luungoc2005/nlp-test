@@ -75,3 +75,5 @@ data/SNLI/
 data/MultiNLI/
 
 *.vec
+
+convnet/_keras/model/
