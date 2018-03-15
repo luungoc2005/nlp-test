@@ -8,32 +8,21 @@ from tensorboardX import SummaryWriter
 from os import path, getcwd
 
 from bilstm.model import BiLSTM_CRF
-from bilstm.utils import get_datetime_hostname, prepare_vec_sequence, process_input, word_to_vec
+from common.utils import get_datetime_hostname, prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, timeSince
+
 import time
-import math
-
-# Helper functions for time remaining
-def asMinutes(s):
-    m = math.floor(s / 60)
-    s -= m * 60
-    return '%dm %ds' % (m, s)
-
-
-def timeSince(since, percent):
-    now = time.time()
-    s = now - since
-    if percent != 0:
-        es = s / (percent)
-        rs = es - s
-    else:
-        rs = 0
-    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
 BASE_PATH = path.join(getcwd(), 'bilstm/')
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
 torch.manual_seed(7)
+
+def process_input(data):
+    return [
+        (wordpunct_space_tokenize(sent), tags.split())
+        for (sent, tags) in data
+    ]
 
 def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
     model.zero_grad()

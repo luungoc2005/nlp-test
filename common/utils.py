@@ -20,7 +20,7 @@ def argmax(vec):
 
 def process_input(data):
     return [
-        (wordpunct_tokenize(sent), tags.split())
+        (wordpunct_space_tokenize(sent), tags.split())
         for (sent, tags) in data
     ]
 
@@ -76,5 +76,25 @@ Which helps with reconstruction.
 Use nltk function instead for testing with tagging datasets
 """
 _rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|\s+|[^a-zA-Z\d\s]+')
-def wordpunct_tokenize(sent):
+def wordpunct_space_tokenize(sent):
     return _rt.tokenize(sent)
+
+import time
+import math
+
+# Helper functions for time remaining
+def asMinutes(s):
+    m = math.floor(s / 60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
+
+
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    if percent != 0:
+        es = s / (percent)
+        rs = es - s
+    else:
+        rs = 0
+    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))

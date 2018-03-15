@@ -3,7 +3,7 @@ import torch.autograd as autograd
 import torch.nn as nn
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
 
-from .utils import to_scalar, argmax, prepare_sequence, log_sum_exp
+from common.utils import to_scalar, argmax, prepare_sequence, log_sum_exp
 
 class BiLSTM_CRF(nn.Module):
 

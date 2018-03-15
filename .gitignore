@@ -69,3 +69,9 @@ fastText/
 *.bin
 
 \.DS_Store
+
+data/SNLI/
+
+data/MultiNLI/
+
+*.vec
