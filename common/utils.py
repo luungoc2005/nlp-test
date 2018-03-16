@@ -50,8 +50,13 @@ def word_to_vec(word):
     # global fastText_model
     word_vector = get_word_vector(word)
     if word_vector is None:
-        # return np.zeros(EMBEDDING_DIM) # return <UNK> as zeros
-        return np.random.randn(EMBEDDING_DIM) # return <UNK> as standard normal
+        # return np.zeros(EMBEDDING_DIM) # return all <UNK> as zeros
+
+        # return <UNK> as standard normal
+        if word.strip() == '': # if word is all spaces then return as zeros
+            return np.zeros(EMBEDDING_DIM)
+        else:
+            return np.random.randn(EMBEDDING_DIM)
 
         # if not fastText_model:
         #     print('Loading fastText model for out-of-vocabulary word %s...' % word, end='', flush=True)
