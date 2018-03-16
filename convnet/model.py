@@ -23,6 +23,7 @@ class TextCNN(nn.Module):
         ])
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.fc1 = nn.Linear(len(self.filter_sizes) * self.kernel_num, classes)
+        self.log_softmax = nn.LogSoftmax()
 
     def forward(self, sentence):
         embed = sentence.unsqueeze(1)
@@ -39,6 +40,6 @@ class TextCNN(nn.Module):
 
         # Fully connected layer & softmax
         output = self.fc1(output)
-        output = F.log_softmax(output)
+        output = self.log_softmax(output)
 
         return output
