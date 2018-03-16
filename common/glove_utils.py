@@ -19,25 +19,31 @@ def init_glove():
             print('Importing %s...' % file_path)
             with open(file_path, 'r') as lines:
                 GLOVE_DATA = {
-                    line.split()[0]: np.array(list(map(float, line.split()[1:])), dtype='float32')
+                    line.split()[0]: np.array(list(map(float, line.split()[1:])))
                     for line in lines
                 }
             with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
                 joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
 
-def measure_dist(word1, word2):
+def get_word_vector(word):
     global GLOVE_DATA
     if not GLOVE_DATA:
         init_glove()
-    return np.linalg.norm(GLOVE_DATA[word1] - GLOVE_DATA[word2])
+    # because GLoVe vectors are uncased
+    return GLOVE_DATA.get(word.lower(), None)
+
+def measure_dist(word1, word2):
+    vec1 = get_word_vector(word1) if type(word1) is str else word1
+    vec2 = get_word_vector(word2) if type(word2) is str else word2
+    return np.linalg.norm(vec1 - vec2)
 
 def print_top_similar(word, count=15):
     global GLOVE_DATA
     if not GLOVE_DATA:
         init_glove()
     all_words = list([
-        [test_word, np.linalg.norm(GLOVE_DATA[test_word] - GLOVE_DATA[word])]
+        [test_word, measure_dist(word, test_word)]
         for test_word in GLOVE_DATA.keys()
     ])
     all_words = sorted(all_words, key=lambda item: item[1])

@@ -1,9 +1,9 @@
 import torch
 import torch.autograd as autograd
 import numpy as np
-from config import FASTTEXT_PATH
+from config import EMBEDDING_DIM # FASTTEXT_BIN
 from nltk.tokenize import RegexpTokenizer
-from fastText import FastText
+# from fastText import FastText
 
 """
 returns a python float
@@ -18,6 +18,12 @@ def argmax(vec):
     _, idx = torch.max(vec, 1)
     return to_scalar(idx)
 
+""" 1-hot encodes a tensor """
+def to_categorical(y, num_classes):
+    arr = np.eye(num_classes)[y]
+    tensor = torch.LongTensor(arr)
+    return autograd.Variable(tensor)
+
 def prepare_sequence(seq, to_ix):
     idxs = [to_ix[w] for w in seq]
     tensor = torch.LongTensor(idxs)
@@ -25,7 +31,7 @@ def prepare_sequence(seq, to_ix):
 
 def prepare_vec_sequence(seq, to_vec):
     idxs = np.array([to_vec(w) for w in seq])
-    tensor = torch.from_numpy(idxs)
+    tensor = torch.from_numpy(idxs).type(torch.FloatTensor) # Forcefully convert to Float tensor
     return autograd.Variable(tensor)
 
 """
@@ -37,20 +43,23 @@ def log_sum_exp(vec):
     return max_score + \
         torch.log(torch.sum(torch.exp(vec - max_score_broadcast)))
 
-
-WORD_EMBEDDINGS = {}
-fastText_model = None
+from common.glove_utils import get_word_vector
+# fastText_model = None
 
 def word_to_vec(word):
-    global fastText_model, WORD_EMBEDDINGS
-    if not fastText_model:
-        print('Loading fastText model...', end='', flush=True)
-        fastText_model = FastText.load_model(FASTTEXT_PATH)
-        print('Done.')
+    # global fastText_model
+    word_vector = get_word_vector(word)
+    if word_vector is None:
+        # return np.zeros(EMBEDDING_DIM) # return <UNK> as zeros
+        return np.random.randn(EMBEDDING_DIM) # return <UNK> as standard normal
+
+        # if not fastText_model:
+        #     print('Loading fastText model for out-of-vocabulary word %s...' % word, end='', flush=True)
+        #     fastText_model = FastText.load_model(FASTTEXT_BIN)
+        #     print('Done.')
+        # word_vector = fastText_model.get_word_vector(word)
     
-    if word not in WORD_EMBEDDINGS:
-        WORD_EMBEDDINGS[word] = fastText_model.get_word_vector(word)
-    return WORD_EMBEDDINGS[word]
+    return word_vector
 
 def get_datetime_hostname():
     import socket
