@@ -16,7 +16,6 @@ def load_model(tag_to_ix):
 def predict(model, input_data, tag_to_ix):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
-    punctuations = set(string.punctuation)
 
     result = []
     print ('Raw predicted tags:')

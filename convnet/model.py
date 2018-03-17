@@ -16,20 +16,21 @@ class TextCNN(nn.Module):
         self.filter_sizes = filter_sizes or FILTER_SIZES
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.kernel_num = kernel_num or KERNEL_NUM
+        self.dropout_keep_prob = dropout_keep_prob
 
         self.convolutions = nn.ModuleList([
-            nn.Conv2d(1, self.kernel_num, (k_size, self.embedding_dim))
+            nn.Conv2d(1, self.kernel_num, (k_size, self.embedding_dim), padding=(k_size - 1, 0))
             for k_size in self.filter_sizes
         ])
-        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
+        self.dropout = nn.AlphaDropout(1 - self.dropout_keep_prob)
         self.fc1 = nn.Linear(len(self.filter_sizes) * self.kernel_num, classes)
-        self.log_softmax = nn.LogSoftmax()
 
     def forward(self, sentence):
+        # Add a channel dimension
         embed = sentence.unsqueeze(1)
 
-        # Convolution & ReLU
-        output = [F.relu(conv(embed)).squeeze(3) for conv in self.convolutions]
+        # Convolution & ReLU (or SeLU/eLU)
+        output = [F.selu(conv(embed)).squeeze(3) for conv in self.convolutions]
 
         # Max pooling
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]
@@ -40,6 +41,5 @@ class TextCNN(nn.Module):
 
         # Fully connected layer & softmax
         output = self.fc1(output)
-        output = self.log_softmax(output)
 
         return output

@@ -46,7 +46,7 @@ def trainIters(data,
                n_iters=50,
                log_every=10,
                optimizer='adam',
-               learning_rate=0.01,
+               learning_rate=0.001,
                weight_decay=None,
                verbose=2):
     # Invert the tag dictionary

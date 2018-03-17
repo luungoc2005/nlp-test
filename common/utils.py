@@ -18,6 +18,13 @@ def argmax(vec):
     _, idx = torch.max(vec, 1)
     return to_scalar(idx)
 
+"""
+returns the topk as a python list
+"""
+def topk(vec, k):
+    vec = torch.topk(vec, k)
+    return vec.view(-1).data.tolist()
+
 """ 1-hot encodes a tensor """
 def to_categorical(y, num_classes):
     arr = np.eye(num_classes)[y]
@@ -29,10 +36,21 @@ def prepare_sequence(seq, to_ix):
     tensor = torch.LongTensor(idxs)
     return autograd.Variable(tensor)
 
-def prepare_vec_sequence(seq, to_vec):
+def prepare_vec_sequence(seq, to_vec, maxlen=None, to_variable=True):
     idxs = np.array([to_vec(w) for w in seq])
+    if maxlen:
+        seqs = np.zeros((maxlen, idxs.shape[-1]))
+        idxs = idxs[-maxlen:]
+        seqs[:len(idxs)] = idxs
+        idxs = seqs
     tensor = torch.from_numpy(idxs).type(torch.FloatTensor) # Forcefully convert to Float tensor
-    return autograd.Variable(tensor)
+    if to_variable:
+        return autograd.Variable(tensor)
+    else:
+        return tensor
+
+def to_variable(array, tensor_type=torch.LongTensor):
+    return autograd.Variable(tensor_type(array))
 
 """
 Compute log sum exp in a numerically stable way for the forward algorithm
