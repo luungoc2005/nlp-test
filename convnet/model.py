@@ -22,7 +22,7 @@ class TextCNN(nn.Module):
             nn.Conv2d(1, self.kernel_num, (k_size, self.embedding_dim), padding=(k_size - 1, 0))
             for k_size in self.filter_sizes
         ])
-        self.dropout = nn.AlphaDropout(1 - self.dropout_keep_prob)
+        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.fc1 = nn.Linear(len(self.filter_sizes) * self.kernel_num, classes)
 
     def forward(self, sentence):
@@ -30,7 +30,7 @@ class TextCNN(nn.Module):
         embed = sentence.unsqueeze(1)
 
         # Convolution & ReLU (or SeLU/eLU)
-        output = [F.selu(conv(embed)).squeeze(3) for conv in self.convolutions]
+        output = [F.relu(conv(embed)).squeeze(3) for conv in self.convolutions]
 
         # Max pooling
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]

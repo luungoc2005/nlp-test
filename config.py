@@ -15,7 +15,7 @@ BATCH_SIZE = 32
 
 # ConvNet configs (deprecated)
 KERNEL_NUM = 100
-FILTER_SIZES = [3, 4, 5]
+FILTER_SIZES = [7, 8, 9]
 
 # BiLSTM-CRF configs
 START_TAG = "<START>"
