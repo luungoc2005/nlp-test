@@ -58,22 +58,19 @@ docs/_build/
 target/
 
 data/glove/
-\.ipynb_checkpoints/
-
-convnet/logs/
-
-convnet/model/
-
-fastText/
-*.json
-*.bin
-
-\.DS_Store
-
 data/SNLI/
-
 data/MultiNLI/
 
+logs/
+\.ipynb_checkpoints/
+convnet/_keras/model/
+convnet/logs/
+convnet/model/
+crnn/logs/
+fastText/
+
+*.json
+*.bin
 *.vec
 
-convnet/_keras/model/
+\.DS_Store
