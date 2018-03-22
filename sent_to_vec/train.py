@@ -85,9 +85,9 @@ def trainIters(n_iters = 20, batch_size=64):
 
     if is_cuda:
         print('Training with GPU mode')
-        encoder.cuda()
-        nli_net.cuda()
-        criterion.cuda()
+        encoder = encoder.cuda()
+        nli_net = nli_net.cuda()
+        criterion = criterion.cuda()
     else:
         print('Training with CPU mode')
 
@@ -111,9 +111,9 @@ def trainIters(n_iters = 20, batch_size=64):
             k = s1_batch.size(1) # Actual batch size
 
             if is_cuda:
-                s1_batch.cuda()
-                s2_batch.cuda()
-                target_batch.cuda()
+                s1_batch = s1_batch.cuda()
+                s2_batch = s2_batch.cuda()
+                target_batch = target_batch.cuda()
 
             loss, output = _train((s1_batch, s1_len), (s2_batch, s2_len), target_batch, nli_net, criterion, optimizer)
 
