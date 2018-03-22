@@ -10,12 +10,12 @@ from config import SENTENCE_DIM
 from tensorboardX import SummaryWriter
 from os import path, getcwd
 
-from convnet.model import TextCNN
+from crnn.model import TextCRNN
 from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
 
 import time
 
-BASE_PATH = path.join(getcwd(), 'convnet/')
+BASE_PATH = path.join(getcwd(), 'crnn/')
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
@@ -44,7 +44,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
 
 def trainIters(data,
                classes,
-               batch_size=32,
+               batch_size=64,
                n_iters=50,
                log_every=10,
                optimizer='adam',
@@ -66,8 +66,11 @@ def trainIters(data,
     for label in class_weights:
         weights_tensor[label] = intents_count / class_weights[label]
 
-    model = TextCNN(classes=num_classes)
+    model = TextCRNN(classes=num_classes)
     criterion = nn.CrossEntropyLoss(weight=weights_tensor)
+
+    model = TextCRNN(classes=num_classes)
+    criterion = nn.CrossEntropyLoss()
 
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':

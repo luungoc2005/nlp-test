@@ -21,7 +21,7 @@ def predict(model, input_data, tag_to_ix):
     print ('Raw predicted tags:')
     for sentence in input_data:
         tokens_in = wordpunct_space_tokenize(sentence)
-        sentence_in = prepare_vec_sequence(tokens_in, word_to_vec)
+        sentence_in = prepare_vec_sequence(tokens_in, word_to_vec, output='variable')
         _, tag_seq = model(sentence_in)
 
         entities = {}

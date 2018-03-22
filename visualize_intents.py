@@ -52,7 +52,7 @@ if __name__ == '__main__':
     print("Converting data to vectors...")
     X_data = X_data[:args.cutoff]
     X = vectorizer.fit_transform(X_data)
-    X = -(X * X.T)
+    # X = -(X * X.T) # Calculate dot product
     X = X.todense()
 
     if args.output:
