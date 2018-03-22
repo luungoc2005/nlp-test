@@ -100,6 +100,8 @@ def trainIters(n_iters = 20, batch_size=64):
 
         correct = 0.
         losses = []
+        batch_idx = 0.
+        total_steps = len(s1) / batch_size
 
         for start_idx in range(0, len(s1), batch_size):
             s1_batch, s1_len = process_batch(s1[start_idx:start_idx + batch_size])
@@ -108,6 +110,7 @@ def trainIters(n_iters = 20, batch_size=64):
 
             s1_batch, s2_batch, target_batch = Variable(s1_batch), Variable(s2_batch), Variable(target_batch)
             
+            batch_idx += 1.
             k = s1_batch.size(1) # Actual batch size
 
             if is_cuda:
@@ -128,11 +131,12 @@ def trainIters(n_iters = 20, batch_size=64):
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
 
-                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s' % \
+                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of batch)' % \
                     (asMinutes(time.time() - start_time), \
                     epoch, loss_total, \
                     round(batch_size * 100 / (time.time() - last_time), 2),
-                    round(100. * correct / (start_idx + k))))
+                    round(100. * correct / (start_idx + k), 2),
+                    round(100. * batch_idx / total_steps, 2)))
                 last_time = time.time()
                 losses = []
 
