@@ -9,7 +9,7 @@ from os import path
 from config import NLI_PATH, EMBEDDING_DIM
 from sent_to_vec.model import NLINet, BiLSTMEncoder
 from common.glove_utils import get_word_vector
-from common.utils import get_datetime_hostname
+from common.utils import get_datetime_hostname, asMinutes
 
 np.random.seed(197)
 torch.manual_seed(197)
@@ -46,7 +46,7 @@ def process_batch(batch):
     for i in range(len(batch)):
         for j in range(len(batch[i])):
             vec = get_word_vector(batch[i][j])
-            if vec: embeds[j, i, :] = vec
+            if vec is None: embeds[j, i, :] = vec
 
     return torch.from_numpy(embeds).float(), lengths
 
@@ -72,10 +72,10 @@ def trainIters(n_iters = 20, batch_size=64):
     optimizer = optim.Adam(nli_net.parameters())
 
     s1, s2, target = get_nli(NLI_PATH)
-    permutation = np.random.permutation(len(s1))
-    s1 = s1[permutation]
-    s2 = s2[permutation]
-    target = target[permutation]
+    # permutation = np.random.permutation(len(s1))
+    # s1 = s1[permutation]
+    # s2 = s2[permutation]
+    # target = target[permutation]
 
     is_cuda = torch.cuda.is_available()
 
@@ -91,7 +91,8 @@ def trainIters(n_iters = 20, batch_size=64):
     else:
         print('Training with CPU mode')
 
-    last_time = time.time()
+    start_time = time.time()
+    last_time = start_time
     train_acc = 0.
     accuracies = []
 
@@ -127,8 +128,9 @@ def trainIters(n_iters = 20, batch_size=64):
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
 
-                print('Epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s' % \
-                    (epoch, loss_total, \
+                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s' % \
+                    (asMinutes(time.time() - start_time), \
+                    epoch, loss_total, \
                     round(batch_size * 100 / (time.time() - last_time), 2),
                     round(100. * correct / (start_idx + k))))
                 last_time = time.time()
