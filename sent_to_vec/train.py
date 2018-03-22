@@ -22,11 +22,11 @@ LOG_DIR = path.join(BASE_PATH, 'logs/')
 def get_nli(data_path):
     target_dict = {'entailment': 0,  'neutral': 1, 'contradiction': 2}
     s1 = [
-        line.rstrip() for line in
+        line.rstrip().lower() for line in
         open(path.join(data_path, 's1.train'), 'r')
     ]
     s2 = [
-        line.rstrip() for line in
+        line.rstrip().lower() for line in
         open(path.join(data_path, 's2.train'), 'r')
     ]
     target = np.array([
