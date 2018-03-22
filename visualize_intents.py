@@ -18,7 +18,7 @@ from common.data_utils import *
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'input', help='Input data in JSON format'
+        'input', help='Input data in JSON/TXT format'
     )
     parser.add_argument(
         'output', nargs='?', help='Path to output file in .PNG', default=''
@@ -35,6 +35,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dist', type=float, help='Min distance for annotations', default=0.02
     )
+    parser.add_argument(
+        '--width', type=int, help='Max text width', default=25
+    )
     args = parser.parse_args()
 
     if not args.input or (not args.output and not args.logdir):
@@ -44,7 +47,14 @@ if __name__ == '__main__':
     DATA_POINTS = 100
 
     print("Reading data...")
-    X_data, y_data = get_data_pairs(data_from_json(args.input))
+    if (len(args.input) > 3 and args.input[-3].lower() == 'json'):
+        X_data, y_data = get_data_pairs(data_from_json(args.input))
+    else:
+        X_data = [
+            line.rstrip() for line in
+            open(args.input, 'r')
+        ]
+    
     vectorizer = TfidfVectorizer(min_df=2,
         strip_accents = 'unicode', lowercase=True, ngram_range=(1,2),
         norm='l2', smooth_idf=True, sublinear_tf=False, use_idf=True)
@@ -72,7 +82,7 @@ if __name__ == '__main__':
         fig = plt.figure()
         ax = fig.add_subplot(111)
         for i in range(X_tsne.shape[0]):
-            X_txt = shorten(X_data[i], width=15, placeholder='...')
+            X_txt = shorten(X_data[i], width=args.width, placeholder='...')
             plt.text(X_tsne[i, 0], X_tsne[i, 1], X_txt,
                         color=plt.cm.Dark2(y_pred[i] / 9.),
                         fontdict={'weight': 'bold', 'size': 6})
@@ -86,7 +96,7 @@ if __name__ == '__main__':
                     # don't show points that are too close
                     continue
                 shown_images = np.r_[shown_images, [X_tsne[i]]]
-                X_txt = shorten(X_data[i], width=20, placeholder='...')
+                X_txt = shorten(X_data[i], width=args.width, placeholder='...')
                 imagebox = offsetbox.AnnotationBbox(
                     offsetbox.TextArea(X_txt, textprops={'size': 8}),
                     X_tsne[i])
