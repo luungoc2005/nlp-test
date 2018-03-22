@@ -62,8 +62,11 @@ class BiLSTMEncoder(nn.Module):
         sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
         idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = torch.from_numpy(idx_sort).cuda() if self.is_cuda \
-            else torch.from_numpy(idx_sort)
+        idx_sort = torch.from_numpy(idx_sort)
+
+        if self.is_cuda:
+            idx_sort = idx_sort.cuda()
+
         sent = sent.index_select(1, Variable(idx_sort))
 
         # Handling padding in Recurrent Networks
@@ -108,6 +111,8 @@ class NLINet(nn.Module):
         )
 
     def forward(self, sent1, sent2):
+        # sent1/sent2 are tuples of (sentences, lengths)
+
         u = self.encoder(sent1)
         v = self.encoder(sent2)
 
