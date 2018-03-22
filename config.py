@@ -23,3 +23,6 @@ START_TAG = "<START>"
 STOP_TAG = "<STOP>"
 EMBEDDING_DIM = 300
 HIDDEN_DIM = 512
+
+# InferSent configs
+NLI_PATH = path.join(BASE_PATH, 'data/SNLI')

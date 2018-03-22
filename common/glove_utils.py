@@ -51,3 +51,9 @@ def print_top_similar(word, count=15):
     ])
     all_words = sorted(all_words, key=lambda item: item[1])
     return all_words[0:count]
+
+def get_glove_data():
+    global GLOVE_DATA
+    if not GLOVE_DATA:
+        init_glove()
+    return GLOVE_DATA
