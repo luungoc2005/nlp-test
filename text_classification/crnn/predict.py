@@ -1,12 +1,12 @@
 import torch
 
 from config import SENTENCE_DIM
-from convnet.model import TextCNN
-from convnet.train import SAVE_PATH
+from text_classification.crnn.model import TextCRNN
+from text_classification.crnn.train import SAVE_PATH
 from common.utils import prepare_vec_sequence, word_to_vec, wordpunct_tokenize, topk
 
 def load_model(num_classes):
-    model = TextCNN(classes=num_classes)
+    model = TextCRNN(classes=num_classes)
     model.load_state_dict(torch.load(SAVE_PATH))
     return model
 

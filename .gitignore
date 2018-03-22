@@ -63,10 +63,13 @@ data/MultiNLI/
 
 logs/
 \.ipynb_checkpoints/
-convnet/_keras/model/
-convnet/logs/
-convnet/model/
-crnn/logs/
+text_classification/convnet/_keras/model/
+text_classification/convnet/logs/
+text_classification/convnet/model/
+text_classification/crnn/logs/
+text_classification/crnn/model/
+text_classification/fast_text/logs/
+text_classification/fast_text/model/
 fastText/
 
 *.json

@@ -8,14 +8,14 @@ from tqdm import tqdm, trange
 from config import SENTENCE_DIM
 
 from tensorboardX import SummaryWriter
-from os import path, getcwd
+from os import path
 
-from convnet.model import TextCNN
-from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
+from text_classification.convnet.model import TextCNN
+from text_classification.common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
 
 import time
 
-BASE_PATH = path.join(getcwd(), 'convnet/')
+BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 

@@ -1,6 +1,8 @@
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import torch.multiprocessing as mp
+import numpy as np
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
@@ -8,26 +10,16 @@ from tqdm import tqdm, trange
 from config import SENTENCE_DIM
 
 from tensorboardX import SummaryWriter
-from os import path, getcwd
+from os import path
 
-from crnn.model import TextCRNN
-from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
+from common.utils import argmax, to_variable, get_datetime_hostname, timeSince
+from text_classification.fast_text.model import FastText, sentence_vector
 
 import time
 
-BASE_PATH = path.join(getcwd(), 'crnn/')
+BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
-
-"""
-Input is in the form of tuples of (class:int, sent:string)
-"""
-def process_input(data):
-    return [
-        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'), 
-        label)
-        for sent, label in data
-    ]
 
 def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
@@ -44,7 +36,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
 
 def trainIters(data,
                classes,
-               batch_size=64,
+               batch_size=32,
                n_iters=50,
                log_every=10,
                optimizer='adam',
@@ -52,25 +44,12 @@ def trainIters(data,
                weight_decay=None,
                verbose=2):
     num_classes = len(classes)
-    input_data = process_input(data)
+    # input_data = process_input(data)
+    cpu_count = mp.cpu_count()
 
-    # get class weights
-    class_weights = {}
-    intents_count = float(len(data))
-    weights_tensor = torch.zeros(num_classes).float()
-    for _, label in data:
-        if not label in class_weights:
-            class_weights[label] = 1.
-        else:
-            class_weights[label] += 1.
-    for label in class_weights:
-        weights_tensor[label] = intents_count / class_weights[label]
-
-    model = TextCRNN(classes=num_classes)
-    criterion = nn.CrossEntropyLoss(weight=weights_tensor)
-
-    model = TextCRNN(classes=num_classes)
+    print('Training started')
     criterion = nn.CrossEntropyLoss()
+    model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
@@ -100,13 +79,17 @@ def trainIters(data,
     
     # For timing with verbose=1
     start = time.time()
-    data_loader = DataLoader(input_data, batch_size=batch_size)
+    data_loader = DataLoader(data, batch_size=batch_size, num_workers=cpu_count)
 
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch
+
             # Prepare training data
-            sentence_in, target_variable = Variable(sentences), Variable(labels.type(torch.LongTensor))
+            sentence_in, target_variable = \
+                Variable(torch.from_numpy(
+                    np.array([sentence_vector(sent) for sent in sentences])).float(), requires_grad=False), \
+                Variable(labels.long(), requires_grad=False)
 
             # Run the training epoch
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
@@ -142,10 +125,10 @@ def trainIters(data,
 def evaluate(model, data, classes):
     correct = 0
     total = len(data)
-    input_data = process_input(data)
-    for sentence, gt_class in input_data:
-        precheck_sent = Variable(sentence)
-        pred_class = argmax(model(precheck_sent.unsqueeze(0)))
+    for sentence, gt_class in data:
+        precheck_sent = np.array([sentence_vector(sentence)])
+        precheck_sent = Variable(torch.from_numpy(precheck_sent).float(), requires_grad=False)
+        pred_class = argmax(model(precheck_sent))
         if gt_class == pred_class:
             correct += 1
     return float(correct) / float(total)

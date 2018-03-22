@@ -1,8 +1,8 @@
 import torch
 
 from config import SENTENCE_DIM
-from convnet.model import TextCNN
-from convnet.train import SAVE_PATH
+from text_classification.convnet.model import TextCNN
+from text_classification.convnet.train import SAVE_PATH
 from common.utils import prepare_vec_sequence, word_to_vec, wordpunct_tokenize, topk
 
 def load_model(num_classes):

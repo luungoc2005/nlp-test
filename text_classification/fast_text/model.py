@@ -7,6 +7,7 @@ from hashlib import md5
 from common.utils import wordpunct_tokenize, prepare_vec_sequence, word_to_vec
 from config import NGRAM_BINS, EMBEDDING_DIM, SENTENCE_DIM
 
+# TODO: Rewrite this class to use nn.Embedding instead
 # Just in case
 def md5_hash_function(word, lower=True):
     hash_word = word.lower() if lower else word

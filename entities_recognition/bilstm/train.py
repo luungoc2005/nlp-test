@@ -7,7 +7,7 @@ from config import START_TAG, STOP_TAG
 from tensorboardX import SummaryWriter
 from os import path, getcwd
 
-from bilstm.model import BiLSTM_CRF
+from entities_recognition.bilstm.model import BiLSTM_CRF
 from common.utils import get_datetime_hostname, prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, timeSince
 
 import time
