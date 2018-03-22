@@ -60,7 +60,7 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
     optimizer.step()
 
-    return loss.data[0], output
+    return loss.cpu().data[0], output
 
 def trainIters(n_iters = 20, batch_size=64):
     encoder = BiLSTMEncoder()
