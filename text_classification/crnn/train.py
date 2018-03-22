@@ -8,14 +8,14 @@ from tqdm import tqdm, trange
 from config import SENTENCE_DIM
 
 from tensorboardX import SummaryWriter
-from os import path, getcwd
+from os import path
 
-from convnet.model import TextCNN
+from text_classification.crnn.model import TextCRNN
 from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
 
 import time
 
-BASE_PATH = path.join(getcwd(), 'convnet/')
+BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
@@ -24,7 +24,7 @@ Input is in the form of tuples of (class:int, sent:string)
 """
 def process_input(data):
     return [
-        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, to_variable=False), 
+        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'), 
         label)
         for sent, label in data
     ]
@@ -44,7 +44,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
 
 def trainIters(data,
                classes,
-               batch_size=32,
+               batch_size=64,
                n_iters=50,
                log_every=10,
                optimizer='adam',
@@ -54,7 +54,22 @@ def trainIters(data,
     num_classes = len(classes)
     input_data = process_input(data)
 
-    model = TextCNN(classes=num_classes)
+    # get class weights
+    class_weights = {}
+    intents_count = float(len(data))
+    weights_tensor = torch.zeros(num_classes).float()
+    for _, label in data:
+        if not label in class_weights:
+            class_weights[label] = 1.
+        else:
+            class_weights[label] += 1.
+    for label in class_weights:
+        weights_tensor[label] = intents_count / class_weights[label]
+
+    model = TextCRNN(classes=num_classes)
+    criterion = nn.CrossEntropyLoss(weight=weights_tensor)
+
+    model = TextCRNN(classes=num_classes)
     criterion = nn.CrossEntropyLoss()
 
     # weight_decay = 1e-4 by default for SGD

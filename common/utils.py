@@ -34,20 +34,25 @@ def to_categorical(y, num_classes):
 def prepare_sequence(seq, to_ix):
     idxs = [to_ix[w] for w in seq]
     tensor = torch.LongTensor(idxs)
-    return autograd.Variable(tensor)
+    return autograd.Variable(tensor, requires_grad=False)
 
-def prepare_vec_sequence(seq, to_vec, maxlen=None, to_variable=True):
+def prepare_vec_sequence(seq, to_vec, maxlen=None, output='variable'):
     idxs = np.array([to_vec(w) for w in seq])
     if maxlen:
         seqs = np.zeros((maxlen, idxs.shape[-1]))
         idxs = idxs[-maxlen:]
         seqs[:len(idxs)] = idxs
         idxs = seqs
-    tensor = torch.from_numpy(idxs).type(torch.FloatTensor) # Forcefully convert to Float tensor
-    if to_variable:
-        return autograd.Variable(tensor)
+    if output == 'numpy':
+        return idxs
     else:
-        return tensor
+        tensor = torch.from_numpy(idxs).type(torch.FloatTensor) # Forcefully convert to Float tensor
+        if output == 'variable':
+            return autograd.Variable(tensor, requires_grad=False)
+        elif output == 'tensor':
+            return tensor
+        else:
+            raise NotImplementedError
 
 def to_variable(array, tensor_type=torch.LongTensor):
     return autograd.Variable(tensor_type(array))

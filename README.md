@@ -4,12 +4,12 @@
 - See the .ipynb files (viewable on Github) for instructions and demo using the script
 
 - Intent classification:
-[intents_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/intents_train.ipynb)
-[intents_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/intents_predict.ipynb)
+[intents_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/text_classification/intents_train.ipynb)
+[intents_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/text_classification/intents_predict.ipynb)
 
 - Entities recognition:
-[entities_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_train.ipynb)
-[entities_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_predict.ipynb)
+[entities_train.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_recognition/entities_train.ipynb)
+[entities_predict.ipynb](https://github.com/2359media/botbot-nlp/blob/master/entities_recognition/entities_predict.ipynb)
 
 - Complete the environmental setup to run the .ipynb files
 

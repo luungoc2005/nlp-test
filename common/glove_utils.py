@@ -2,7 +2,7 @@ import numpy as np
 import joblib
 
 from os import path
-from config import GLOVE_PATH
+from config import GLOVE_PATH, MAX_NUM_WORDS
 
 GLOVE_DATA = None
 
@@ -18,10 +18,13 @@ def init_glove():
             file_path = GLOVE_PATH + '.txt'
             print('Importing %s...' % file_path)
             with open(file_path, 'r') as lines:
-                GLOVE_DATA = {
-                    line.split()[0]: np.array(list(map(float, line.split()[1:])))
-                    for line in lines
-                }
+                line_count = 0
+                GLOVE_DATA = {}
+                for line in lines:
+                    line_arr = line.split()
+                    GLOVE_DATA[line_arr[0]] = np.array(list(map(float, line_arr[1:])))
+                    line_count += 1
+                    if line_count >= MAX_NUM_WORDS: break
             with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
                 joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
