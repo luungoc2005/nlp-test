@@ -7,7 +7,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import NLI_PATH, EMBEDDING_DIM
-from sent_to_vec.model import NLINet, BiLSTMEncoder
+from sent_to_vec.model import NLINet, BiGRUEncoder
 from common.glove_utils import get_word_vector
 from common.utils import get_datetime_hostname, asMinutes
 
@@ -63,7 +63,7 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
     return loss.cpu().data[0], output
 
 def trainIters(n_iters = 20, batch_size=64):
-    encoder = BiLSTMEncoder()
+    encoder = BiGRUEncoder()
     nli_net = NLINet(encoder=encoder)
 
     criterion = nn.CrossEntropyLoss()
@@ -131,7 +131,7 @@ def trainIters(n_iters = 20, batch_size=64):
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
 
-                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of batch)' % \
+                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' % \
                     (asMinutes(time.time() - start_time), \
                     epoch, loss_total, \
                     round(batch_size * 100 / (time.time() - last_time), 2),

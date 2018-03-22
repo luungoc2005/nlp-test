@@ -35,7 +35,7 @@ def process_input(sentences):
 
     return sentences, lengths, idx_sort
 
-class BiLSTMEncoder(nn.Module):
+class BiGRUEncoder(nn.Module):
 
     def __init__(self,
                  embedding_dim = None,
@@ -43,7 +43,7 @@ class BiLSTMEncoder(nn.Module):
                  hidden_dim = 4200,
                  is_cuda = None,
                  dropout_keep_prob = 1):
-        super(BiLSTMEncoder, self).__init__()
+        super(BiGRUEncoder, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.vocab_size = vocab_size or MAX_NUM_WORDS
@@ -51,7 +51,7 @@ class BiLSTMEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 1,
+        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
                                 bidirectional=True, 
                                 dropout=1-self.dropout_keep_prob)
 
