@@ -58,6 +58,9 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
     loss = criterion(output, target_batch)
     loss.backward()
 
+    # Gradient clipping (to prevent exploding gradients)
+    nn.utils.clip_grad_norm(model.parameters(), 5.)
+
     optimizer.step()
 
     return loss.cpu().data[0], output

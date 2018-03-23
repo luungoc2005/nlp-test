@@ -47,7 +47,7 @@ if __name__ == '__main__':
     DATA_POINTS = 100
 
     print("Reading data...")
-    if (len(args.input) > 3 and args.input[-3].lower() == 'json'):
+    if (len(args.input) > 5 and args.input[-5:].lower() == '.json'):
         X_data, y_data = get_data_pairs(data_from_json(args.input))
     else:
         X_data = [

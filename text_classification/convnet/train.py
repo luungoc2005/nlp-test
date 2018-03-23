@@ -120,7 +120,7 @@ def trainIters(data,
             if verbose == 1:
                 print_loss_avg = print_loss_total / log_every
                 progress = float(epoch) / float(n_iters)
-                print('%s (%d %d%%) %.4f - acurracy: %.4f' % (timeSince(start, progress),
+                print('%s (%d %d%%) %.4f - accuracy: %.4f' % (timeSince(start, progress),
                     epoch, 
                     progress * 100, 
                     print_loss_avg,

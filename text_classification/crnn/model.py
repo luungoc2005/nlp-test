@@ -23,10 +23,11 @@ class TextCRNN(nn.Module):
         self.hidden_size = hidden_size
 
         self.conv2d = nn.Conv2d(1, self.embedding_dim, (self.filter_size, self.embedding_dim))
-        self.lstm = nn.LSTM(self.embedding_dim, 
-                            self.kernel_num // 2,
-                            num_layers=1,
-                            bidirectional=True)
+        self.rnn = nn.LSTM(self.embedding_dim, 
+                           self.kernel_num // 2,
+                           batch_first=True,
+                           num_layers=1,
+                           bidirectional=True)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.fc1 = nn.Linear(self.kernel_num, classes)
 
@@ -50,21 +51,17 @@ class TextCRNN(nn.Module):
         # Concatenate & Dropout
         output = self.dropout(output)
 
-        # LSTM
-        batch_size = output.size(1)
+        # GRU/LSTM
+        batch_size = output.size(0)
         self.hidden = self.init_hidden(batch_size)
-        output, _ = self.lstm(output, self.hidden)
+        output, _ = self.rnn(output, self.hidden)
         output = F.tanh(output)
         output = self.dropout(output)
         # print(output.size())
 
         # Fully connected layer & softmax
-        # print(output.size())
         output = output.permute(0, 2, 1)
-        # print(output.size())
         output = F.max_pool1d(output, output.size(2)).squeeze(2)
-        # print(output.size())
         output = self.fc1(output)
-        # print(output.size())
 
         return output
