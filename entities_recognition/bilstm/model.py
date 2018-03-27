@@ -1,9 +1,80 @@
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
+import numpy as np
+from torch.autograd import Variable
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
 
-from common.utils import to_scalar, argmax, prepare_sequence, log_sum_exp
+from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
+
+class BiLSTMWordEncoder(nn.Module):
+
+    def __init__(self, 
+                 hidden_dim = None,
+                 letters_dim = None,
+                 dropout_keep_prob = 1):
+        super(BiLSTMWordEncoder, self).__init__()
+
+        self.hidden_dim = hidden_dim or EMBEDDING_DIM
+        self.letters_dim = letters_dim or n_letters
+        self.dropout_keep_prob = dropout_keep_prob
+
+        self.rnn = nn.LSTM(n_letters,
+                           self.hidden_dim // 2,
+                           num_layers=1,
+                           dropout=1-self.dropout_keep_prob,
+                           bidirectional=True)
+
+    def _letter_to_array(self, letter):
+        ret_val = np.zeros(1, self.letters_dim)
+        ret_val[0][letterToIndex(letter)] = 1
+        return ret_val
+
+    def _word_to_array(self, word):
+        ret_val = np.zeros(len(word), 1, self.letters_dim)
+        for li, letter in enumerate(word):
+            ret_val[li][0][letterToIndex(letter)] = 1
+        return ret_val
+
+    def _process_sentence(self, sentence):
+        word_lengths = np.array([len(word) for word in sentence])
+        max_len = np.max(word_lengths)
+        words_batch = np.zeros((max_len, len(sentence), n_letters))
+
+        for i in range(len(sentence)):
+            for li, letter in enumerate(sentence[i]):
+                words_batch[li][0][letterToIndex(letter)] = 1.
+        
+        words_batch = Variable(torch.from_numpy(words_batch).float())
+        return words_batch, word_lengths
+    
+    def forward(self, sentence):
+        words_batch, word_lengths = self._process_sentence(sentence)
+
+        # Sort by length (keep idx)
+        word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
+        idx_unsort = np.argsort(idx_sort)
+
+        idx_sort = torch.from_numpy(idx_sort)
+
+        words_batch = words_batch.index_select(1, Variable(idx_sort))
+
+        # Handling padding in Recurrent Networks
+        words_packed = pack_padded_sequence(words_batch, word_lengths)
+        words_output = self.rnn(words_packed)[0]
+        words_output = pad_packed_sequence(words_output)[0]
+        
+        # Un-sort by length
+        idx_unsort = torch.from_numpy(idx_unsort)
+        words_output = words_output.index_select(1, Variable(idx_unsort))
+
+        # Max Pooling
+        embeds = torch.max(words_output, 0)[0]
+        if embeds.ndimension() == 3:
+            embeds = embeds.squeeze(0)
+            assert embeds.ndimension() == 2
+
+        return embeds
 
 class BiLSTM_CRF(nn.Module):
 
@@ -19,7 +90,8 @@ class BiLSTM_CRF(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
 
-        self.lstm = nn.LSTM(self.embedding_dim, 
+        self.word_encoder = BiLSTMWordEncoder(self.embedding_dim)
+        self.lstm = nn.LSTM(self.embedding_dim * 2, 
                             self.hidden_dim // 2,
                             num_layers=1, bidirectional=True)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
@@ -40,8 +112,8 @@ class BiLSTM_CRF(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return (autograd.Variable(torch.randn(2, 1, self.hidden_dim // 2)),
-                autograd.Variable(torch.randn(2, 1, self.hidden_dim // 2)))
+        return (Variable(torch.randn(2, 1, self.hidden_dim // 2)),
+                Variable(torch.randn(2, 1, self.hidden_dim // 2)))
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function
@@ -50,7 +122,7 @@ class BiLSTM_CRF(nn.Module):
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
 
         # Wrap in a variable so that we will get automatic backprop
-        forward_var = autograd.Variable(init_alphas)
+        forward_var = Variable(init_alphas)
 
         # Iterate through the sentence
         for feat in feats:
@@ -75,7 +147,7 @@ class BiLSTM_CRF(nn.Module):
 
     def _score_sentence(self, feats, tags):
         # Gives the score of a provided tag sequence
-        score = autograd.Variable(torch.Tensor([0]))
+        score = Variable(torch.Tensor([0]))
         tags = torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags])
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
@@ -92,14 +164,14 @@ class BiLSTM_CRF(nn.Module):
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1
-        forward_var = autograd.Variable(init_vvars)
+        forward_var = Variable(init_vvars)
         for feat in feats:
             next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
             _, bptrs_t = torch.max(next_tag_var, dim=1)
             bptrs_t = bptrs_t.squeeze().data.cpu().numpy()
             next_tag_var = next_tag_var.data.cpu().numpy()
             viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
-            viterbivars_t = autograd.Variable(torch.FloatTensor(viterbivars_t))
+            viterbivars_t = Variable(torch.FloatTensor(viterbivars_t))
             forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
 
@@ -123,14 +195,22 @@ class BiLSTM_CRF(nn.Module):
         return path_score, best_path
 
     def neg_log_likelihood(self, sentence, tags):
-        feats = self._get_lstm_features(sentence)
+        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+        char_embeds = self.word_encoder(sentence)
+        sentence_in = torch.cat([word_embeds, char_embeds], dim=1)
+
+        feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
         gold_score = self._score_sentence(feats, tags)
         return forward_score - gold_score
 
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
+        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+        char_embeds = self.word_encoder(sentence)
+        sentence_in = torch.cat([word_embeds, char_embeds], dim=1)
+
         # Get the emission scores from the BiLSTM
-        lstm_feats = self._get_lstm_features(sentence)
+        lstm_feats = self._get_lstm_features(sentence_in)
 
         # Find the best path, given the features.
         score, tag_seq = self._viterbi_decode(lstm_feats)

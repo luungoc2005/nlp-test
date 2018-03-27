@@ -44,9 +44,7 @@ class TextCRNN(nn.Module):
 
         # Remove extra dimension
         output = output.squeeze(3)
-        # print(output.size())
         output = torch.transpose(output, 1, 2)
-        # print(output.size())
 
         # Concatenate & Dropout
         output = self.dropout(output)
@@ -57,7 +55,6 @@ class TextCRNN(nn.Module):
         output, _ = self.rnn(output, self.hidden)
         output = F.tanh(output)
         output = self.dropout(output)
-        # print(output.size())
 
         # Fully connected layer & softmax
         output = output.permute(0, 2, 1)

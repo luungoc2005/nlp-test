@@ -14,7 +14,7 @@ def predict(model, input_data, k=1):
     result = []
     for sentence in input_data:
         tokens_in = wordpunct_tokenize(sentence)
-        sentence_in = prepare_vec_sequence(tokens_in, word_to_vec, SENTENCE_DIM, output='variable')
+        sentence_in = prepare_vec_sequence([tokens_in], word_to_vec, SENTENCE_DIM, output='variable')
         scores = model(sentence_in)
         topk_scores = topk(scores, k)
         result.append(topk_scores)

@@ -6,7 +6,7 @@ from os import path, getcwd
 from config import START_TAG, STOP_TAG
 from entities_recognition.bilstm.model import BiLSTM_CRF
 from entities_recognition.bilstm.train import SAVE_PATH
-from common.utils import prepare_vec_sequence, word_to_vec, wordpunct_space_tokenize
+from common.utils import wordpunct_space_tokenize
 
 def load_model(tag_to_ix):
     model = BiLSTM_CRF(tag_to_ix)
@@ -21,8 +21,7 @@ def predict(model, input_data, tag_to_ix):
     print ('Raw predicted tags:')
     for sentence in input_data:
         tokens_in = wordpunct_space_tokenize(sentence)
-        sentence_in = prepare_vec_sequence(tokens_in, word_to_vec, output='variable')
-        _, tag_seq = model(sentence_in)
+        _, tag_seq = model(tokens_in)
 
         entities = {}
         entity_name = ''

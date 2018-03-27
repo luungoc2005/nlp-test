@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from os import path, getcwd
 
 from entities_recognition.bilstm.model import BiLSTM_CRF
-from common.utils import get_datetime_hostname, prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, timeSince
+from common.utils import get_datetime_hostname, wordpunct_space_tokenize, timeSince
 
 import time
 
@@ -28,11 +28,10 @@ def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
     model.zero_grad()
 
     # Prepare training data
-    sentence_in = prepare_vec_sequence(input_variable, word_to_vec, output='variable')
     targets = torch.LongTensor([tag_to_ix[t] for t in target_variable])
 
     # Run the forward pass.
-    neg_log_likelihood = model.neg_log_likelihood(sentence_in, targets)
+    neg_log_likelihood = model.neg_log_likelihood(input_variable, targets)
 
     # Compute the loss, gradients, and update the parameters by
     # calling optimizer.step()
@@ -106,8 +105,7 @@ def trainIters(data,
         if epoch % log_every == 0:
             accuracy = evaluate(model, data, tag_to_ix)
 
-            precheck_sent = prepare_vec_sequence(input_data[0][0], word_to_vec, output='variable')
-            _, tag_seq = model(precheck_sent)
+            _, tag_seq = model(input_data[0][0])
             tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
             writer.add_text(
                 'Training predictions',
@@ -141,9 +139,8 @@ def evaluate(model, data, tag_to_ix):
     total = 0
     input_data = process_input(data)
     for idx, (sentence, tags) in enumerate(input_data):
-        precheck_sent = prepare_vec_sequence(sentence, word_to_vec, output='variable')
         precheck_tags = [tag_to_ix[t] for t in tags]
-        _, tag_seq = model(precheck_sent)
+        _, tag_seq = model(sentence)
 
         # Compare precheck_tags and tag_seq
         total += len(tag_seq)
