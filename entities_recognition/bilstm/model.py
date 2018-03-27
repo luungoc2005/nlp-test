@@ -7,13 +7,36 @@ from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
 
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
 
-class BiLSTMWordEncoder(nn.Module):
+def _letter_to_array(letter):
+    ret_val = np.zeros(1, self.letters_dim)
+    ret_val[0][letterToIndex(letter)] = 1
+    return ret_val
+
+def _word_to_array(word):
+    ret_val = np.zeros(len(word), 1, self.letters_dim)
+    for li, letter in enumerate(word):
+        ret_val[li][0][letterToIndex(letter)] = 1
+    return ret_val
+
+def _process_sentence(sentence):
+    word_lengths = np.array([len(word) for word in sentence])
+    max_len = np.max(word_lengths)
+    words_batch = np.zeros((max_len, len(sentence), n_letters))
+
+    for i in range(len(sentence)):
+        for li, letter in enumerate(sentence[i]):
+            words_batch[li][0][letterToIndex(letter)] = 1.
+    
+    words_batch = Variable(torch.from_numpy(words_batch).float())
+    return words_batch, word_lengths
+
+class BLSTMWordEncoder(nn.Module):
 
     def __init__(self, 
                  hidden_dim = None,
                  letters_dim = None,
                  dropout_keep_prob = 1):
-        super(BiLSTMWordEncoder, self).__init__()
+        super(BLSTMWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
@@ -25,31 +48,8 @@ class BiLSTMWordEncoder(nn.Module):
                            dropout=1-self.dropout_keep_prob,
                            bidirectional=True)
 
-    def _letter_to_array(self, letter):
-        ret_val = np.zeros(1, self.letters_dim)
-        ret_val[0][letterToIndex(letter)] = 1
-        return ret_val
-
-    def _word_to_array(self, word):
-        ret_val = np.zeros(len(word), 1, self.letters_dim)
-        for li, letter in enumerate(word):
-            ret_val[li][0][letterToIndex(letter)] = 1
-        return ret_val
-
-    def _process_sentence(self, sentence):
-        word_lengths = np.array([len(word) for word in sentence])
-        max_len = np.max(word_lengths)
-        words_batch = np.zeros((max_len, len(sentence), n_letters))
-
-        for i in range(len(sentence)):
-            for li, letter in enumerate(sentence[i]):
-                words_batch[li][0][letterToIndex(letter)] = 1.
-        
-        words_batch = Variable(torch.from_numpy(words_batch).float())
-        return words_batch, word_lengths
-    
     def forward(self, sentence):
-        words_batch, word_lengths = self._process_sentence(sentence)
+        words_batch, word_lengths = _process_sentence(sentence)
 
         # Sort by length (keep idx)
         word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
@@ -76,6 +76,64 @@ class BiLSTMWordEncoder(nn.Module):
 
         return embeds
 
+class ConvNetWordEncoder(nn.Module):
+
+    def __init__(self,
+                 hidden_dim = None,
+                 letters_dim = None,
+                 dropout_keep_prob = 0.5):
+        super(ConvNetWordEncoder, self).__init__()
+
+        self.hidden_dim = hidden_dim or EMBEDDING_DIM
+        self.letters_dim = letters_dim or n_letters
+        self.dropout_keep_prob = dropout_keep_prob
+
+        self.conv1 = nn.Sequential(
+            nn.Conv1d(self.letters_dim, self.hidden_dim // 4,
+                      kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Dropout(1 - self.dropout_keep_prob)
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
+                      kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Dropout(1 - self.dropout_keep_prob)
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
+                      kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Dropout(1 - self.dropout_keep_prob)
+        )
+        self.conv4 = nn.Sequential(
+            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
+                      kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Dropout(1 - self.dropout_keep_prob)
+        )
+
+    def forward(self, sentence):
+        words_batch, _ = _process_sentence(sentence)
+        
+        words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
+
+        words_batch = self.conv1(words_batch)
+        u1 = torch.max(words_batch, 2)[0]
+
+        words_batch = self.conv2(words_batch)
+        u2 = torch.max(words_batch, 2)[0]
+
+        words_batch = self.conv3(words_batch)
+        u3 = torch.max(words_batch, 2)[0]
+
+        words_batch = self.conv4(words_batch)
+        u4 = torch.max(words_batch, 2)[0]
+
+        embeds = torch.cat((u1, u2, u3, u4), 1)
+
+        return embeds
+
 class BiLSTM_CRF(nn.Module):
 
     def __init__(self, 
@@ -90,7 +148,7 @@ class BiLSTM_CRF(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
 
-        self.word_encoder = BiLSTMWordEncoder(self.embedding_dim)
+        self.word_encoder = BLSTMWordEncoder(self.embedding_dim)
         self.lstm = nn.LSTM(self.embedding_dim * 2, 
                             self.hidden_dim // 2,
                             num_layers=1, bidirectional=True)
@@ -197,7 +255,7 @@ class BiLSTM_CRF(nn.Module):
     def neg_log_likelihood(self, sentence, tags):
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
         char_embeds = self.word_encoder(sentence)
-        sentence_in = torch.cat([word_embeds, char_embeds], dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
 
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
@@ -207,7 +265,7 @@ class BiLSTM_CRF(nn.Module):
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
         char_embeds = self.word_encoder(sentence)
-        sentence_in = torch.cat([word_embeds, char_embeds], dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)
