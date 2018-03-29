@@ -8,12 +8,12 @@ from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
 
 def _letter_to_array(letter):
-    ret_val = np.zeros(1, self.letters_dim)
+    ret_val = np.zeros(1, n_letters)
     ret_val[0][letterToIndex(letter)] = 1
     return ret_val
 
 def _word_to_array(word):
-    ret_val = np.zeros(len(word), 1, self.letters_dim)
+    ret_val = np.zeros(len(word), 1, n_letters)
     for li, letter in enumerate(word):
         ret_val[li][0][letterToIndex(letter)] = 1
     return ret_val
