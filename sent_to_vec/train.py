@@ -65,14 +65,21 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
     return loss.cpu().data[0], output
 
-def trainIters(n_iters = 20, batch_size=64):
+def trainIters(n_iters=20, 
+               batch_size=64,
+               lr=0.1,
+               lr_decay=0.99,
+               lr_shrink=5,
+               min_lr=1e-5):
     encoder = BiGRUEncoder()
     nli_net = NLINet(encoder=encoder)
 
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    optimizer = optim.Adam(nli_net.parameters())
+    # optimizer = optim.Adam(nli_net.parameters())
+    # optimizer = optim.RMSprop(nli_net.parameters())
+    optimizer = optim.SGD(nli_net.parameters(), lr=lr)
 
     s1, s2, target = get_nli(NLI_PATH)
     # permutation = np.random.permutation(len(s1))
@@ -149,10 +156,19 @@ def trainIters(n_iters = 20, batch_size=64):
         torch.save(nli_net.state_dict(), path.join(SAVE_PATH, 'nli_model_{}_{}.bin'.format(epoch, train_acc)))
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
         
+        # Decaying LR
+        if epoch>1:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * lr_decay
+
         if len(accuracies) > 5: # Minimum of 2 epochs:
             if accuracies[-1] < accuracies[-2] and accuracies[-2] < accuracies[-3]:
                 # Early stopping
-                break
+                # break
+                optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
+                print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
+                if optimizer.param_groups[0]['lr'] < min_lr:
+                    # Early stopping
+                    break
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)
