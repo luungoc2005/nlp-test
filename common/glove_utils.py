@@ -2,7 +2,7 @@ import numpy as np
 import joblib
 
 from os import path
-from config import GLOVE_PATH, MAX_NUM_WORDS
+from config import GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA
 
 GLOVE_DATA = None
 
@@ -25,8 +25,9 @@ def init_glove():
                     GLOVE_DATA[line_arr[0]] = np.array(list(map(float, line_arr[1:])))
                     line_count += 1
                     if line_count >= MAX_NUM_WORDS: break
-            with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
-                joblib.dump(GLOVE_DATA, pickle_file, compress=3)
+            if CACHE_DATA:
+                with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
+                    joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
 
 def get_word_vector(word):

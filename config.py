@@ -1,6 +1,8 @@
 from os import path
 
-BASE_PATH = path.dirname(__file__)
+CACHE_DATA = False
+
+BASE_PATH = path.dirname(path.dirname(__file__))
 GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.6B.300d')
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 FASTTEXT_BIN = path.join(BASE_PATH, 'data/fasttext/wiki.en.bin')
