@@ -49,7 +49,7 @@ def predict(model, input_data, tag_to_ix):
                 buffer.append(tokens_in[idx])
 
                 # Going outside the tag
-                if idx == len(tag_seq) or \
+                if idx == len(tag_seq) - 1 or \
                     tag_name == '-' or \
                     tag_name[:2] == 'O-':
 

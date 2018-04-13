@@ -2,7 +2,7 @@ from os import path
 
 CACHE_DATA = False
 
-BASE_PATH = path.dirname(path.dirname(__file__))
+BASE_PATH = path.dirname(__file__)
 GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.6B.300d')
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 FASTTEXT_BIN = path.join(BASE_PATH, 'data/fasttext/wiki.en.bin')
@@ -24,7 +24,9 @@ FILTER_SIZES = [7, 8, 9]
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
 EMBEDDING_DIM = 300
-HIDDEN_DIM = 512
+CHAR_EMBEDDING_DIM = 50
+HIDDEN_DIM = 100
+NUM_LAYERS = 2
 
 # InferSent configs
 NLI_PATH = path.join(BASE_PATH, 'data/SNLI')

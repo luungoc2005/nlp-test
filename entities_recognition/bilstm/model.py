@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
+from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
 
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
 
@@ -81,56 +81,46 @@ class ConvNetWordEncoder(nn.Module):
     def __init__(self,
                  hidden_dim = None,
                  letters_dim = None,
+                 num_filters = None,
                  dropout_keep_prob = 0.5):
         super(ConvNetWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
+        self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(self.letters_dim, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
+        self.conv1 = nn.Sequential( 
+            nn.Conv1d(self.letters_dim, self.hidden_dim // self.num_filters, 
+                      kernel_size=3, stride=1, padding=1), 
+            nn.ReLU(inplace=True), 
+            nn.Dropout(1 - self.dropout_keep_prob) 
         )
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
-        self.conv4 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
+        self.convs = []
+        for _ in range(self.num_filters - 1):
+            self.convs.append(
+                nn.Sequential(
+                    nn.Conv1d(self.hidden_dim // self.num_filters, self.hidden_dim // self.num_filters,
+                            kernel_size=3, stride=1, padding=1),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(1 - self.dropout_keep_prob)
+                )
+            )
 
     def forward(self, sentence):
         words_batch, _ = _process_sentence(sentence)
         
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
 
+        convs_batch = []
         words_batch = self.conv1(words_batch)
-        u1 = torch.max(words_batch, 2)[0]
+        convs_batch.append(torch.max(words_batch, 2)[0])
 
-        words_batch = self.conv2(words_batch)
-        u2 = torch.max(words_batch, 2)[0]
+        for conv in self.convs:
+            words_batch = conv(words_batch)
+            convs_batch.append(torch.max(words_batch, 2)[0])
 
-        words_batch = self.conv3(words_batch)
-        u3 = torch.max(words_batch, 2)[0]
-
-        words_batch = self.conv4(words_batch)
-        u4 = torch.max(words_batch, 2)[0]
-
-        embeds = torch.cat((u1, u2, u3, u4), 1)
+        embeds = torch.cat(convs_batch, 1)
 
         return embeds
 
@@ -138,20 +128,25 @@ class BiLSTM_CRF(nn.Module):
 
     def __init__(self, 
                  tag_to_ix,
-                 embedding_dim = None, 
+                 embedding_dim = None,
+                 char_embedding_dim = None,
                  hidden_dim = None,
+                 num_layers = None,
                  dropout_keep_prob = 0.5):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
         self.hidden_dim = hidden_dim or HIDDEN_DIM
         self.tag_to_ix = tag_to_ix
         self.dropout_keep_prob = dropout_keep_prob
+        self.num_layers = num_layers or NUM_LAYERS
         self.tagset_size = len(tag_to_ix)
 
-        self.word_encoder = BLSTMWordEncoder(self.embedding_dim)
-        self.lstm = nn.LSTM(self.embedding_dim * 2, 
+        self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
+        self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim, 
                             self.hidden_dim // 2,
-                            num_layers=1, bidirectional=True)
+                            num_layers=self.num_layers, 
+                            bidirectional=True)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
 
         # Maps the output of the LSTM into tag space.
@@ -170,8 +165,8 @@ class BiLSTM_CRF(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return (Variable(torch.randn(2, 1, self.hidden_dim // 2)),
-                Variable(torch.randn(2, 1, self.hidden_dim // 2)))
+        return (Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)),
+                Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)))
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function

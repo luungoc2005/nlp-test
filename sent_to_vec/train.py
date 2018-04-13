@@ -1,3 +1,4 @@
+import json
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -6,18 +7,20 @@ import time
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
-from config import NLI_PATH, EMBEDDING_DIM
+from config import NLI_PATH, EMBEDDING_DIM, BASE_PATH
 from sent_to_vec.model import NLINet, BiGRUEncoder
 from common.glove_utils import get_word_vector
 from common.utils import get_datetime_hostname, asMinutes
 
 np.random.seed(197)
 torch.manual_seed(197)
-torch.cuda.manual_seed(197)
 
-BASE_PATH = path.dirname(__file__)
-SAVE_PATH = path.join(BASE_PATH, 'model/')
-LOG_DIR = path.join(BASE_PATH, 'logs/')
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(197)
+
+# BASE_PATH = path.dirname(__file__)
+SAVE_PATH = path.join(BASE_PATH, 'output/model/')
+LOG_DIR = path.join(BASE_PATH, 'output/logs/')
 
 def get_nli(data_path):
     target_dict = {'entailment': 0,  'neutral': 1, 'contradiction': 2}
@@ -140,6 +143,19 @@ def trainIters(n_iters=20,
                 loss_total = np.mean(losses)
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+
+                print(json.dumps({
+                    'metric': 'sentence/s', 
+                    'value': batch_size * 100 / (time.time() - last_time)
+                }))
+                print(json.dumps({
+                    'metric': 'accuracy', 
+                    'value': 100. * correct / (start_idx + k)
+                }))
+                print(json.dumps({
+                    'metric': 'loss', 
+                    'value': loss_total
+                }))
 
                 print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' % \
                     (asMinutes(time.time() - start_time), \

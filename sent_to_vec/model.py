@@ -8,7 +8,7 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from common.glove_utils import get_glove_data
-from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM, MAX_NUM_WORDS
+from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 
 def process_input(sentences):
     sentences = [
