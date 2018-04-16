@@ -71,7 +71,8 @@ def to_categorical(y, num_classes):
     return autograd.Variable(tensor)
 
 def prepare_sequence(seq, to_ix):
-    idxs = [to_ix[w] for w in seq]
+    unk_token = 0
+    idxs = [to_ix.get(w, unk_token) for w in seq]
     tensor = torch.LongTensor(idxs)
     return autograd.Variable(tensor, requires_grad=False)
 

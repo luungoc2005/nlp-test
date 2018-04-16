@@ -1,10 +1,13 @@
+import torch
 import numpy as np
 import joblib
 
 from os import path
-from config import GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA
+from config import GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA, EMBEDDING_DIM
 
 GLOVE_DATA = None
+WORDS_DICT = None
+EMB_MATRIX = None
 
 def init_glove():
     global GLOVE_DATA, GLOVE_PATH
@@ -29,6 +32,44 @@ def init_glove():
                 with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
                     joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
+
+def get_emb_matrix():
+    global GLOVE_DATA, EMB_MATRIX
+    if EMB_MATRIX is not None:
+        return EMB_MATRIX
+    else:
+        if GLOVE_DATA is None:
+            init_glove()
+        # idx 0 will be the <UNK> token
+        EMB_MATRIX = np.zeros((MAX_NUM_WORDS + 1, EMBEDDING_DIM))
+
+        for idx, val in enumerate(GLOVE_DATA.values()):
+            EMB_MATRIX[idx + 1] = val
+        EMB_MATRIX = torch.from_numpy(EMB_MATRIX).float()
+        return EMB_MATRIX
+
+def get_text_to_ix():
+    global WORDS_DICT, GLOVE_DATA
+
+    if WORDS_DICT is not None:
+        return WORDS_DICT
+    else:
+        if GLOVE_DATA is not None:
+            count = 1 # starts from 1
+            WORDS_DICT = {}
+            for word in GLOVE_DATA.keys():
+                WORDS_DICT[word] = count
+                count += 1
+        else:
+            count = 1
+            WORDS_DICT = {}
+            file_path = GLOVE_PATH + '.txt'
+            print('Importing %s...' % file_path)
+            with open(file_path, 'r') as lines:
+                for line in lines:
+                    WORDS_DICT[line.split()[0]] = count
+                    count += 1
+    return WORDS_DICT
 
 def get_word_vector(word):
     global GLOVE_DATA

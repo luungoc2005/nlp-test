@@ -13,7 +13,7 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from common.utils import argmax, to_variable, get_datetime_hostname, timeSince
-from text_classification.fast_text.model import FastText, sentence_vector
+from text_classification.fast_text.model import FastText, process_sentences, sentence_vector
 
 import time
 
@@ -25,7 +25,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
 
     # Run the forward pass
-    logits = model(input_variable)
+    logits = model(*input_variable)
 
     loss = criterion(logits, output_variable)
 
@@ -55,13 +55,13 @@ def trainIters(data,
     if optimizer == 'adam':
         weight_decay = weight_decay or 0
         model_optimizer = optim.Adam(
-            model.parameters(), 
+            filter(lambda p: p.requires_grad, model.parameters()), 
             lr=learning_rate,
             weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-4
         model_optimizer = optim.SGD(
-            model.parameters(), 
+            filter(lambda p: p.requires_grad, model.parameters()), 
             lr=learning_rate,
             weight_decay=weight_decay)
 
@@ -87,9 +87,8 @@ def trainIters(data,
 
             # Prepare training data
             sentence_in, target_variable = \
-                Variable(torch.from_numpy(
-                    np.array([sentence_vector(sent) for sent in sentences])).float(), requires_grad=False), \
-                Variable(labels.long(), requires_grad=False)
+                process_sentences(sentences), \
+                Variable(labels.long())
 
             # Run the training epoch
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
@@ -126,9 +125,8 @@ def evaluate(model, data, classes):
     correct = 0
     total = len(data)
     for sentence, gt_class in data:
-        precheck_sent = np.array([sentence_vector(sentence)])
-        precheck_sent = Variable(torch.from_numpy(precheck_sent).float(), requires_grad=False)
-        pred_class = argmax(model(precheck_sent))
+        precheck_sent = process_sentences([sentence])
+        pred_class = argmax(model(*precheck_sent))
         if gt_class == pred_class:
             correct += 1
     return float(correct) / float(total)
