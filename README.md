@@ -35,7 +35,10 @@ GloVE word vectors can be downloaded from:
 - Install dependencies by running `pip install -r requirements.txt` or `pip install -r requirements_win.txt` for Windows
 - Install any missing dependencies (because of platform differences)
 
-3. Using Jupyter notebook for evaluation
+3. Build Cython modules
+- Run `python setup.py build_ext --inplace` (requires gcc/clang - `sudo apt-get install build-essentials` on Deb/Ubuntu or Xcode+CLI tools on OSX)
+
+4. Using Jupyter notebook for evaluation
 - Activate the environment by `source activate botbot-nlp`
 - Navigate to the root directory by `cd`
 - Run `jupyter notebook`. A browser tab should open and navigate to jupyter notebook at `localhost:8888` by default
