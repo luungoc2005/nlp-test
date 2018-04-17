@@ -32,7 +32,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     loss.backward()
     optimizer.step()
 
-    return loss.data[0]
+    return loss.item()
 
 def trainIters(data,
                classes,
@@ -69,6 +69,7 @@ def trainIters(data,
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
     writer = SummaryWriter(log_dir=INST_LOG_DIR)
 
+    all_losses = []
     loss_total = 0
     print_loss_total = 0
 
@@ -85,6 +86,8 @@ def trainIters(data,
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch
 
+            real_batch = len(sentences) # real batch size
+
             # Prepare training data
             sentence_in, target_variable = \
                 process_sentences(sentences), \
@@ -94,9 +97,12 @@ def trainIters(data,
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
 
             loss_total += loss
-            print_loss_total += loss
         
+        loss_total = loss_total / real_batch
+        print_loss_total += loss_total
+
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+        all_losses.append(loss_total)
         loss_total = 0
 
         if epoch % log_every == 0:
@@ -119,7 +125,7 @@ def trainIters(data,
     writer.export_scalars_to_json(LOG_JSON)
     writer.close()
 
-    return model
+    return all_losses, model
 
 def evaluate(model, data, classes):
     correct = 0

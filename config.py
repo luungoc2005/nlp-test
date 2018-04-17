@@ -3,10 +3,10 @@ from os import path
 CACHE_DATA = False
 
 BASE_PATH = path.dirname(__file__)
-GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.6B.300d')
+GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
+SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
+
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
-FASTTEXT_BIN = path.join(BASE_PATH, 'data/fasttext/wiki.en.bin')
-FASTTEXT_VEC = path.join(BASE_PATH, 'data/fasttext/wiki-news-300d-1M-subword')
 
 MAX_SEQUENCE_LENGTH = 50 # Max sentence length
 MAX_NUM_WORDS = 500000 # Max vocabulary size

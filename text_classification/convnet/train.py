@@ -40,7 +40,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     loss.backward()
     optimizer.step()
 
-    return loss.data[0]
+    return loss.item()
 
 def trainIters(data,
                classes,

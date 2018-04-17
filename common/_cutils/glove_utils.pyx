@@ -1,8 +1,14 @@
+
+import cython
+cimport cython
+
 import numpy as np
 import joblib
 
+import io
+
 from os import path
-from config import GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA, EMBEDDING_DIM
+from config import SKIP_FIRST_LINE, GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA, EMBEDDING_DIM
 
 GLOVE_DATA = None
 WORDS_DICT = None
@@ -10,30 +16,39 @@ EMB_MATRIX = None
 
 def init_glove():
     global GLOVE_DATA, GLOVE_PATH
-    if not GLOVE_DATA:
-        if path.isfile(GLOVE_PATH + '.pickle'):
-            file_path = GLOVE_PATH + '.pickle'
-            print('Importing %s...' % file_path)
-            with open(file_path, 'rb') as pickle_file:
+    cdef str file_path, line, pickle_path
+    cdef int line_count
+
+    pickle_path = GLOVE_PATH + '.pickle'
+    if GLOVE_DATA is None:
+        if path.isfile(pickle_path):
+            print('Importing %s...' % pickle_path)
+            with open(pickle_path, 'rb') as pickle_file:
                 GLOVE_DATA = joblib.load(pickle_file)
         else:
-            file_path = GLOVE_PATH + '.txt'
-            print('Importing %s...' % file_path)
-            with open(file_path, 'r') as lines:
-                line_count = 0
-                GLOVE_DATA = {}
-                for line in lines:
-                    line_arr = line.rstrip().split()
-                    GLOVE_DATA[line_arr[0]] = np.array(list(map(float, line_arr[1:])))
-                    line_count += 1
-                    if line_count >= MAX_NUM_WORDS: break
+            print('Importing %s...' % GLOVE_PATH)
+            fin = io.open(GLOVE_PATH, 'r', encoding='utf-8', newline='\n', errors='ignore')
+            
+            if SKIP_FIRST_LINE:
+                n, d = map(int, fin.readline().split())
+            
+            line_count = 0
+            GLOVE_DATA = {}
+
+            for line in fin:
+                line_arr = line.rstrip().split(' ')
+                GLOVE_DATA[line_arr[0]] = np.array(list(map(float, line_arr[1:])))
+                line_count += 1
+                if line_count >= MAX_NUM_WORDS: break
+            
             if CACHE_DATA:
-                with open(GLOVE_PATH + '.pickle', 'wb') as pickle_file:
+                with open(pickle_path, 'wb') as pickle_file:
                     joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
 
 def get_emb_matrix():
     global GLOVE_DATA, EMB_MATRIX
+    cdef int idx
     if EMB_MATRIX is not None:
         return EMB_MATRIX
     else:
@@ -48,25 +63,21 @@ def get_emb_matrix():
 
 def get_text_to_ix():
     global WORDS_DICT, GLOVE_DATA
+    cdef int count
+    cdef str word
 
     if WORDS_DICT is not None:
         return WORDS_DICT
     else:
-        if GLOVE_DATA is not None:
-            count = 1 # starts from 1
-            WORDS_DICT = {}
-            for word in GLOVE_DATA.keys():
-                WORDS_DICT[word] = count
-                count += 1
-        else:
-            count = 1
-            WORDS_DICT = {}
-            file_path = GLOVE_PATH + '.txt'
-            print('Importing %s...' % file_path)
-            with open(file_path, 'r') as lines:
-                for line in lines:
-                    WORDS_DICT[line.split()[0]] = count
-                    count += 1
+        count = 1 # starts from 1
+        if GLOVE_DATA is None:
+            init_glove()
+
+        WORDS_DICT = {}
+        for word in GLOVE_DATA.keys():
+            WORDS_DICT[word] = count
+            count += 1
+    
     return WORDS_DICT
 
 def get_word_vector(word):
