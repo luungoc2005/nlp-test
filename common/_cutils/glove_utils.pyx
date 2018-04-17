@@ -13,6 +13,7 @@ from config import SKIP_FIRST_LINE, GLOVE_PATH, MAX_NUM_WORDS, CACHE_DATA, EMBED
 GLOVE_DATA = None
 WORDS_DICT = None
 EMB_MATRIX = None
+ALL_WORDS = None
 
 def init_glove():
     global GLOVE_DATA, GLOVE_PATH
@@ -92,16 +93,25 @@ def measure_dist(word1, word2):
     vec2 = get_word_vector(word2) if type(word2) is str else word2
     return np.linalg.norm(vec1 - vec2)
 
-def print_top_similar(word, count=15):
-    global GLOVE_DATA
+def print_top_similar(str word, int count=15):
+    global GLOVE_DATA, ALL_WORDS
+    cdef str ret_word
+    cdef int idx
+
     if not GLOVE_DATA:
         init_glove()
-    all_words = list([
-        [test_word, measure_dist(word, test_word)]
-        for test_word in GLOVE_DATA.keys()
-    ])
-    all_words = sorted(all_words, key=lambda item: item[1])
-    return all_words[0:count]
+    vec = GLOVE_DATA[word]
+    matrix = get_emb_matrix()[1:] # Remove 1st row
+    dists = np.dot(matrix, vec)
+    dists_idxs = np.argsort(dists)[-count:]
+
+    if ALL_WORDS is None:
+        ALL_WORDS = list(GLOVE_DATA.keys())
+    
+    for idx in dists_idxs:
+        ret_word = ALL_WORDS[idx]
+        if ret_word != word:
+            print((ret_word, dists[idx]))
 
 def get_glove_data():
     global GLOVE_DATA
