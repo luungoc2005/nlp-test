@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 import joblib
 
@@ -24,7 +23,7 @@ def init_glove():
                 line_count = 0
                 GLOVE_DATA = {}
                 for line in lines:
-                    line_arr = line.split()
+                    line_arr = line.rstrip().split()
                     GLOVE_DATA[line_arr[0]] = np.array(list(map(float, line_arr[1:])))
                     line_count += 1
                     if line_count >= MAX_NUM_WORDS: break
@@ -45,7 +44,6 @@ def get_emb_matrix():
 
         for idx, val in enumerate(GLOVE_DATA.values()):
             EMB_MATRIX[idx + 1] = val
-        EMB_MATRIX = torch.from_numpy(EMB_MATRIX).float()
         return EMB_MATRIX
 
 def get_text_to_ix():

@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from os import path
 from config import NLI_PATH, EMBEDDING_DIM, BASE_PATH
 from sent_to_vec.model import NLINet, BiGRUEncoder
-from common.glove_utils import get_word_vector
+from glove_utils import get_word_vector
 from common.utils import get_datetime_hostname, asMinutes
 
 np.random.seed(197)

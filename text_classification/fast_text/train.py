@@ -13,7 +13,7 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from common.utils import argmax, to_variable, get_datetime_hostname, timeSince
-from text_classification.fast_text.model import FastText, process_sentences, sentence_vector
+from text_classification.fast_text.model import FastText, process_sentences
 
 import time
 
@@ -40,7 +40,7 @@ def trainIters(data,
                n_iters=50,
                log_every=10,
                optimizer='adam',
-               learning_rate=1e-3,
+               learning_rate=1e-2,
                weight_decay=None,
                verbose=2):
     num_classes = len(classes)

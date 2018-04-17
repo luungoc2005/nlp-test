@@ -106,7 +106,7 @@ def log_sum_exp(vec):
     return max_score + \
         torch.log(torch.sum(torch.exp(vec - max_score_broadcast)))
 
-from common.glove_utils import get_word_vector
+from glove_utils import get_word_vector
 # fastText_model = None
 
 def word_to_vec(word):
