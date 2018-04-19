@@ -71,7 +71,10 @@ def trainIters(data,
 
     all_losses = []
     loss_total = 0
+    accuracy_total = 0
     print_loss_total = 0
+    print_accuracy_total = 0
+    real_batch = 0
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
@@ -86,7 +89,7 @@ def trainIters(data,
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch
 
-            real_batch = len(sentences) # real batch size
+            real_batch += len(sentences) # real batch size
 
             # Prepare training data
             sentence_in, target_variable = \
@@ -97,16 +100,24 @@ def trainIters(data,
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
 
             loss_total += loss
+
+            accuracy_total += evaluate(model, sentence_in, labels)
         
         loss_total = loss_total / real_batch
+        accuracy_total = accuracy_total / real_batch
+
+        print_accuracy_total += accuracy_total
         print_loss_total += loss_total
 
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         all_losses.append(loss_total)
+
+        real_batch = 0
+        accuracy_total = 0
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate(model, data, classes)
+            print_accuracy_total = print_accuracy_total / log_every
 
             if verbose == 1:
                 print_loss_avg = print_loss_total / log_every
@@ -115,9 +126,10 @@ def trainIters(data,
                     epoch, 
                     progress * 100, 
                     print_loss_avg,
-                    accuracy))
+                    print_accuracy_total))
             
             print_loss_total = 0
+            print_accuracy_total = 0
 
     torch.save(model.state_dict(), SAVE_PATH)
 
@@ -127,12 +139,25 @@ def trainIters(data,
 
     return all_losses, model
 
-def evaluate(model, data, classes):
+def evaluate(model, input, output):
     correct = 0
-    total = len(data)
-    for sentence, gt_class in data:
-        precheck_sent = process_sentences([sentence])
-        pred_class = argmax(model(*precheck_sent))
+
+    result = model(*input)
+
+    for idx, gt_class in enumerate(output):
+        pred_class = argmax(result[idx])
         if gt_class == pred_class:
             correct += 1
+    return float(correct)
+
+# Slowly evaluates sample-by-sample
+def evaluate_all(model, data):
+    correct = 0
+    total = len(data)
+    for sentence, gt_class in data: 
+        precheck_sent = process_sentences([sentence]) 
+        pred_class = argmax(model(*precheck_sent)) 
+        if gt_class == pred_class:
+            correct += 1
+     
     return float(correct) / float(total)

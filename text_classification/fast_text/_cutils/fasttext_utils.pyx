@@ -12,17 +12,20 @@ _rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
 def wordpunct_tokenize(str sent):
     return _rt.tokenize(sent)
 
-def md5_hash_function(str word, bint lower=True):
-    cdef str hash_word
-    hash_word = word.lower() if lower else word
-    return int(md5(hash_word.encode()).hexdigest(), 16)
+def md5_hash_function(str word):
+    return int(md5(word.encode()).hexdigest(), 16)
+
+def unigram_hash(list sequence, int idx, int buckets, bint lower=True):
+    cdef str unigram
+    if lower: unigram = sequence[idx].lower()
+    return (md5_hash_function(unigram) % (buckets - 1) + 1)
 
 def bigram_hash(list sequence, int idx, int buckets, bint lower=True):
     cdef str bigram
     if idx - 1 >= 0:
         bigram = sequence[idx - 1] + sequence[idx]
         if lower: bigram = bigram.lower()
-        return (hash(bigram) % (buckets - 1) + 1)
+        return (md5_hash_function(bigram) % (buckets - 1) + 1)
     else:
         return 0
 
@@ -33,7 +36,7 @@ def prepare_sequence(list seq, to_ix):
     return idxs
 
 def sentence_vector(str sentence):
-    cdef list token, words_sequence, ngrams_sequence
+    cdef list tokens, words_sequence, ngrams_sequence
     tokens = wordpunct_tokenize(sentence)
     words_sequence = prepare_sequence(tokens, get_text_to_ix())
     ngrams_sequence = []
@@ -42,6 +45,7 @@ def sentence_vector(str sentence):
     # TODO: experiment with bigrams + trigrams - only bigrams for now
     cdef int idx
     for idx in range(len(tokens)):
+        ngrams_sequence.append(unigram_hash(tokens, idx, NGRAM_BINS))
         ngrams_sequence.append(bigram_hash(tokens, idx, NGRAM_BINS))
     
     return (words_sequence, ngrams_sequence)

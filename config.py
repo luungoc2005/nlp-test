@@ -3,13 +3,17 @@ from os import path
 CACHE_DATA = False
 
 BASE_PATH = path.dirname(__file__)
+
 GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
+
+# GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.6B.300d.txt')
+# SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
 
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 
 MAX_SEQUENCE_LENGTH = 50 # Max sentence length
-MAX_NUM_WORDS = 500000 # Max vocabulary size
+MAX_NUM_WORDS = 50000 # Max vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 50
 NGRAM_BINS = 20000 # 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py

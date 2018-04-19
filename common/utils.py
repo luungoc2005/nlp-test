@@ -54,7 +54,7 @@ def to_scalar(var):
 returns the argmax as a python int
 """
 def argmax(vec):
-    _, idx = torch.max(vec, 1)
+    _, idx = torch.max(vec, -1)
     return to_scalar(idx)
 
 """

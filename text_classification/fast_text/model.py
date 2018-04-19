@@ -41,7 +41,7 @@ class FastText(nn.Module):
         self.init_weights()
 
     def init_weights(self):
-        nn.init.xavier_normal_(self.h2o.weight)
+        nn.init.xavier_normal_(self.h2o.weight, gain=2)
         self.h2o.bias.data.fill_(0)
 
     def forward(self, sequence, ngrams):
