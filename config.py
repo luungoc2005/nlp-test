@@ -4,11 +4,11 @@ CACHE_DATA = False
 
 BASE_PATH = path.dirname(__file__)
 
-GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
-SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
+# GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
+# SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
-# GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.6B.300d.txt')
-# SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
+GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')
+SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
 
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 
@@ -28,9 +28,9 @@ FILTER_SIZES = [7, 8, 9]
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
 EMBEDDING_DIM = 300
-CHAR_EMBEDDING_DIM = 50
-HIDDEN_DIM = 100
-NUM_LAYERS = 2
+CHAR_EMBEDDING_DIM = 300
+HIDDEN_DIM = 600
+NUM_LAYERS = 1
 
 # InferSent configs
 NLI_PATH = path.join(BASE_PATH, 'data/SNLI')

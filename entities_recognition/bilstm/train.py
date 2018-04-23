@@ -45,7 +45,7 @@ def trainIters(data,
                n_iters=50,
                log_every=10,
                optimizer='adam',
-               learning_rate=0.01,
+               learning_rate=1e-3,
                weight_decay=None,
                verbose=2):
     # Invert the tag dictionary
@@ -82,6 +82,7 @@ def trainIters(data,
 
     loss_total = 0
     print_loss_total = 0
+    all_losses = []
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
@@ -99,11 +100,12 @@ def trainIters(data,
             loss_total += loss
             print_loss_total += loss
         
+        all_losses.append(loss_total)
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate(model, data, tag_to_ix)
+            accuracy = evaluate_all(model, data, tag_to_ix)
 
             _, tag_seq = model(input_data[0][0])
             tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
@@ -132,9 +134,9 @@ def trainIters(data,
     writer.export_scalars_to_json(LOG_JSON)
     writer.close()
 
-    return model
+    return all_losses, model
 
-def evaluate(model, data, tag_to_ix):
+def evaluate_all(model, data, tag_to_ix):
     correct = 0
     total = 0
     input_data = process_input(data)
