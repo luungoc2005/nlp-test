@@ -22,10 +22,19 @@ def unigram_hash(list sequence, int idx, int buckets, bint lower=True):
 
 def bigram_hash(list sequence, int idx, int buckets, bint lower=True):
     cdef str bigram
-    if idx - 1 >= 0:
-        bigram = sequence[idx - 1] + sequence[idx]
+    if idx >= 1:
+        bigram = sequence[idx - 1] + ' ' + sequence[idx]
         if lower: bigram = bigram.lower()
         return (md5_hash_function(bigram) % (buckets - 1) + 1)
+    else:
+        return 0
+
+def trigram_hash(list sequence, int idx, int buckets, bint lower=True):
+    cdef str trigram
+    if idx >= 2:
+        trigram = sequence[idx - 2] + ' ' + sequence[idx - 1] + ' ' + sequence[idx]
+        if lower: trigram = trigram.lower()
+        return (md5_hash_function(trigram) % (buckets - 1) + 1)
     else:
         return 0
 
@@ -47,6 +56,7 @@ def sentence_vector(str sentence):
     for idx in range(len(tokens)):
         ngrams_sequence.append(unigram_hash(tokens, idx, NGRAM_BINS))
         ngrams_sequence.append(bigram_hash(tokens, idx, NGRAM_BINS))
+        # ngrams_sequence.append(trigram_hash(tokens, idx, NGRAM_BINS))
     
     return (words_sequence, ngrams_sequence)
 

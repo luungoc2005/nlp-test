@@ -112,6 +112,8 @@ def trainIters(data,
             # Prepare training data
             sentence_in, target_variable = Variable(sentences), Variable(labels.type(torch.LongTensor))
 
+            real_batch += len(sentences) # real batch size
+
             # Run the training epoch
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
 
@@ -166,7 +168,7 @@ def evaluate(model, input, output):
             correct += 1
     return float(correct)
 
-def evaluate_all(model, data, classes):
+def evaluate_all(model, data):
     correct = 0
     total = len(data)
     input_data = process_input(data)
