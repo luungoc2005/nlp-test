@@ -78,3 +78,4 @@ fastText/
 *.vec
 
 \.DS_Store
+data/botbot/

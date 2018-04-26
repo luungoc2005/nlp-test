@@ -47,8 +47,16 @@ def trainIters(data,
     # input_data = process_input(data)
     cpu_count = mp.cpu_count()
 
+    # Set class weights - this is kinda rough...
+    weights = torch.zeros(num_classes)
+    for _, class_idx in data:
+        weights[class_idx] += 1
+    for class_idx in range(num_classes):
+        weights[class_idx] = 1 / weights[class_idx]
+
     print('Training started')
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=weights)
+    # criterion = nn.CrossEntropyLoss()
     model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
