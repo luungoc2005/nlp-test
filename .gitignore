@@ -60,6 +60,7 @@ target/
 data/glove/
 data/SNLI/
 data/MultiNLI/
+data/amazon/
 
 logs/
 \.ipynb_checkpoints/

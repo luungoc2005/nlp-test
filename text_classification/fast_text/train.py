@@ -102,6 +102,9 @@ def trainIters(data,
             loss_total += loss
 
             accuracy_total += evaluate(model, sentence_in, labels)
+
+            if verbose == 2:
+                iterator.set_description('Minibatch: %s' % real_batch)
         
         loss_total = loss_total / real_batch
         accuracy_total = accuracy_total / real_batch
