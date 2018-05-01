@@ -26,7 +26,7 @@ def _process_sentence(sentence):
 
     for i in range(len(sentence)):
         for li, letter in enumerate(sentence[i]):
-            words_batch[li][0][letterToIndex(letter)] = 1.
+            words_batch[li][i][letterToIndex(letter)] = 1.
     
     words_batch = Variable(torch.from_numpy(words_batch).float())
     return words_batch, word_lengths
@@ -119,9 +119,10 @@ class ConvNetWordEncoder(nn.Module):
                  dropout_keep_prob = 1):
         super(ConvNetWordEncoder, self).__init__()
 
+        # https://arxiv.org/pdf/1603.01354.pdf
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
-        self.num_filters = num_filters or 4
+        self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
 
         self.convs = []
@@ -140,9 +141,10 @@ class ConvNetWordEncoder(nn.Module):
         
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
 
+        convs_batch = []
         for conv in self.convs:
-            words_batch = conv(words_batch)
-            convs_batch.append(torch.max(words_batch, 2)[0])
+            conv_batch = conv(words_batch)
+            convs_batch.append(torch.max(conv_batch, 2)[0])
 
         embeds = torch.cat(convs_batch, 1)
 

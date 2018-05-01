@@ -7,7 +7,8 @@ from nltk.tokenize import RegexpTokenizer
 import unicodedata
 import string
 
-all_letters = string.ascii_letters + " .,;'"
+# all_letters = string.ascii_letters + " .,;'"
+all_letters = string.printable
 n_letters = len(all_letters)
 
 """

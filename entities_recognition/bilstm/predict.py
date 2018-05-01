@@ -63,7 +63,7 @@ def read_tags(tokens_in, tag_seq):
                 tag_name == 'O':
 
                 # if end of tag sequence then append the final token
-                if idx == len(tag_seq) - 1:
+                if idx == len(tag_seq) - 1 and tag_name != '-':
                     buffer.append(tokens_in[idx])
 
                 if not entity_name in entities:

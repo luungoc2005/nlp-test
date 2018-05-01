@@ -79,3 +79,5 @@ fastText/
 
 \.DS_Store
 data/botbot/
+
+data/CoNLL-2003/
