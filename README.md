@@ -15,17 +15,14 @@
 
 ## Environmental setup:
 
-1. Download the fastText English word vectors from [https://fasttext.cc/docs/en/english-vectors.html](https://fasttext.cc/docs/en/english-vectors.html)
-(Download the `crawl-300d-2M.vec.zip` file and extract it. Path to the file can also be set in `config.py`)
-
-Note: Technically, the models can be generalized to use vectors from [https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md) for all other languages
+1. Run `data/get_data.bash` to download data files
+Notes:
+- Modify this file to selectively download only required files (usually either GLoVE/fasttext vectors)
+- You might need to run `chmod u+x data/get_data.bash` as well to grant execute permissions
+- Technically, the models can be generalized to use vectors from [https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md) for all other languages
 
 Data path configurations are stored in `config.py`
 
-(Deprecated but might have possible future uses)
-GloVE word vectors can be downloaded from:
-- [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/) - This project uses `glove.6B.zip` but can also be changed to the other files by changing `config.py`
-- Place the downloaded `glove.6B.300d.txt` file into data/glove
 - The project (might) also uses 20.000 most common words list from [https://github.com/first20hours/google-10000-english/blob/master/20k.txt](https://github.com/first20hours/google-10000-english/blob/master/20k.txt)
 
 2. Setup Python environment:

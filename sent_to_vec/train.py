@@ -49,7 +49,7 @@ def process_batch(batch):
     for i in range(len(batch)):
         for j in range(len(batch[i])):
             vec = get_word_vector(batch[i][j])
-            if vec is None: embeds[j, i, :] = vec
+            if not vec is None: embeds[j, i, :] = vec
 
     return torch.from_numpy(embeds).float(), lengths
 
@@ -62,7 +62,7 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
     loss.backward()
 
     # Gradient clipping (to prevent exploding gradients)
-    nn.utils.clip_grad_norm(model.parameters(), 5.)
+    nn.utils.clip_grad_norm_(model.parameters(), 5.)
 
     optimizer.step()
 
@@ -70,7 +70,7 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
 def trainIters(n_iters=8, 
                batch_size=64,
-               lr=0.1,
+               lr=1e-3,
                lr_decay=0.99,
                lr_shrink=5,
                min_lr=1e-5):
@@ -80,7 +80,7 @@ def trainIters(n_iters=8,
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    optimizer = optim.Adam(nli_net.parameters(), amsgrad=True)
+    optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
 
