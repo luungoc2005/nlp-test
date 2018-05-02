@@ -18,9 +18,9 @@ LOG_DIR = path.join(BASE_PATH, 'logs/')
 
 torch.manual_seed(7)
 
-def process_input(data):
+def process_input(data, tokenizer=wordpunct_space_tokenize):
     return [
-        (wordpunct_space_tokenize(sent), tags.split())
+        (tokenizer(sent), tags.split())
         for (sent, tags) in data
     ]
 
@@ -47,11 +47,12 @@ def trainIters(data,
                optimizer='adam',
                learning_rate=1e-3,
                weight_decay=None,
+               tokenizer=wordpunct_space_tokenize,
                verbose=2):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
 
-    input_data = process_input(data)
+    input_data = process_input(data, tokenizer=tokenizer)
     # Check input lengths
     for idx, (sentence, tags) in enumerate(input_data):
         if len(sentence) != len(tags):
@@ -106,7 +107,7 @@ def trainIters(data,
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate_all(model, data, tag_to_ix)
+            accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
 
             _, tag_seq = model(input_data[0][0])
             tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
@@ -137,10 +138,10 @@ def trainIters(data,
 
     return all_losses, model
 
-def evaluate_all(model, data, tag_to_ix):
+def evaluate_all(model, data, tag_to_ix, tokenizer=wordpunct_space_tokenize):
     correct = 0
     total = 0
-    input_data = process_input(data)
+    input_data = process_input(data, tokenizer=tokenizer)
     for idx, (sentence, tags) in enumerate(input_data):
         precheck_tags = [tag_to_ix[t] for t in tags]
         _, tag_seq = model(sentence)

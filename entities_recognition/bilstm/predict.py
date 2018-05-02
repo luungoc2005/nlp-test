@@ -13,20 +13,22 @@ def load_model(tag_to_ix):
     model.load_state_dict(torch.load(SAVE_PATH))
     return model
 
-def predict(model, input_data, tag_to_ix):
+def predict(model, input_data, tag_to_ix, 
+    tokenizer=wordpunct_space_tokenize, 
+    delimiter=''):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
 
     result = []
     print ('Raw predicted tags:')
     for sentence in input_data:
-        tokens_in = wordpunct_space_tokenize(sentence)
+        tokens_in = tokenizer(sentence)
         _, tag_seq = model(tokens_in)
         print(tag_seq)
 
         tag_seq = [ix_to_tag[tag] for tag in tag_seq] # Translate to string tags
 
-        result.append(read_tags(tokens_in, tag_seq))
+        result.append(read_tags(tokens_in, tag_seq, delimiter))
     # print('\n---')
     # Print results:
     # for idx, sentence in enumerate(input_data):
@@ -36,7 +38,7 @@ def predict(model, input_data, tag_to_ix):
     
     return result
 
-def read_tags(tokens_in, tag_seq):
+def read_tags(tokens_in, tag_seq, delimiter=''):
     entities = {}
     entity_name = ''
     buffer = []
@@ -50,7 +52,7 @@ def read_tags(tokens_in, tag_seq):
                 # Flush the previous entity
                 if not entity_name in entities:
                     entities[entity_name] = []
-                    entities[entity_name].append(''.join(buffer))
+                    entities[entity_name].append(delimiter.join(buffer))
                     buffer = []
 
             entity_name = new_entity_name
@@ -68,7 +70,7 @@ def read_tags(tokens_in, tag_seq):
 
                 if not entity_name in entities:
                     entities[entity_name] = []
-                entities[entity_name].append(''.join(buffer))
+                entities[entity_name].append(delimiter.join(buffer))
                 buffer = []
                 entity_name = ''
             else:
