@@ -66,7 +66,7 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
     optimizer.step()
 
-    return loss.cpu().data[0], output
+    return loss.cpu().item(), output
 
 def trainIters(n_iters=8, 
                batch_size=64,
@@ -134,7 +134,7 @@ def trainIters(n_iters=8,
             loss, output = _train((s1_batch, s1_len), (s2_batch, s2_len), target_batch, nli_net, criterion, optimizer)
 
             pred = output.data.max(1)[1]
-            correct += pred.long().eq(target_batch.data.long()).cpu().sum()
+            correct += pred.long().eq(target_batch.data.long()).cpu().sum().item()
         
             losses.append(loss)
         
