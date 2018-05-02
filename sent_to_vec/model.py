@@ -51,7 +51,7 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 1,
+        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
                                 bidirectional=True, 
                                 dropout=1-self.dropout_keep_prob)
 
