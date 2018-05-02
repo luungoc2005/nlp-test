@@ -4,6 +4,10 @@ import io
 import json
 from entities_recognition.bilstm.model import *
 
+# Usage:
+# python conll_eval.py entities_recognition/bilstm-rnn-conll2003-vanilla.bin entities_recognition/tag_to_ix.json data/CoNLL-2003/eng.testa > testa.out.txt
+# conlleval < testa.out.txt
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
