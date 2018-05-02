@@ -11,7 +11,7 @@ SNLI='https://nlp.stanford.edu/projects/snli/snli_1.0.zip'
 MultiNLI='https://www.nyu.edu/projects/bowman/multinli/multinli_0.9.zip'
 glovepath='http://nlp.stanford.edu/data/glove.840B.300d.zip'
 fasttext='https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip'
-
+quora='http://qim.ec.quoracdn.net/quora_duplicate_questions.tsv'
 
 ZIPTOOL="unzip"
 
@@ -78,3 +78,8 @@ do
     cut -f3 $fpath.tok | $preprocess_exec > MultiNLI/s2.$split
     rm $fpath $fpath.tok 
 done
+
+# quora
+# echo $quora
+# mkdir quora
+# curl -Lo quora/quora_duplicate_questions.tsv $quora
