@@ -116,7 +116,7 @@ class ConvNetWordEncoder(nn.Module):
                  hidden_dim = None,
                  letters_dim = None,
                  num_filters = None,
-                 dropout_keep_prob = 1):
+                 dropout_keep_prob = 0.5):
         super(ConvNetWordEncoder, self).__init__()
 
         # https://arxiv.org/pdf/1603.01354.pdf
@@ -157,20 +157,23 @@ class BiLSTM_CRF(nn.Module):
                  embedding_dim = None,
                  char_embedding_dim = None,
                  hidden_dim = None,
-                 num_layers = None):
+                 num_layers = None,
+                 dropout_keep_prob = 0.5):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
         self.hidden_dim = hidden_dim or HIDDEN_DIM
         self.tag_to_ix = tag_to_ix
         self.num_layers = num_layers or NUM_LAYERS
+        self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
 
         self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
         self.highway = Highway(self.embedding_dim + self.char_embedding_dim, 2, F.relu)
+        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
                             self.hidden_dim // 2,
-                            num_layers=self.num_layers, 
+                            num_layers=self.num_layers,
                             bidirectional=True)
 
         # Maps the output of the LSTM into tag space.
@@ -278,6 +281,7 @@ class BiLSTM_CRF(nn.Module):
         char_embeds = self.word_encoder(sentence)
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
         sentence_in = self.highway(sentence_in)
+        sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
