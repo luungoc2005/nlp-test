@@ -35,6 +35,101 @@ def process_input(sentences):
 
     return sentences, lengths, idx_sort
 
+class MaskedConv1d(nn.Conv1d):
+
+    def __init__(self, in_channels, out_channels, kernel_size, dilation=1,
+                 groups=1, bias=True, causal=True):
+        if causal:
+            padding = (kernel_size - 1) * dilation
+        else:
+            padding = (kernel_size - 1) * dilation // 2
+        super(MaskedConv1d, self).__init__(in_channels, out_channels, kernel_size,
+                                           stride=1, padding=padding, dilation=dilation,
+                                           groups=groups, bias=bias)
+
+    def forward(self, inputs):
+        output = super(MaskedConv1d, self).forward(inputs)
+        return output[:, :, :inputs.size(2)]
+
+
+class GatedConv1d(MaskedConv1d):
+
+    def __init__(self, in_channels, out_channels, kernel_size, dilation=1,
+                 groups=1, bias=True, causal=True):
+        super(GatedConv1d, self).__init__(in_channels, 2 * out_channels,
+                                          kernel_size, dilation, groups, bias, causal)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, inputs):
+        output = super(GatedConv1d, self).forward(inputs)
+        mask, output = output.chunk(2, 1)
+        mask = self.sigmoid(mask)
+
+        return output * mask
+
+class StackedConv(nn.Module):
+
+    def __init__(self, input_size, hidden_size, kernel_size=3,
+                 num_layers=4, bias=True,
+                 dropout=0, causal=True):
+        super(StackedConv, self).__init__()
+        self.convs = nn.ModuleList()
+        size = input_size
+        for l in range(num_layers):
+            self.convs.append(GatedConv1d(size, hidden_size, 1, bias=bias,
+                                          causal=False))
+            self.convs.append(nn.BatchNorm1d(hidden_size))
+            self.convs.append(MaskedConv1d(hidden_size, hidden_size,
+                                           kernel_size, bias=bias,
+                                           groups=hidden_size,
+                                           causal=causal))
+            self.convs.append(nn.BatchNorm1d(hidden_size))
+            size = hidden_size
+
+    def forward(self, x):
+        res = None
+        for conv in self.convs:
+            x = conv(x)
+            if res is not None:
+                x = x + res
+            res = x
+        return x
+
+"""
+ConvNetEncoder
+"""
+class ConvNetEncoder(nn.Module):
+    def __init__(self,
+                 embedding_dim = None,
+                 vocab_size = None,
+                 hidden_dim = 4200,
+                 is_cuda = None,
+                 dropout_keep_prob = 1):
+        super(ConvNetEncoder, self).__init__()
+
+        self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.vocab_size = vocab_size or MAX_NUM_WORDS
+        self.dropout_keep_prob = dropout_keep_prob
+        self.hidden_dim = hidden_dim
+        self.is_cuda = is_cuda or torch.cuda.is_available()
+
+        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
+        self.convs = StackedConv(self.embedding_dim, self.hidden_dim)
+
+    def forward(self, sent_tuple):
+        # sent_len: [max_len, ..., min_len] (batch)
+        # sent: Variable(seqlen x batch x worddim)
+
+        sent, sent_len = sent_tuple
+
+        sent = sent.transpose(0,1).transpose(1,2).contiguous()
+        sent = self.dropout(sent)
+
+        sent = self.convs(sent)
+        emb = torch.max(sent, 2)[0]
+
+        return emb
+
 class BiGRUEncoder(nn.Module):
 
     def __init__(self,
@@ -51,7 +146,7 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 1,
+        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
                                 bidirectional=True, 
                                 dropout=1-self.dropout_keep_prob)
 
@@ -67,7 +162,7 @@ class BiGRUEncoder(nn.Module):
         if self.is_cuda:
             idx_sort = idx_sort.cuda()
 
-        sent = sent.index_select(1, Variable(idx_sort))
+        sent = sent.index_select(1, idx_sort)
 
         # Handling padding in Recurrent Networks
         sent_packed = pack_padded_sequence(sent, sent_len)
@@ -78,7 +173,7 @@ class BiGRUEncoder(nn.Module):
         idx_unsort = torch.from_numpy(idx_unsort)
         if self.is_cuda:
             idx_unsort = idx_unsort.cuda()
-        sent_output = sent_output.index_select(1, Variable(idx_unsort))
+        sent_output = sent_output.index_select(1, idx_unsort)
 
         # Max Pooling
         embeds = torch.max(sent_output, 0)[0]

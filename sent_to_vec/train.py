@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import NLI_PATH, EMBEDDING_DIM, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder
+from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder
 from glove_utils import get_word_vector
 from common.utils import get_datetime_hostname, asMinutes
 
@@ -75,6 +75,7 @@ def trainIters(n_iters=8,
                lr_shrink=5,
                min_lr=1e-5):
     encoder = BiGRUEncoder()
+    # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder)
 
     criterion = nn.CrossEntropyLoss()
