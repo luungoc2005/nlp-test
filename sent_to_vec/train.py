@@ -55,12 +55,13 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
     return loss.cpu().item(), output
 
-def trainIters(n_iters=8, 
+def trainIters(n_iters=10, 
                batch_size=64,
                lr=1e-3,
                lr_decay=0.99,
                lr_shrink=5,
-               min_lr=1e-5):
+               min_lr=1e-5,
+               checkpoint=None):
     encoder = BiGRUEncoder()
     # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder)
@@ -71,6 +72,14 @@ def trainIters(n_iters=8,
     optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
+    epoch_start = 1
+
+    if checkpoint is not None:
+        checkpoint_data = torch.load(checkpoint)
+        nli_net.load_state_dict(checkpoint_data['nli_state'])
+        optimizer.load_state_dict(checkpoint_data['optimizer_state'])
+        epoch_start = checkpoint['epoch']
+        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
     s1, s2, target = get_nli(NLI_PATH)
     # permutation = np.random.permutation(len(s1))
@@ -97,7 +106,7 @@ def trainIters(n_iters=8,
     train_acc = 0.
     accuracies = []
 
-    for epoch in range(1, n_iters+1):
+    for epoch in range(epoch_start, n_iters+1):
 
         correct = 0.
         losses = []
@@ -158,9 +167,15 @@ def trainIters(n_iters=8,
         train_acc = round(100 * correct/len(s1), 2)
         accuracies.append(train_acc)
 
-        torch.save(nli_net.state_dict(), path.join(SAVE_PATH, 'nli_model_{}_{}.bin'.format(epoch, train_acc)))
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
-        
+        torch.save({
+            'epoch': epoch,
+            'nli_state' = nli_net.state_dict(),
+            'optimizer_state': optimizer.state_dict(),
+            'accuracy': train_acc
+        }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
+        # Saving checkpoing
+
         # Decaying LR
         # if epoch>1:
         #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * lr_decay
