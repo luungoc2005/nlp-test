@@ -74,7 +74,7 @@ def trainIters(n_iters=10,
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
     epoch_start = 1
 
-    if checkpoint is not None:
+    if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
