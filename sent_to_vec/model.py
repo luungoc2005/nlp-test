@@ -105,7 +105,7 @@ class ConvNetEncoder(nn.Module):
     def __init__(self,
                  embedding_dim = None,
                  vocab_size = None,
-                 hidden_dim = 4096,
+                 hidden_dim = 2048,
                  is_cuda = None,
                  dropout_keep_prob = 1):
         super(ConvNetEncoder, self).__init__()
@@ -138,7 +138,7 @@ class BiGRUEncoder(nn.Module):
     def __init__(self,
                  embedding_dim = None,
                  vocab_size = None,
-                 hidden_dim = 4096,
+                 hidden_dim = 2048,
                  is_cuda = None,
                  dropout_keep_prob = 1):
         super(BiGRUEncoder, self).__init__()
@@ -149,7 +149,7 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim // 2, 1,
+        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
                                 bidirectional=True, 
                                 dropout=1-self.dropout_keep_prob)
 
@@ -189,7 +189,7 @@ class BiGRUEncoder(nn.Module):
 class NLINet(nn.Module):
     
     def __init__(self,
-                 lstm_dim = 4096,
+                 lstm_dim = 2048,
                  hidden_dim = 512,
                  encoder = None):
         super(NLINet, self).__init__()
