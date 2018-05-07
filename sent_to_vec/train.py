@@ -170,7 +170,7 @@ def trainIters(n_iters=10,
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
         torch.save({
             'epoch': epoch,
-            'nli_state' = nli_net.state_dict(),
+            'nli_state': nli_net.state_dict(),
             'optimizer_state': optimizer.state_dict(),
             'accuracy': train_acc
         }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
