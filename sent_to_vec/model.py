@@ -6,27 +6,30 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
-from glove_utils import get_glove_data
+from glove_utils import get_glove_data, get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 
-def process_input(sentences):
-    sentences = [
-        [START_TAG] + word_tokenize(sent) + [STOP_TAG]
-        for sent in sentences
-    ]
+def process_batch(batch):
+    lengths = np.array([len(sent) for sent in batch])
+    max_len = np.max(lengths)
+    embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
 
+    for i in range(len(batch)):
+        for j in range(len(batch[i])):
+            vec = get_word_vector(batch[i][j])
+            if not vec is None: embeds[j, i, :] = vec
+
+    return torch.from_numpy(embeds).float(), lengths
+
+def process_input(sentences):
     # Filter out words without word vectors
     glove_data = get_glove_data()
     
-    for idx in range(len(sentences)):
-        sent_filtered = [
-            word for word in sentences[idx]
-            if word in glove_data
-        ]
-        if len(sent_filtered) == 0:
-            sent_filtered = [STOP_TAG]
-        sentences[idx] = sent_filtered
+    sentences = [
+        [START_TAG] + [word for word in word_tokenize(sent) if word in glove_data] + [STOP_TAG]
+        for sent in sentences
+    ]
+    sentences = [sent if len(sent) > 2 else [STOP_TAG] for sent in sentences]
 
     # Sort sentences by lengths
     lengths = np.array([len(sent) for sent in sentences])
@@ -102,7 +105,7 @@ class ConvNetEncoder(nn.Module):
     def __init__(self,
                  embedding_dim = None,
                  vocab_size = None,
-                 hidden_dim = 4200,
+                 hidden_dim = 4096,
                  is_cuda = None,
                  dropout_keep_prob = 1):
         super(ConvNetEncoder, self).__init__()
@@ -120,7 +123,7 @@ class ConvNetEncoder(nn.Module):
         # sent_len: [max_len, ..., min_len] (batch)
         # sent: Variable(seqlen x batch x worddim)
 
-        sent, sent_len = sent_tuple
+        sent, _ = sent_tuple
 
         sent = sent.transpose(0,1).transpose(1,2).contiguous()
         sent = self.dropout(sent)
@@ -135,7 +138,7 @@ class BiGRUEncoder(nn.Module):
     def __init__(self,
                  embedding_dim = None,
                  vocab_size = None,
-                 hidden_dim = 4200,
+                 hidden_dim = 4096,
                  is_cuda = None,
                  dropout_keep_prob = 1):
         super(BiGRUEncoder, self).__init__()
@@ -146,7 +149,7 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
+        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim // 2, 1,
                                 bidirectional=True, 
                                 dropout=1-self.dropout_keep_prob)
 
@@ -186,7 +189,7 @@ class BiGRUEncoder(nn.Module):
 class NLINet(nn.Module):
     
     def __init__(self,
-                 lstm_dim = 4200,
+                 lstm_dim = 4096,
                  hidden_dim = 512,
                  encoder = None):
         super(NLINet, self).__init__()
