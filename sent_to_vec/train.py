@@ -7,9 +7,8 @@ import time
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
-from config import NLI_PATH, EMBEDDING_DIM, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder
-from glove_utils import get_word_vector
+from config import NLI_PATH, BASE_PATH
+from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, process_batch
 from common.utils import get_datetime_hostname, asMinutes
 
 np.random.seed(197)
@@ -40,18 +39,6 @@ def get_nli(data_path):
     assert len(s1) == len(s2) == len(target)
 
     return s1, s2, target
-
-def process_batch(batch):
-    lengths = np.array([len(sent) for sent in batch])
-    max_len = np.max(lengths)
-    embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
-
-    for i in range(len(batch)):
-        for j in range(len(batch[i])):
-            vec = get_word_vector(batch[i][j])
-            if not vec is None: embeds[j, i, :] = vec
-
-    return torch.from_numpy(embeds).float(), lengths
 
 def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
     optimizer.zero_grad()
