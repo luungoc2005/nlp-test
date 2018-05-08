@@ -107,6 +107,8 @@ def trainIters(data,
     start = time.time()
     data_loader = DataLoader(input_data, batch_size=batch_size)
 
+    ix_to_word = {}
+
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch
@@ -159,24 +161,26 @@ def trainIters(data,
 
 
 def evaluate(model, input, output):
-    correct = 0
+    with torch.no_grad():
+        correct = 0
 
-    result = model(input)
+        result = model(input)
 
-    for idx, gt_class in enumerate(output):
-        pred_class = argmax(result[idx])
-        if gt_class == pred_class:
-            correct += 1
+        for idx, gt_class in enumerate(output):
+            pred_class = argmax(result[idx])
+            if gt_class == pred_class:
+                correct += 1
     return float(correct)
 
 
 def evaluate_all(model, data):
-    correct = 0
-    total = len(data)
-    input_data = process_input(data)
-    for sentence, gt_class in input_data:
-        precheck_sent = Variable(sentence)
-        pred_class = argmax(model(precheck_sent.unsqueeze(0)))
-        if gt_class == pred_class:
-            correct += 1
+    with torch.no_grad():
+        correct = 0
+        total = len(data)
+        input_data = process_input(data)
+        for sentence, gt_class in input_data:
+            precheck_sent = Variable(sentence)
+            pred_class = argmax(model(precheck_sent.unsqueeze(0)))
+            if gt_class == pred_class:
+                correct += 1
     return float(correct) / float(total)

@@ -131,7 +131,7 @@ def trainIters(n_iters=10,
 
     if is_cuda:
         print('Training with GPU mode')
-        nli_net = model.cuda()
+        model = model.cuda()
     else:
         print('Training with CPU mode')
 
@@ -139,6 +139,8 @@ def trainIters(n_iters=10,
     last_time = start_time
     step = 0
     accuracies = []
+
+    ix_to_word = {value: key for key, value in vocab.items()}
 
     for epoch in range(epoch_start, n_iters + 1):
 
@@ -175,6 +177,9 @@ def trainIters(n_iters=10,
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
                 writer.add_scalar(KDIV_LOG_FILE, kl_loss_total, epoch)
+                writer.add_text(' '.join([ix_to_word(ix) for ix in s1[start_idx]]),
+                                ' '.join([ix_to_word(ix) for ix in model.generate(s1[start_idx].view(-1, 1))]),
+                                step)
 
                 # metrics for floydhub
                 # print(json.dumps({

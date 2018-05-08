@@ -25,6 +25,7 @@ def predict(model, input_data, tag_to_ix,
     print('Raw predicted tags:')
     for sentence in input_data:
         tokens_in = tokenizer(sentence)
+
         _, tag_seq = model(tokens_in)
         print(tag_seq)
 

@@ -110,28 +110,29 @@ def trainIters(data,
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
+            with torch.no_grad():
+                accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
 
-            _, tag_seq = model(input_data[0][0])
-            tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
-            writer.add_text(
-                'Training predictions',
-                (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' %
-                    (str(input_data[0][0]), 
-                     str(input_data[0][1]),
-                     str(tag_interpreted),
-                     accuracy)),
-                epoch)
-            
-            if verbose == 1:
-                print_loss_avg = print_loss_total / log_every
-                progress = float(epoch) / float(n_iters)
-                print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
-                      epoch,
-                      progress * 100,
-                      print_loss_avg))
-            
-            print_loss_total = 0
+                _, tag_seq = model(input_data[0][0])
+                tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
+                writer.add_text(
+                    'Training predictions',
+                    (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' %
+                        (str(input_data[0][0]),
+                         str(input_data[0][1]),
+                         str(tag_interpreted),
+                         accuracy)),
+                    epoch)
+
+                if verbose == 1:
+                    print_loss_avg = print_loss_total / log_every
+                    progress = float(epoch) / float(n_iters)
+                    print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
+                          epoch,
+                          progress * 100,
+                          print_loss_avg))
+
+                print_loss_total = 0
 
     torch.save(model.state_dict(), SAVE_PATH)
 

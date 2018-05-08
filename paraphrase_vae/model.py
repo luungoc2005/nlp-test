@@ -3,8 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random
 import numpy as np
-from config import EMBEDDING_DIM, MAX_SEQUENCE_LENGTH, MAX_NUM_WORDS
+from config import MAX_SEQUENCE_LENGTH
 from paraphrase_vae.tokenizer import SOS_token, EOS_token
+from common.utils import argmax
 
 NLL = nn.NLLLoss(size_average=False)
 
@@ -35,13 +36,15 @@ class ParaphraseVAE(nn.Module):
         self.hidden_size = hidden_size
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.encoder = EncoderRNN(self.vocab_size, num_layers=1, hidden_size=self.hidden_size)
+        self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
+
+        self.encoder = EncoderRNN(self.embedding, num_layers=1, hidden_size=self.hidden_size)
 
         self.hidden2mean = nn.Linear(self.hidden_size, latent_size)
         self.hidden2logv = nn.Linear(self.hidden_size, latent_size)
 
         self.latent2hidden = nn.Linear(self.latent_size, self.hidden_size)
-        self.decoder = AttnDecoderRNN(self.vocab_size,
+        self.decoder = AttnDecoderRNN(self.embedding,
                                       num_layers=1,
                                       hidden_size=self.hidden_size,
                                       dropout_keep_prob=self.dropout_keep_prob)
@@ -110,19 +113,27 @@ class ParaphraseVAE(nn.Module):
         
         return decoded, mean, logv
 
+    def generate(self, input):
+        with torch.no_grad():
+            decoded, _, _ = self.forward(input)
+            result = []
+            for idx in len(decoded):
+                result.append(argmax(decoded[idx]))
+
+            return result
+
 
 class EncoderRNN(nn.Module):
 
     def __init__(self,
-                 vocab_size,
+                 embedding_layer,
                  num_layers=1,
                  hidden_size=4096):
         super(EncoderRNN, self).__init__()
-        self.vocab_size = vocab_size
         self.num_layers = num_layers
         self.hidden_size = hidden_size
 
-        self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.embedding = embedding_layer
         self.rnn = nn.GRU(self.hidden_size,
                           self.hidden_size // 2, 
                           self.num_layers,
@@ -140,7 +151,7 @@ class EncoderRNN(nn.Module):
 class AttnDecoderRNN(nn.Module):
     
     def __init__(self,
-                 vocab_size,
+                 embedding_layer,
                  max_length=None,
                  num_layers=2,
                  hidden_size=4096,
@@ -152,9 +163,8 @@ class AttnDecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.latent_size = latent_size
         self.dropout_keep_prob = dropout_keep_prob
-        self.vocab_size = vocab_size
 
-        self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.embedding = embedding_layer
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)

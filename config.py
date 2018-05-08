@@ -12,7 +12,7 @@ SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 
-MAX_SEQUENCE_LENGTH = 50 # Max sentence length
+MAX_SEQUENCE_LENGTH = 256 # Max sentence length
 MAX_NUM_WORDS = 50000 # Max vocabulary size
 WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions

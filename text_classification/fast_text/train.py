@@ -154,25 +154,27 @@ def trainIters(data,
 
 
 def evaluate(model, input, output):
-    correct = 0
+    with torch.no_grad():
+        correct = 0
 
-    result = model(*input)
+        result = model(*input)
 
-    for idx, gt_class in enumerate(output):
-        pred_class = argmax(result[idx])
-        if gt_class == pred_class:
-            correct += 1
+        for idx, gt_class in enumerate(output):
+            pred_class = argmax(result[idx])
+            if gt_class == pred_class:
+                correct += 1
     return float(correct)
 
 
 def evaluate_all(model, data):
-    # Slowly evaluates sample-by-sample
-    correct = 0
-    total = len(data)
-    for sentence, gt_class in data:
-        precheck_sent = process_sentences([sentence])
-        pred_class = argmax(model(*precheck_sent))
-        if gt_class == pred_class:
-            correct += 1
+    with torch.no_grad():
+        # Slowly evaluates sample-by-sample
+        correct = 0
+        total = len(data)
+        for sentence, gt_class in data:
+            precheck_sent = process_sentences([sentence])
+            pred_class = argmax(model(*precheck_sent))
+            if gt_class == pred_class:
+                correct += 1
 
     return float(correct) / float(total)
