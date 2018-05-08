@@ -1,5 +1,6 @@
 import json
 
+
 def data_from_json(JSON_FILE):
     data = {}
     with open(JSON_FILE, errors='ignore') as json_file:
@@ -10,6 +11,7 @@ def data_from_json(JSON_FILE):
         for example in intent_object['usersays']:
             data[intent_object['name']].append(example.strip())
     return data
+
 
 def get_data_pairs(test_data):
     X_train = []

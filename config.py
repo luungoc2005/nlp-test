@@ -14,6 +14,7 @@ WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 
 MAX_SEQUENCE_LENGTH = 50 # Max sentence length
 MAX_NUM_WORDS = 50000 # Max vocabulary size
+WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 50
 NGRAM_BINS = 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py
@@ -34,3 +35,5 @@ NUM_LAYERS = 1
 
 # InferSent configs
 NLI_PATH = path.join(BASE_PATH, 'data/SNLI')
+
+QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')

@@ -2,17 +2,17 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.multiprocessing as mp
-import numpy as np
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from tqdm import tqdm, trange
-from config import SENTENCE_DIM
+# from config import SENTENCE_DIM
+# import numpy as np
 
 from tensorboardX import SummaryWriter
 from os import path
 
-from common.utils import argmax, to_variable, get_datetime_hostname, timeSince
+from common.utils import argmax, get_datetime_hostname, timeSince
 from text_classification.fast_text.model import FastText, process_sentences
 
 import time
@@ -20,6 +20,7 @@ import time
 BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
+
 
 def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
@@ -33,6 +34,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.step()
 
     return loss.item()
+
 
 def trainIters(data,
                classes,
@@ -63,13 +65,13 @@ def trainIters(data,
     if optimizer == 'adam':
         weight_decay = weight_decay or 0
         model_optimizer = optim.Adam(
-            filter(lambda p: p.requires_grad, model.parameters()), 
+            filter(lambda p: p.requires_grad, model.parameters()),
             lr=learning_rate,
             weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-4
         model_optimizer = optim.SGD(
-            filter(lambda p: p.requires_grad, model.parameters()), 
+            filter(lambda p: p.requires_grad, model.parameters()),
             lr=learning_rate,
             weight_decay=weight_decay)
 
@@ -88,7 +90,7 @@ def trainIters(data,
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
     else:
         iterator = range(1, n_iters + 1)
-    
+
     # For timing with verbose=1
     start = time.time()
     data_loader = DataLoader(data, batch_size=batch_size, num_workers=cpu_count)
@@ -97,7 +99,7 @@ def trainIters(data,
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch
 
-            real_batch += len(sentences) # real batch size
+            real_batch += len(sentences)  # real batch size
 
             # Prepare training data
             sentence_in, target_variable = \
@@ -113,7 +115,7 @@ def trainIters(data,
 
             if verbose == 2:
                 iterator.set_description('Minibatch: %s' % real_batch)
-        
+
         loss_total = loss_total / real_batch
         accuracy_total = accuracy_total / real_batch
 
@@ -134,11 +136,11 @@ def trainIters(data,
                 print_loss_avg = print_loss_total / log_every
                 progress = float(epoch) / float(n_iters)
                 print('%s (%d %d%%) %.4f - accuracy: %.4f' % (timeSince(start, progress),
-                    epoch, 
-                    progress * 100, 
-                    print_loss_avg,
-                    print_accuracy_total))
-            
+                                                              epoch,
+                                                              progress * 100,
+                                                              print_loss_avg,
+                                                              print_accuracy_total))
+
             print_loss_total = 0
             print_accuracy_total = 0
 
@@ -149,6 +151,7 @@ def trainIters(data,
     writer.close()
 
     return all_losses, model
+
 
 def evaluate(model, input, output):
     correct = 0
@@ -161,14 +164,15 @@ def evaluate(model, input, output):
             correct += 1
     return float(correct)
 
-# Slowly evaluates sample-by-sample
+
 def evaluate_all(model, data):
+    # Slowly evaluates sample-by-sample
     correct = 0
     total = len(data)
-    for sentence, gt_class in data: 
-        precheck_sent = process_sentences([sentence]) 
-        pred_class = argmax(model(*precheck_sent)) 
+    for sentence, gt_class in data:
+        precheck_sent = process_sentences([sentence])
+        pred_class = argmax(model(*precheck_sent))
         if gt_class == pred_class:
             correct += 1
-     
+
     return float(correct) / float(total)

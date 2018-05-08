@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 
 from tqdm import tqdm, trange
-from config import START_TAG, STOP_TAG
+# from config import START_TAG, STOP_TAG
 
 from tensorboardX import SummaryWriter
 from os import path, getcwd
@@ -18,11 +18,13 @@ LOG_DIR = path.join(BASE_PATH, 'logs/')
 
 torch.manual_seed(7)
 
+
 def process_input(data, tokenizer=wordpunct_space_tokenize):
     return [
         (tokenizer(sent), tags.split())
         for (sent, tags) in data
     ]
+
 
 def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
     model.zero_grad()
@@ -39,6 +41,7 @@ def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
     optimizer.step()
 
     return neg_log_likelihood.data[0]
+
 
 def trainIters(data, 
                tag_to_ix,
@@ -113,20 +116,20 @@ def trainIters(data,
             tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
             writer.add_text(
                 'Training predictions',
-                (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' % \
+                (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' %
                     (str(input_data[0][0]), 
-                    str(input_data[0][1]), 
-                    str(tag_interpreted), 
-                    accuracy)),
+                     str(input_data[0][1]),
+                     str(tag_interpreted),
+                     accuracy)),
                 epoch)
             
             if verbose == 1:
                 print_loss_avg = print_loss_total / log_every
                 progress = float(epoch) / float(n_iters)
                 print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
-                    epoch, 
-                    progress * 100, 
-                    print_loss_avg))
+                      epoch,
+                      progress * 100,
+                      print_loss_avg))
             
             print_loss_total = 0
 
@@ -137,6 +140,7 @@ def trainIters(data,
     writer.close()
 
     return all_losses, model
+
 
 def evaluate_all(model, data, tag_to_ix, tokenizer=wordpunct_space_tokenize):
     correct = 0

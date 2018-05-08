@@ -6,18 +6,21 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
 
-from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
+from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
+
 
 def _letter_to_array(letter):
     ret_val = np.zeros(1, n_letters)
     ret_val[0][letterToIndex(letter)] = 1
     return ret_val
 
+
 def _word_to_array(word):
     ret_val = np.zeros(len(word), 1, n_letters)
     for li, letter in enumerate(word):
         ret_val[li][0][letterToIndex(letter)] = 1
     return ret_val
+
 
 def _process_sentence(sentence):
     word_lengths = np.array([len(word) for word in sentence])
@@ -27,13 +30,14 @@ def _process_sentence(sentence):
     for i in range(len(sentence)):
         for li, letter in enumerate(sentence[i]):
             words_batch[li][i][letterToIndex(letter)] = 1.
-    
+
     words_batch = Variable(torch.from_numpy(words_batch).float())
     return words_batch, word_lengths
 
-class Highway(nn.Module):
-    def __init__(self, size, num_layers, f):
 
+class Highway(nn.Module):
+
+    def __init__(self, size, num_layers, f):
         super(Highway, self).__init__()
 
         self.num_layers = num_layers
@@ -65,11 +69,12 @@ class Highway(nn.Module):
 
         return x
 
+
 class BLSTMWordEncoder(nn.Module):
 
-    def __init__(self, 
-                 hidden_dim = None,
-                 letters_dim = None):
+    def __init__(self,
+                 hidden_dim=None,
+                 letters_dim=None):
         super(BLSTMWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
@@ -95,7 +100,7 @@ class BLSTMWordEncoder(nn.Module):
         words_packed = pack_padded_sequence(words_batch, word_lengths)
         words_output = self.rnn(words_packed)[0]
         words_output = pad_packed_sequence(words_output)[0]
-        
+
         # Un-sort by length
         idx_unsort = torch.from_numpy(idx_unsort)
         words_output = words_output.index_select(1, Variable(idx_unsort))
@@ -110,13 +115,14 @@ class BLSTMWordEncoder(nn.Module):
 
         return embeds
 
+
 class ConvNetWordEncoder(nn.Module):
 
     def __init__(self,
-                 hidden_dim = None,
-                 letters_dim = None,
-                 num_filters = None,
-                 dropout_keep_prob = 0.5):
+                 hidden_dim=None,
+                 letters_dim=None,
+                 num_filters=None,
+                 dropout_keep_prob=0.5):
         super(ConvNetWordEncoder, self).__init__()
 
         # https://arxiv.org/pdf/1603.01354.pdf
@@ -130,7 +136,7 @@ class ConvNetWordEncoder(nn.Module):
             self.convs.append(
                 nn.Sequential(
                     nn.Conv1d(self.letters_dim, self.hidden_dim // self.num_filters,
-                            kernel_size=3, stride=1, padding=1),
+                              kernel_size=3, stride=1, padding=1),
                     nn.ReLU(inplace=True),
                     nn.Dropout(1 - self.dropout_keep_prob)
                 )
@@ -138,7 +144,7 @@ class ConvNetWordEncoder(nn.Module):
 
     def forward(self, sentence):
         words_batch, _ = _process_sentence(sentence)
-        
+
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
 
         convs_batch = []
@@ -150,15 +156,16 @@ class ConvNetWordEncoder(nn.Module):
 
         return embeds
 
+
 class BiLSTM_CRF(nn.Module):
 
-    def __init__(self, 
+    def __init__(self,
                  tag_to_ix,
-                 embedding_dim = None,
-                 char_embedding_dim = None,
-                 hidden_dim = None,
-                 num_layers = None,
-                 dropout_keep_prob = 0.5):
+                 embedding_dim=None,
+                 char_embedding_dim=None,
+                 hidden_dim=None,
+                 num_layers=None,
+                 dropout_keep_prob=0.5):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
@@ -211,7 +218,7 @@ class BiLSTM_CRF(nn.Module):
             max_tag_var, _ = torch.max(tag_var, dim=1)
             tag_var = tag_var - max_tag_var.view(-1, 1)
             forward_var = max_tag_var + torch.log(torch.sum(torch.exp(tag_var), dim=1)).view(1, -1)
-        
+
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         alpha = log_sum_exp(terminal_var)
         return alpha
@@ -220,11 +227,11 @@ class BiLSTM_CRF(nn.Module):
         self.hidden = self.init_hidden()
         seq_len = len(sentence)
 
-        embeds = sentence.view(seq_len, 1, -1) #[seq_len, batch_size, features]
+        embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
         lstm_out, self.hidden = self.lstm(embeds, self.hidden)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
-        
+
         return lstm_feats
 
     def _score_sentence(self, feats, tags):
@@ -234,7 +241,7 @@ class BiLSTM_CRF(nn.Module):
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
             score = score + \
-                self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
+                    self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
         score = score + self.transitions[self.tag_to_ix[STOP_TAG], tags[-1]]
         return score
 
@@ -261,7 +268,7 @@ class BiLSTM_CRF(nn.Module):
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         terminal_var.data[self.tag_to_ix[STOP_TAG]] = -10000.
         terminal_var.data[self.tag_to_ix[START_TAG]] = -10000.
-        
+
         best_tag_id = argmax(terminal_var.unsqueeze(0))
         path_score = terminal_var[best_tag_id]
 

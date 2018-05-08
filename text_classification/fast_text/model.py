@@ -8,12 +8,15 @@ from glove_utils import get_emb_matrix
 from config import MAX_NUM_WORDS, NGRAM_BINS, EMBEDDING_DIM, SENTENCE_DIM
 from fasttext_utils import _process_sentences
 
+
 def process_sentences(sentences):
     words, ngrams = _process_sentences(list(sentences))
     return Variable(torch.from_numpy(words).long(), requires_grad=False), \
-           Variable(torch.from_numpy(ngrams).long(), requires_grad=False)
+        Variable(torch.from_numpy(ngrams).long(), requires_grad=False)
+
 
 class Highway(nn.Module):
+
     def __init__(self, size, num_layers, f):
 
         super(Highway, self).__init__()
@@ -46,6 +49,7 @@ class Highway(nn.Module):
             x = gate * nonlinear + (1 - gate) * linear
 
         return x
+
 
 class FastText(nn.Module):
 

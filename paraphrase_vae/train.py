@@ -1,15 +1,14 @@
-import json
 import torch
+import csv
 import torch.optim as optim
-import torch.nn as nn
 import numpy as np
 import time
-from tensorboardX import SummaryWriter
-from torch.autograd import Variable
 from os import path
-from config import NLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, process_batch
+from paraphrase_vae.model import *
+from paraphrase_vae.tokenizer import build_vocab, segment_ngrams, SEPARATOR, UNK
+from config import BASE_PATH, START_TAG, STOP_TAG, QUORA_PATH, MAX_NUM_WORDS
 from common.utils import get_datetime_hostname, asMinutes
+from tensorboardX import SummaryWriter
 
 np.random.seed(197)
 torch.manual_seed(197)
@@ -18,44 +17,47 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed(197)
 
 # BASE_PATH = path.dirname(__file__)
-SAVE_PATH = path.join(BASE_PATH, 'output/model/')
-LOG_DIR = path.join(BASE_PATH, 'output/logs/')
+SAVE_PATH = path.join(BASE_PATH, 'paraphrase_vae/model/')
+LOG_DIR = path.join(BASE_PATH, 'paraphrase_vae/logs/')
 
 
-def get_nli(data_path):
-    target_dict = {'entailment': 0, 'neutral': 1, 'contradiction': 2}
-    s1 = [
-        line.rstrip().lower() for line in
-        open(path.join(data_path, 's1.train'), 'r')
-    ]
-    s2 = [
-        line.rstrip().lower() for line in
-        open(path.join(data_path, 's2.train'), 'r')
-    ]
-    target = np.array([
-        target_dict[line.rstrip()] for line in
-        open(path.join(data_path, 'labels.train'), 'r')
-    ])
-
-    assert len(s1) == len(s2) == len(target)
-
-    return s1, s2, target
+def get_quora(data_path):
+    question1 = []
+    question2 = []
+    with open(data_path, encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter='\t')
+        for row in reader:
+            if row['is_duplicate']:
+                question1.append(row['question1'])
+                question2.append(row['question2'])
+    print('Duplicate question pairs: %d' % len(question1))
+    return question1, question2
 
 
-def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
-    optimizer.zero_grad()
+def to_idxs(tokens, vocab):
+    return [vocab.get(token, vocab[UNK]) for token in tokens]
 
-    output = model(s1_data, s2_data)
 
-    loss = criterion(output, target_batch)
-    loss.backward()
+def process_input(input, target):
+    vocab = build_vocab(input)
 
-    # Gradient clipping (to prevent exploding gradients)
-    nn.utils.clip_grad_norm_(model.parameters(), 5.)
+    input_tokens, in_vocab = segment_ngrams(input, vocab)
+    vocab = vocab + in_vocab
+    vocab = list(sorted(vocab, key=lambda x: x[1], reverse=True)[:MAX_NUM_WORDS])
 
-    optimizer.step()
+    target_tokens, out_vocab = segment_ngrams(target, vocab)
+    vocab = vocab + out_vocab
+    vocab = list(sorted(vocab, key=lambda x: x[1], reverse=True)[:MAX_NUM_WORDS])
 
-    return loss.cpu().item(), output
+    vocab = [(START_TAG, 0), (STOP_TAG, 0), (SEPARATOR, 0), (UNK, 0)] + vocab
+
+    # Convert to a dictionary
+    vocab = {word: idx for idx, (word, freq) in enumerate(vocab)}
+
+    input_tokens = [[START_TAG] + to_idxs(tokens) + [STOP_TAG] for tokens in input_tokens]
+    target_tokens = [[STOP_TAG] + to_idxs(tokens[::-1]) + [START_TAG] for tokens in target_tokens]
+
+    return input_tokens, target_tokens, vocab
 
 
 def trainIters(n_iters=10,
@@ -65,31 +67,26 @@ def trainIters(n_iters=10,
                lr_shrink=5,
                min_lr=1e-5,
                checkpoint=None):
-    encoder = BiGRUEncoder()
-    # encoder = ConvNetEncoder()
-    nli_net = NLINet(encoder=encoder)
+    s1, s2 = get_quora(QUORA_PATH)
+    s1, s2, vocab = process_input(s1, s2)
+
+    model = ParaphraseVAE(vocab_size=)
 
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
+    optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
     epoch_start = 1
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
-        nli_net.load_state_dict(checkpoint_data['nli_state'])
+        model.load_state_dict(checkpoint_data['model_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
-        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
-              (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
-
-    s1, s2, target = get_nli(NLI_PATH)
-    # permutation = np.random.permutation(len(s1))
-    # s1 = s1[permutation]
-    # s2 = s2[permutation]
-    # target = target[permutation]
+        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (
+            checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
     is_cuda = torch.cuda.is_available()
 
@@ -99,14 +96,14 @@ def trainIters(n_iters=10,
 
     if is_cuda:
         print('Training with GPU mode')
-        encoder = encoder.cuda()
-        nli_net = nli_net.cuda()
+        nli_net = model.cuda()
         criterion = criterion.cuda()
     else:
         print('Training with CPU mode')
 
     start_time = time.time()
     last_time = start_time
+    train_acc = 0.
     accuracies = []
 
     for epoch in range(epoch_start, n_iters + 1):
@@ -158,9 +155,9 @@ def trainIters(n_iters=10,
                 #     'value': loss_total
                 # }))
 
-                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' %
-                      (asMinutes(time.time() - start_time),
-                       epoch, loss_total,
+                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' % \
+                      (asMinutes(time.time() - start_time), \
+                       epoch, loss_total, \
                        round(batch_size * 100 / (time.time() - last_time), 2),
                        round(100. * correct / (start_idx + k), 2),
                        round(100. * batch_idx / total_steps, 2)))
@@ -173,7 +170,7 @@ def trainIters(n_iters=10,
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
         torch.save({
             'epoch': epoch,
-            'nli_state': nli_net.state_dict(),
+            'model_state': model.state_dict(),
             'optimizer_state': optimizer.state_dict(),
             'accuracy': train_acc
         }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
