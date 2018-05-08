@@ -120,7 +120,7 @@ class ParaphraseVAE(nn.Module):
             for idx in len(decoded):
                 result.append(argmax(decoded[idx]))
 
-            return result
+            return result[::-1]
 
 
 class EncoderRNN(nn.Module):
