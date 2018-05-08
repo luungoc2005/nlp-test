@@ -177,8 +177,8 @@ def trainIters(n_iters=10,
                 ref_sent = ' '.join([ix_to_word[ix] for ix in s2[start_idx]][::-1])
                 pred_sent = ' '.join([ix_to_word[ix] for ix in model.generate(s1_batch)])
 
-                writer.add_text(orig_sent,
-                                ' - Reference: `%s`\r\n - Predicted: `%s`' % (ref_sent, pred_sent),
+                writer.add_text('Step: %s' % step,
+                                ' - Source: `%s`\r\n - Reference: `%s`\r\n - Predicted: `%s`' % (orig_sent, ref_sent, pred_sent),
                                 step)
 
                 # metrics for floydhub
