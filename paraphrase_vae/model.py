@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import random
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
+from config import EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 from paraphrase_vae.tokenizer import SOS_token, EOS_token
 
 NLL = nn.NLLLoss(size_average=False)
+
+
 def KLDivLoss(logp, logv, mean, target, length, step, k, x0):
     NLL_loss = NLL(logp, target)
 
@@ -15,10 +16,11 @@ def KLDivLoss(logp, logv, mean, target, length, step, k, x0):
 
     return NLL_loss, KL_loss, KL_weight
 
+
 class ParaphraseVAE(nn.Module):
 
     def __init(self,
-               vocab_size=None,
+               vocab_size,
                embedding_size=None,
                max_length=None,
                dropout_keep_prob=0.5,
@@ -26,7 +28,7 @@ class ParaphraseVAE(nn.Module):
                latent_size=1100):
         super(ParaphraseVAE, self).__init__()
         self.embedding_size = embedding_size or EMBEDDING_DIM
-        self.vocab_size = vocab_size or MAX_NUM_WORDS
+        self.vocab_size = vocab_size
         self.max_length = max_length or MAX_SEQUENCE_LENGTH
         self.latent_size = latent_size
         self.hidden_size = hidden_size
@@ -40,7 +42,8 @@ class ParaphraseVAE(nn.Module):
 
         self.latent2hidden = nn.Linear(self.latent_size, self.hidden_size * 2)
         self.decoder = AttnDecoderRNN(self.embedding_layer, 
-            num_layers=1, hidden_size=self.hidden_size, dropout_keep_prob=self.dropout_keep_prob)
+                                      num_layers=1, hidden_size=self.hidden_size,
+                                      dropout_keep_prob=self.dropout_keep_prob)
 
     def _encode_to_latent(self, input):
         encoder_hidden = self.encoder.init_hidden()
@@ -58,7 +61,7 @@ class ParaphraseVAE(nn.Module):
 
         return encoder_hidden, mean, logv
 
-    def _latent_to_output(self, z, encoder_hidden, target = None, teacher_forcing_ratio=0.5):
+    def _latent_to_output(self, z, encoder_hidden, target=None, teacher_forcing_ratio=0.5):
         if target is None:
             target_length = self.max_length
         else:
@@ -106,6 +109,7 @@ class ParaphraseVAE(nn.Module):
         
         return decoded, mean, logv
 
+
 class EncoderRNN(nn.Module):
 
     def __init__(self,
@@ -131,6 +135,7 @@ class EncoderRNN(nn.Module):
 
     def init_hidden(self):
         return torch.zeros(2, 1, self.hidden_size // 2)
+
 
 class AttnDecoderRNN(nn.Module):
     

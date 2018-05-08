@@ -11,7 +11,8 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from text_classification.convnet.model import TextCNN
-from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
+from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, \
+    word_to_vec, timeSince
 
 import time
 
@@ -19,15 +20,17 @@ BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
-"""
-Input is in the form of tuples of (class:int, sent:string)
-"""
+
 def process_input(data):
+    """
+    Input is in the form of tuples of (class:int, sent:string)
+    """
     return [
-        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'), 
-        label)
+        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'),
+         label)
         for sent, label in data
     ]
+
 
 def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
@@ -41,6 +44,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.step()
 
     return loss.item()
+
 
 def trainIters(data,
                classes,
@@ -59,7 +63,7 @@ def trainIters(data,
     intents_count = float(len(data))
     weights_tensor = torch.zeros(num_classes).float()
     for _, label in data:
-        if not label in class_weights:
+        if label not in class_weights:
             class_weights[label] = 1.
         else:
             class_weights[label] += 1.
@@ -73,13 +77,13 @@ def trainIters(data,
     if optimizer == 'adam':
         weight_decay = weight_decay or 0
         model_optimizer = optim.Adam(
-            model.parameters(), 
+            model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-4
         model_optimizer = optim.SGD(
-            model.parameters(), 
+            model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay)
 
@@ -98,7 +102,7 @@ def trainIters(data,
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
     else:
         iterator = range(1, n_iters + 1)
-    
+
     # For timing with verbose=1
     start = time.time()
     data_loader = DataLoader(input_data, batch_size=batch_size)
@@ -109,14 +113,14 @@ def trainIters(data,
             # Prepare training data
             sentence_in, target_variable = Variable(sentences), Variable(labels.type(torch.LongTensor))
 
-            real_batch += len(sentences) # real batch size
+            real_batch += len(sentences)  # real batch size
 
             # Run the training epoch
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
 
             loss_total += loss
             accuracy_total += evaluate(model, sentence_in, labels)
-        
+
         loss_total = loss_total / real_batch
         accuracy_total = accuracy_total / real_batch
 
@@ -137,11 +141,11 @@ def trainIters(data,
                 print_loss_avg = print_loss_total / log_every
                 progress = float(epoch) / float(n_iters)
                 print('%s (%d %d%%) %.4f - accuracy: %.4f' % (timeSince(start, progress),
-                    epoch, 
-                    progress * 100, 
-                    print_loss_avg,
-                    print_accuracy_total))
-            
+                                                              epoch,
+                                                              progress * 100,
+                                                              print_loss_avg,
+                                                              print_accuracy_total))
+
             print_loss_total = 0
             print_accuracy_total = 0
 
@@ -153,6 +157,7 @@ def trainIters(data,
 
     return all_losses, model
 
+
 def evaluate(model, input, output):
     correct = 0
 
@@ -163,6 +168,7 @@ def evaluate(model, input, output):
         if gt_class == pred_class:
             correct += 1
     return float(correct)
+
 
 def evaluate_all(model, data):
     correct = 0

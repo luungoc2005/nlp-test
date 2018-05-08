@@ -14,6 +14,7 @@ from types import MethodType
 POS_TAGS = ['#'] + list(load('help/tagsets/upenn_tagset.pickle').keys())
 POS_TAGS_COUNT = len(POS_TAGS)
 
+
 def get_tokenizer(input_sequences, tokenizer_class=Tokenizer):
     tokenizer = tokenizer_class(num_words=MAX_NUM_WORDS)
     tokenizer.fit_on_texts(input_sequences)
@@ -21,10 +22,12 @@ def get_tokenizer(input_sequences, tokenizer_class=Tokenizer):
 
     return tokenizer
 
+
 def add_word_map(tokenizer, force=False):
     if force or not hasattr(tokenizer, 'word_map'):
         tokenizer.word_map = dict(map(reversed, tokenizer.word_index.items()))
     return tokenizer
+
 
 def get_tokenizer_from_file(input_file, tokenizer_class=Tokenizer):
     with open(WORDS_PATH, 'r') as words_file:
@@ -33,6 +36,7 @@ def get_tokenizer_from_file(input_file, tokenizer_class=Tokenizer):
     tokenizer.fit_on_texts(content)
 
     return tokenizer
+
 
 def get_inputs(input_sequences, tokenizer):
     token_sequences = tokenizer.texts_to_sequences(input_sequences)
@@ -65,6 +69,7 @@ def get_inputs(input_sequences, tokenizer):
 
     return token_sequences, pos_sequences
 
+
 """
 Initializes Embedding layers with GLOVE weights
 ---
@@ -75,6 +80,8 @@ An object with the following keys:
     'static_embedding_layer'
     'non_static_embedding_layer'
 """
+
+
 def fit_embedding_layers(tokenizer):
     embeddings_index = init_glove()
 

@@ -16,7 +16,7 @@ EMB_MATRIX = None
 ALL_WORDS = None
 
 def init_glove():
-    global GLOVE_DATA, GLOVE_PATH
+    global GLOVE_DATA
     cdef str file_path, line, pickle_path
     cdef int line_count
 
@@ -47,6 +47,7 @@ def init_glove():
                     joblib.dump(GLOVE_DATA, pickle_file, compress=3)
     return GLOVE_DATA
 
+
 def get_emb_matrix():
     global GLOVE_DATA, EMB_MATRIX
     cdef int idx
@@ -61,6 +62,7 @@ def get_emb_matrix():
         for idx, val in enumerate(GLOVE_DATA.values()):
             EMB_MATRIX[idx + 1] = val
         return EMB_MATRIX
+
 
 def get_text_to_ix():
     global WORDS_DICT, GLOVE_DATA
@@ -81,6 +83,7 @@ def get_text_to_ix():
     
     return WORDS_DICT
 
+
 def get_word_vector(word):
     global GLOVE_DATA
     if not GLOVE_DATA:
@@ -88,10 +91,12 @@ def get_word_vector(word):
     # because GLoVe vectors are uncased
     return GLOVE_DATA.get(word.lower(), None)
 
+
 def measure_dist(word1, word2):
     vec1 = get_word_vector(word1) if type(word1) is str else word1
     vec2 = get_word_vector(word2) if type(word2) is str else word2
     return np.linalg.norm(vec1 - vec2)
+
 
 def print_top_similar(str word, int count=15):
     global GLOVE_DATA, ALL_WORDS
@@ -111,7 +116,8 @@ def print_top_similar(str word, int count=15):
     for idx in dists_idxs:
         ret_word = ALL_WORDS[idx]
         if ret_word != word:
-            print((ret_word, dists[idx]))
+            print(ret_word, dists[idx])
+
 
 def get_glove_data():
     global GLOVE_DATA

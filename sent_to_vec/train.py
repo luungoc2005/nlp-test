@@ -21,8 +21,9 @@ if torch.cuda.is_available():
 SAVE_PATH = path.join(BASE_PATH, 'output/model/')
 LOG_DIR = path.join(BASE_PATH, 'output/logs/')
 
+
 def get_nli(data_path):
-    target_dict = {'entailment': 0,  'neutral': 1, 'contradiction': 2}
+    target_dict = {'entailment': 0, 'neutral': 1, 'contradiction': 2}
     s1 = [
         line.rstrip().lower() for line in
         open(path.join(data_path, 's1.train'), 'r')
@@ -40,11 +41,12 @@ def get_nli(data_path):
 
     return s1, s2, target
 
+
 def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
     optimizer.zero_grad()
-    
+
     output = model(s1_data, s2_data)
-    
+
     loss = criterion(output, target_batch)
     loss.backward()
 
@@ -55,7 +57,8 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
     return loss.cpu().item(), output
 
-def trainIters(n_iters=10, 
+
+def trainIters(n_iters=10,
                batch_size=64,
                lr=1e-3,
                lr_decay=0.99,
@@ -79,7 +82,8 @@ def trainIters(n_iters=10,
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
-        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
+        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
+              (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
     s1, s2, target = get_nli(NLI_PATH)
     # permutation = np.random.permutation(len(s1))
@@ -103,10 +107,9 @@ def trainIters(n_iters=10,
 
     start_time = time.time()
     last_time = start_time
-    train_acc = 0.
     accuracies = []
 
-    for epoch in range(epoch_start, n_iters+1):
+    for epoch in range(epoch_start, n_iters + 1):
 
         correct = 0.
         losses = []
@@ -116,12 +119,12 @@ def trainIters(n_iters=10,
         for start_idx in range(0, len(s1), batch_size):
             s1_batch, s1_len = process_batch(s1[start_idx:start_idx + batch_size])
             s2_batch, s2_len = process_batch(s2[start_idx:start_idx + batch_size])
-            target_batch = torch.LongTensor(target[start_idx:start_idx+batch_size])
+            target_batch = torch.LongTensor(target[start_idx:start_idx + batch_size])
 
             s1_batch, s2_batch, target_batch = Variable(s1_batch), Variable(s2_batch), Variable(target_batch)
-            
+
             batch_idx += 1.
-            k = s1_batch.size(1) # Actual batch size
+            k = s1_batch.size(1)  # Actual batch size
 
             if is_cuda:
                 s1_batch = s1_batch.cuda()
@@ -132,9 +135,9 @@ def trainIters(n_iters=10,
 
             pred = output.data.max(1)[1]
             correct += pred.long().eq(target_batch.data.long()).cpu().sum().item()
-        
+
             losses.append(loss)
-        
+
             # log for every 100 batches:
             if len(losses) % 100 == 0:
                 loss_total = np.mean(losses)
@@ -155,16 +158,16 @@ def trainIters(n_iters=10,
                 #     'value': loss_total
                 # }))
 
-                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' % \
-                    (asMinutes(time.time() - start_time), \
-                    epoch, loss_total, \
-                    round(batch_size * 100 / (time.time() - last_time), 2),
-                    round(100. * correct / (start_idx + k), 2),
-                    round(100. * batch_idx / total_steps, 2)))
+                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' %
+                      (asMinutes(time.time() - start_time),
+                       epoch, loss_total,
+                       round(batch_size * 100 / (time.time() - last_time), 2),
+                       round(100. * correct / (start_idx + k), 2),
+                       round(100. * batch_idx / total_steps, 2)))
                 last_time = time.time()
                 losses = []
 
-        train_acc = round(100 * correct/len(s1), 2)
+        train_acc = round(100 * correct / len(s1), 2)
         accuracies.append(train_acc)
 
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
@@ -181,14 +184,14 @@ def trainIters(n_iters=10,
         #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * lr_decay
 
         # if len(accuracies) > 5: # Minimum of 2 epochs:
-            # if accuracies[-1] < accuracies[-2] and accuracies[-2] < accuracies[-3]:
-                # Early stopping
-                # break
-                # optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
-                # print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
-                # if optimizer.param_groups[0]['lr'] < min_lr:
-                    # Early stopping
-                    # break
+        # if accuracies[-1] < accuracies[-2] and accuracies[-2] < accuracies[-3]:
+        # Early stopping
+        # break
+        # optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
+        # print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
+        # if optimizer.param_groups[0]['lr'] < min_lr:
+        # Early stopping
+        # break
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)

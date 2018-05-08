@@ -1,13 +1,15 @@
 import torch
-import numpy as np
+# import numpy as np
 
 from os import path
 
 from text_classification.fast_text.train import trainIters
+from text_classification.fast_text.train import evaluate_all
 from config import BASE_PATH
 
 AMAZON_TRAIN_PATH = path.join(BASE_PATH, 'data/amazon/train.ft.txt')
 AMAZON_TEST_PATH = path.join(BASE_PATH, 'data/amazon/test.ft.txt')
+
 
 def read_input_file(filename):
     classes = []
@@ -21,7 +23,8 @@ def read_input_file(filename):
             classes.append(line_class)
             texts.append(line_content)
     print('Read %s samples from %s' % (len(texts), filename))
-    return (texts, classes)
+    return texts, classes
+
 
 (x_train, y_train) = read_input_file(AMAZON_TRAIN_PATH)
 (x_test, y_test) = read_input_file(AMAZON_TEST_PATH)
@@ -41,7 +44,6 @@ losses, model = trainIters(training_data,
 print('Saving model...')
 torch.save(model.state_dict(), 'amazon_ft.bin')
 
-from text_classification.fast_text.train import evaluate_all
 test_data = [(item, classes.index(y_test[idx])) for idx, item in enumerate(x_test)]
 
 print('Model evaluation result - Test set:')

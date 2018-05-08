@@ -9,6 +9,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from glove_utils import get_glove_data, get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 
+
 def process_batch(batch):
     lengths = np.array([len(sent) for sent in batch])
     max_len = np.max(lengths)
@@ -17,9 +18,11 @@ def process_batch(batch):
     for i in range(len(batch)):
         for j in range(len(batch[i])):
             vec = get_word_vector(batch[i][j])
-            if not vec is None: embeds[j, i, :] = vec
+            if vec is not None:
+                embeds[j, i, :] = vec
 
     return torch.from_numpy(embeds).float(), lengths
+
 
 def process_input(sentences):
     # Filter out words without word vectors
@@ -37,6 +40,7 @@ def process_input(sentences):
     sentences = np.array(sentences)[idx_sort]
 
     return sentences, lengths, idx_sort
+
 
 class MaskedConv1d(nn.Conv1d):
 
@@ -70,6 +74,7 @@ class GatedConv1d(MaskedConv1d):
 
         return output * mask
 
+
 class StackedConv(nn.Module):
 
     def __init__(self, input_size, hidden_size, kernel_size=3,
@@ -98,16 +103,18 @@ class StackedConv(nn.Module):
             res = x
         return x
 
-"""
-ConvNetEncoder
-"""
+
 class ConvNetEncoder(nn.Module):
+    """
+    ConvNetEncoder
+    """
+
     def __init__(self,
-                 embedding_dim = None,
-                 vocab_size = None,
-                 hidden_dim = 2048,
-                 is_cuda = None,
-                 dropout_keep_prob = 1):
+                 embedding_dim=None,
+                 vocab_size=None,
+                 hidden_dim=2048,
+                 is_cuda=None,
+                 dropout_keep_prob=1):
         super(ConvNetEncoder, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
@@ -125,7 +132,7 @@ class ConvNetEncoder(nn.Module):
 
         sent, _ = sent_tuple
 
-        sent = sent.transpose(0,1).transpose(1,2).contiguous()
+        sent = sent.transpose(0, 1).transpose(1, 2).contiguous()
         sent = self.dropout(sent)
 
         sent = self.convs(sent)
@@ -133,14 +140,15 @@ class ConvNetEncoder(nn.Module):
 
         return emb
 
+
 class BiGRUEncoder(nn.Module):
 
     def __init__(self,
-                 embedding_dim = None,
-                 vocab_size = None,
-                 hidden_dim = 2048,
-                 is_cuda = None,
-                 dropout_keep_prob = 1):
+                 embedding_dim=None,
+                 vocab_size=None,
+                 hidden_dim=2048,
+                 is_cuda=None,
+                 dropout_keep_prob=1):
         super(BiGRUEncoder, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
@@ -150,8 +158,8 @@ class BiGRUEncoder(nn.Module):
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
-                                bidirectional=True, 
-                                dropout=1-self.dropout_keep_prob)
+                           bidirectional=True,
+                           dropout=1-self.dropout_keep_prob)
 
     def forward(self, sent_tuple):
         sent, sent_len = sent_tuple
@@ -186,12 +194,13 @@ class BiGRUEncoder(nn.Module):
 
         return embeds
 
+
 class NLINet(nn.Module):
     
     def __init__(self,
-                 lstm_dim = 2048,
-                 hidden_dim = 512,
-                 encoder = None):
+                 lstm_dim=2048,
+                 hidden_dim=512,
+                 encoder=None):
         super(NLINet, self).__init__()
 
         self.lstm_dim = lstm_dim
