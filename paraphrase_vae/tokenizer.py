@@ -4,6 +4,8 @@ from config import MAX_NUM_WORDS
 
 NGRAM_SIZE = 2
 SEPARATOR = '@@'
+SOS_token = 0
+EOS_token = 1
 
 def build_vocab(sents):
     c = Counter()
