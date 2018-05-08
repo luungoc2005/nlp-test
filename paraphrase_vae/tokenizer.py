@@ -23,7 +23,7 @@ def segment_ngrams(sents, vocab):
     c = Counter()
 
     if not isinstance(vocab, dict):
-        vocab = {word: idx for idx, (word, freq) in enumerate(vocab)}
+        vocab = {word: idx + 1 for idx, (word, freq) in enumerate(vocab)}
 
     result = []
     for sent in sents:
