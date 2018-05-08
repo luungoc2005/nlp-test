@@ -89,7 +89,7 @@ def _train(s1_batch, s2_batch, model, optimizer, step):
     loss.backward()
     optimizer.step()
 
-    return decoded, NLL_loss.item(), loss.item()
+    return decoded, NLL_loss.item(), KL_loss.item()
 
 
 def trainIters(n_iters=10,

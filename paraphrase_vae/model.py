@@ -27,7 +27,7 @@ class ParaphraseVAE(nn.Module):
                  vocab_size,
                  max_length=None,
                  dropout_keep_prob=0.5,
-                 hidden_size=600,
+                 hidden_size=300,
                  latent_size=100):
         super(ParaphraseVAE, self).__init__()
         self.vocab_size = vocab_size
