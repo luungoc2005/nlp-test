@@ -8,9 +8,11 @@ parser.add_argument("--checkpoint", type=str, default='')
 
 args = parser.parse_args()
 
-model, vocab = trainIters(n_iters=args.n_epochs,
-                          checkpoint=args.checkpoint)
+model, vocab, vocab_size = trainIters(n_iters=args.n_epochs,
+                                      checkpoint=args.checkpoint)
+
 torch.save({
     'model_state': model.state_dict(),
-    'vocab': vocab
+    'vocab': vocab,
+    'vocab_size': vocab_size
 }, 'paraphrase_vae.bin')

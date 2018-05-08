@@ -5,10 +5,10 @@ from config import MAX_NUM_WORDS, WORDS_SHORTLIST
 NGRAM_SIZE = 2
 SEPARATOR = '@@'
 UNK = '<UNK>'
-SOS_token = 0
-EOS_token = 1
-SEP_token = 2
-UNK_token = 3
+UNK_token = 0
+SOS_token = 1
+EOS_token = 2
+SEP_token = 3
 
 
 def build_vocab(sents):

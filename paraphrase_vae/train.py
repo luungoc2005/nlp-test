@@ -31,7 +31,7 @@ def get_quora(data_path):
                 question1.append(row['question1'])
                 question2.append(row['question2'])
     print('Duplicate question pairs: %d' % len(question1))
-    return question1[:10000], question2[:10000]
+    return question1[:20000], question2[:20000]
 
 
 def to_idxs(tokens, vocab):
@@ -52,12 +52,13 @@ def process_input(input, target):
     vocab = vocab + out_vocab
     vocab = list(sorted(vocab, key=lambda x: x[1], reverse=True)[:MAX_NUM_WORDS])
 
-    vocab = [(START_TAG, 0), (STOP_TAG, 0), (SEPARATOR, 0), (UNK, 0)] + vocab
+    vocab = [(UNK, 0), (START_TAG, 0), (STOP_TAG, 0), (SEPARATOR, 0)] + vocab
 
-    print('Vocabulary contains %s tokens' % len(vocab))
+    vocab_size = len(vocab)
+    print('Vocabulary contains %s tokens' % vocab_size)
 
     # Convert to a dictionary
-    vocab = {word: idx for idx, (word, freq) in enumerate(vocab)}
+    vocab = {vocab[idx][0]: idx for idx in range(len(vocab))}
 
     input_tokens =  [np.array([SOS_token] + to_idxs(tokens, vocab) + [EOS_token])
                      for tokens in input_tokens]
@@ -73,7 +74,7 @@ def process_input(input, target):
     input_tokens = np.array(input_tokens)[idxs]
     target_tokens = np.array(target_tokens)[idxs]
 
-    return input_tokens, target_tokens, vocab
+    return input_tokens, target_tokens, vocab, vocab_size
 
 
 def _train(s1_batch, s2_batch, model, optimizer, step):
@@ -98,10 +99,9 @@ def trainIters(n_iters=10,
                min_lr=1e-5,
                checkpoint=None):
     s1, s2 = get_quora(QUORA_PATH)
-    s1, s2, vocab = process_input(s1, s2)
-    vocab_len = len(vocab.keys()) + 2
+    s1, s2, vocab, vocab_size = process_input(s1, s2)
 
-    model = ParaphraseVAE(vocab_len)
+    model = ParaphraseVAE(vocab_size)
 
     optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
@@ -111,9 +111,9 @@ def trainIters(n_iters=10,
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
         vocab = checkpoint['vocab']
-        vocab_len = len(vocab.keys()) + 2
+        vocab_size = checkpoint['vocab_size']
 
-        model = ParaphraseVAE(vocab_len)
+        model = ParaphraseVAE(vocab_size)
         model.load_state_dict(checkpoint_data['model_state'])
 
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
@@ -209,7 +209,8 @@ def trainIters(n_iters=10,
             'epoch': epoch,
             'model_state': model.state_dict(),
             'optimizer_state': optimizer.state_dict(),
-            'vocab': vocab
+            'vocab': vocab,
+            'vocab_size': vocab_size
         }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
         # Saving checkpoint
 
@@ -231,4 +232,4 @@ def trainIters(n_iters=10,
     writer.export_scalars_to_json(LOG_JSON)
     writer.close()
 
-    return model, vocab
+    return model, vocab, vocab_size
