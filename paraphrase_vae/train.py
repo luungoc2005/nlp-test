@@ -31,7 +31,7 @@ def get_quora(data_path):
                 question1.append(row['question1'])
                 question2.append(row['question2'])
     print('Duplicate question pairs: %d' % len(question1))
-    return question1[:20000], question2[:20000]
+    return question1, question2
 
 
 def to_idxs(tokens, vocab):
