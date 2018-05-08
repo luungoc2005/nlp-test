@@ -45,6 +45,7 @@ class ParaphraseVAE(nn.Module):
 
         self.latent2hidden = nn.Linear(self.latent_size, self.hidden_size)
         self.decoder = AttnDecoderRNN(self.embedding,
+                                      self.vocab_size,
                                       num_layers=1,
                                       hidden_size=self.hidden_size,
                                       dropout_keep_prob=self.dropout_keep_prob)
@@ -117,8 +118,11 @@ class ParaphraseVAE(nn.Module):
         with torch.no_grad():
             decoded, _, _ = self.forward(input)
             result = []
-            for idx in len(decoded):
-                result.append(argmax(decoded[idx]))
+            for idx in range(len(decoded)):
+                token = argmax(decoded[idx])
+                result.append(token)
+                if token == SOS_token:
+                    break
 
             return result[::-1]
 
@@ -152,6 +156,7 @@ class AttnDecoderRNN(nn.Module):
     
     def __init__(self,
                  embedding_layer,
+                 vocab_size,
                  max_length=None,
                  num_layers=2,
                  hidden_size=4096,
@@ -163,6 +168,7 @@ class AttnDecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.latent_size = latent_size
         self.dropout_keep_prob = dropout_keep_prob
+        self.vocab_size = vocab_size
 
         self.embedding = embedding_layer
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)

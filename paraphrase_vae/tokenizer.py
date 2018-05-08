@@ -1,6 +1,6 @@
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import wordpunct_tokenize
 from collections import Counter
-from config import MAX_NUM_WORDS, WORDS_SHORTLIST, START_TAG, STOP_TAG
+from config import MAX_NUM_WORDS, WORDS_SHORTLIST
 
 NGRAM_SIZE = 2
 SEPARATOR = '@@'
@@ -14,7 +14,7 @@ UNK_token = 3
 def build_vocab(sents):
     c = Counter()
     for sent in sents:
-        for word in word_tokenize(sent):
+        for word in wordpunct_tokenize(sent.lower()):
             c[word] += 1
     return list(sorted(c.items(), key=lambda x: x[1], reverse=True)[:WORDS_SHORTLIST])
 
@@ -28,7 +28,7 @@ def segment_ngrams(sents, vocab):
     result = []
     for sent in sents:
         tokens = []
-        for word in word_tokenize(sent):
+        for word in wordpunct_tokenize(sent.lower()):
             if word not in vocab:
                 i = 0
                 while i * NGRAM_SIZE < len(word):

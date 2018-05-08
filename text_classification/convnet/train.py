@@ -107,8 +107,6 @@ def trainIters(data,
     start = time.time()
     data_loader = DataLoader(input_data, batch_size=batch_size)
 
-    ix_to_word = {}
-
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
             sentences, labels = data_batch

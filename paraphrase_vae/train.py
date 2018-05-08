@@ -6,7 +6,7 @@ import time
 from os import path
 from paraphrase_vae.model import ParaphraseVAE, KLDivLoss
 from paraphrase_vae.tokenizer import build_vocab, segment_ngrams, SOS_token, EOS_token, SEPARATOR, UNK
-from config import BASE_PATH, START_TAG, STOP_TAG, QUORA_PATH, MAX_NUM_WORDS, WORDS_SHORTLIST
+from config import BASE_PATH, START_TAG, STOP_TAG, QUORA_PATH, MAX_NUM_WORDS
 from common.utils import get_datetime_hostname, asMinutes
 from tensorboardX import SummaryWriter
 
@@ -31,7 +31,7 @@ def get_quora(data_path):
                 question1.append(row['question1'])
                 question2.append(row['question2'])
     print('Duplicate question pairs: %d' % len(question1))
-    return question1, question2
+    return question1[:10000], question2[:10000]
 
 
 def to_idxs(tokens, vocab):
@@ -88,7 +88,7 @@ def _train(s1_batch, s2_batch, model, optimizer, step):
     loss.backward()
     optimizer.step()
 
-    return decoded, NLL_loss, loss
+    return decoded, NLL_loss.item(), loss.item()
 
 
 def trainIters(n_iters=10,
@@ -99,7 +99,7 @@ def trainIters(n_iters=10,
                checkpoint=None):
     s1, s2 = get_quora(QUORA_PATH)
     s1, s2, vocab = process_input(s1, s2)
-    vocab_len = len(vocab.keys()) + 1
+    vocab_len = len(vocab.keys()) + 2
 
     model = ParaphraseVAE(vocab_len)
 
@@ -111,7 +111,7 @@ def trainIters(n_iters=10,
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
         vocab = checkpoint['vocab']
-        vocab_len = len(vocab.keys()) + 1
+        vocab_len = len(vocab.keys()) + 2
 
         model = ParaphraseVAE(vocab_len)
         model.load_state_dict(checkpoint_data['model_state'])
@@ -138,13 +138,11 @@ def trainIters(n_iters=10,
     start_time = time.time()
     last_time = start_time
     step = 0
-    accuracies = []
 
     ix_to_word = {value: key for key, value in vocab.items()}
 
     for epoch in range(epoch_start, n_iters + 1):
 
-        correct = 0.
         losses = []
         NLL_losses = []
         batch_idx = 0.
@@ -164,9 +162,6 @@ def trainIters(n_iters=10,
 
             step += 1
 
-            pred = output.data.max(1)
-            correct += pred.long().eq(s2_batch.data.long()).cpu().sum().item()
-
             NLL_losses.append(NLL_loss)
             losses.append(loss)
 
@@ -175,10 +170,15 @@ def trainIters(n_iters=10,
                 loss_total = np.mean(NLL_losses)
                 kl_loss_total = np.mean(losses)
 
-                writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
-                writer.add_scalar(KDIV_LOG_FILE, kl_loss_total, epoch)
-                writer.add_text(' '.join([ix_to_word(ix) for ix in s1[start_idx]]),
-                                ' '.join([ix_to_word(ix) for ix in model.generate(s1[start_idx].view(-1, 1))]),
+                writer.add_scalar(LOSS_LOG_FILE, loss_total, step)
+                writer.add_scalar(KDIV_LOG_FILE, kl_loss_total, step)
+
+                orig_sent = ' '.join([ix_to_word[ix] for ix in s1[start_idx]])
+                ref_sent = ' '.join([ix_to_word[ix] for ix in s2[start_idx]][::-1])
+                pred_sent = ' '.join([ix_to_word[ix] for ix in model.generate(s1_batch)])
+
+                writer.add_text(orig_sent,
+                                ' - Reference: `%s`\r\n - Predicted: `%s`' % (ref_sent, pred_sent),
                                 step)
 
                 # metrics for floydhub
@@ -195,28 +195,23 @@ def trainIters(n_iters=10,
                 #     'value': loss_total
                 # }))
 
-                print('%s - epoch %s: loss: %s ; %s sentences/s ; Accuracy: %s (%s of epoch)' %
+                print('%s - epoch %s: loss: %s ; %s sentences/s (%s of epoch)' %
                       (asMinutes(time.time() - start_time),
                        epoch, loss_total,
                        round(100. / (time.time() - last_time), 2),
-                       round(100. * correct / (start_idx + 1), 2),
                        round(100. * batch_idx / total_steps, 2)))
                 last_time = time.time()
                 losses = []
                 NLL_losses = []
 
-        train_acc = round(100 * correct / len(s1), 2)
-        accuracies.append(train_acc)
-
-        torch.save(model.state_dict(), path.join(SAVE_PATH, 'quora_vae_{}_{}.bin'.format(epoch, train_acc)))
+        torch.save(model.state_dict(), path.join(SAVE_PATH, 'quora_vae_{}.bin'.format(epoch)))
         torch.save({
             'epoch': epoch,
             'model_state': model.state_dict(),
             'optimizer_state': optimizer.state_dict(),
-            'accuracy': train_acc,
             'vocab': vocab
-        }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
-        # Saving checkpoing
+        }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
+        # Saving checkpoint
 
         # Decaying LR
         # if epoch>1:
