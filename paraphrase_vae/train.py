@@ -27,7 +27,7 @@ def get_quora(data_path):
     with open(data_path, encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
         for row in reader:
-            if row['is_duplicate']:
+            if row['is_duplicate'] == '1':
                 question1.append(row['question1'])
                 question2.append(row['question2'])
     print('Duplicate question pairs: %d' % len(question1))
