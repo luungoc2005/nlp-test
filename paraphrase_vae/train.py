@@ -204,7 +204,6 @@ def trainIters(n_iters=10,
                 losses = []
                 NLL_losses = []
 
-        torch.save(model.state_dict(), path.join(SAVE_PATH, 'quora_vae_{}.bin'.format(epoch)))
         torch.save({
             'epoch': epoch,
             'model_state': model.state_dict(),
