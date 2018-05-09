@@ -153,7 +153,7 @@ class ParaphraseVAE(nn.Module):
                 z = z * std + mean
 
                 prev_beam = Beam(beam_width)
-                prev_beam.add(1.0, False, [EOS_token], encoder_hidden)
+                prev_beam.add(0., False, [EOS_token], encoder_hidden)
 
                 hidden = self.latent2hidden(z)
 
@@ -175,11 +175,12 @@ class ParaphraseVAE(nn.Module):
                             topv, topi = topv.squeeze(), topi.squeeze()
 
                             for idx, next_prob in enumerate(topv):
-                                next_prob = np.exp(next_prob.detach().item() + 1e-8)
+                                next_prob = next_prob.detach().item()
                                 token = topi[idx].detach().item()
                                 complete = (token == SOS_token)
 
-                                curr_beam.add(prefix_prob * next_prob, complete, prefix + [token], decoder_hidden)
+                                # Adding probs because this is actually log probs (from log softmax)
+                                curr_beam.add(prefix_prob + next_prob, complete, prefix + [token], decoder_hidden)
                     (best_prob, best_complete), (best_prefix, _) = max(curr_beam)
                     if best_complete or len(best_prefix) - 1 == -1:
                         print('Found best candidate with probability: %s' % best_prob)
