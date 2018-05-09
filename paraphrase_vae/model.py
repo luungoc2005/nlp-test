@@ -32,7 +32,7 @@ class Beam(object):
         self.beam_width = beam_width
 
     def add(self, prob, complete, prefix, hidden_state):
-        heapq.heappush(self.heap, (prob, complete, prefix, hidden_state))
+        heapq.heappush(self.heap, ((prob, complete), (prefix, hidden_state)))
         if len(self.heap) > self.beam_width:
             heapq.heappop(self.heap)
 
@@ -133,7 +133,7 @@ class ParaphraseVAE(nn.Module):
         
         return decoded, mean, logv
 
-    def generate(self, input, beam_width=0, k=5):
+    def generate(self, input, beam_width=0, k=5000):
         with torch.no_grad():
             if beam_width == 0:  # Eager
                 decoded, _, _ = self.forward(input)
@@ -153,26 +153,34 @@ class ParaphraseVAE(nn.Module):
                 z = z * std + mean
 
                 prev_beam = Beam(beam_width)
-                prev_beam.add(1.0, False, torch.Tensor([EOS_token]), encoder_hidden)
+                prev_beam.add(1.0, False, [EOS_token], encoder_hidden)
 
                 hidden = self.latent2hidden(z)
 
                 while True:
                     curr_beam = Beam(beam_width)
 
-                    for (prefix_prob, complete, prefix, hidden_state) in prev_beam:
+                    for (prefix_prob, complete), (prefix, hidden_state) in prev_beam:
                         if complete:
                             curr_beam.add(prefix_prob, True, prefix, hidden_state)
                         else:
-                            decoder_input = torch.Tensor([[prefix[-1]]])
+                            decoder_input = torch.LongTensor([prefix[-1]])
                             decoder_output, decoder_hidden, decoder_attention = self.decoder(
                                 decoder_input, hidden_state, hidden)
+
+                            if k == -1:
+                                k = self.vocab_size
+
                             topv, topi = decoder_output.topk(k)
+                            topv, topi = topv.squeeze(), topi.squeeze()
+
                             for idx, next_prob in enumerate(topv):
+                                next_prob = np.exp(next_prob.detach().item() + 1e-8)
                                 token = topi[idx].detach().item()
                                 complete = (token == SOS_token)
+
                                 curr_beam.add(prefix_prob * next_prob, complete, prefix + [token], decoder_hidden)
-                    (best_prob, best_complete, best_prefix, _) = max(curr_beam)
+                    (best_prob, best_complete), (best_prefix, _) = max(curr_beam)
                     if best_complete or len(best_prefix) - 1 == -1:
                         print('Found best candidate with probability: %s' % best_prob)
                         return best_prefix[::-1]
