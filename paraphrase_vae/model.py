@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random
 import numpy as np
+import heapq
 from config import MAX_SEQUENCE_LENGTH
 from paraphrase_vae.tokenizer import SOS_token, EOS_token
 from common.utils import argmax
@@ -19,6 +20,24 @@ def KLDivLoss(logp, target, mean, logv, step, k=0.0025, x0=2500):
     KL_weight = float(1 / (1 + np.exp(-k * (step - x0))))
 
     return NLL_loss, KL_loss, KL_weight
+
+
+# https://geekyisawesome.blogspot.com/2016/10/using-beam-search-to-generate-most.html
+
+
+class Beam(object):
+
+    def __init__(self, beam_width):
+        self.heap = list()
+        self.beam_width = beam_width
+
+    def add(self, prob, complete, prefix, hidden_state):
+        heapq.heappush(self.heap, (prob, complete, prefix, hidden_state))
+        if len(self.heap) > self.beam_width:
+            heapq.heappop(self.heap)
+
+    def __iter__(self):
+        return iter(self.heap)
 
 
 class ParaphraseVAE(nn.Module):
@@ -114,17 +133,50 @@ class ParaphraseVAE(nn.Module):
         
         return decoded, mean, logv
 
-    def generate(self, input):
+    def generate(self, input, beam_width=0, k=5):
         with torch.no_grad():
-            decoded, _, _ = self.forward(input)
-            result = []
-            for idx in range(len(decoded)):
-                token = argmax(decoded[idx])
-                result.append(token)
-                if token == SOS_token:
-                    break
+            if beam_width == 0:  # Eager
+                decoded, _, _ = self.forward(input)
+                result = []
+                for idx in range(len(decoded)):
+                    token = argmax(decoded[idx])
+                    result.append(token)
+                    if token == SOS_token:
+                        break
 
-            return result[::-1]
+                return result[::-1]
+            else:  # Beam search
+                encoder_hidden, mean, logv = self._encode_to_latent(input)
+
+                std = torch.exp(0.5 * logv)
+                z = torch.randn((self.max_length, self.latent_size))
+                z = z * std + mean
+
+                prev_beam = Beam(beam_width)
+                prev_beam.add(1.0, False, torch.Tensor([EOS_token]), encoder_hidden)
+
+                hidden = self.latent2hidden(z)
+
+                while True:
+                    curr_beam = Beam(beam_width)
+
+                    for (prefix_prob, complete, prefix, hidden_state) in prev_beam:
+                        if complete:
+                            curr_beam.add(prefix_prob, True, prefix, hidden_state)
+                        else:
+                            decoder_input = torch.Tensor([[prefix[-1]]])
+                            decoder_output, decoder_hidden, decoder_attention = self.decoder(
+                                decoder_input, hidden_state, hidden)
+                            topv, topi = decoder_output.topk(k)
+                            for idx, next_prob in enumerate(topv):
+                                token = topi[idx].detach().item()
+                                complete = (token == SOS_token)
+                                curr_beam.add(prefix_prob * next_prob, complete, prefix + [token], decoder_hidden)
+                    (best_prob, best_complete, best_prefix, _) = max(curr_beam)
+                    if best_complete or len(best_prefix) - 1 == -1:
+                        print('Found best candidate with probability: %s' % best_prob)
+                        return best_prefix[::-1]
+                    prev_beam = curr_beam
 
 
 class EncoderRNN(nn.Module):
