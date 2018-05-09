@@ -48,3 +48,29 @@ def segment_ngrams(sents, vocab):
 
     tokens_vocab = list(sorted(c.items(), key=lambda x: x[1], reverse=True)[:MAX_NUM_WORDS])
     return result, tokens_vocab
+
+
+def vocab_tokenize(sent, vocab):
+    if not isinstance(vocab, dict):
+        vocab = {word: idx + 1 for idx, (word, freq) in enumerate(vocab)}
+
+    tokens = []
+    for word in wordpunct_tokenize(sent.lower()):
+        if word not in vocab:
+            i = 0
+            while i * NGRAM_SIZE < len(word):
+                token = word[i * NGRAM_SIZE:i * NGRAM_SIZE + NGRAM_SIZE]
+
+                if token in vocab:
+                    tokens.append(token)
+                else:
+                    tokens.append(UNK)
+
+                i += 1
+                if i * NGRAM_SIZE < len(word):
+                    tokens.append(SEPARATOR)
+
+        else:
+            tokens.append(word)
+
+    return tokens

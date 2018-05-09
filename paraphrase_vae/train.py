@@ -5,7 +5,7 @@ import numpy as np
 import time
 from os import path
 from paraphrase_vae.model import ParaphraseVAE, KLDivLoss
-from paraphrase_vae.tokenizer import build_vocab, segment_ngrams, SOS_token, EOS_token, SEPARATOR, UNK
+from paraphrase_vae.tokenizer import build_vocab, segment_ngrams, vocab_tokenize, SOS_token, EOS_token, SEPARATOR, UNK
 from config import BASE_PATH, START_TAG, STOP_TAG, QUORA_PATH, MAX_NUM_WORDS
 from common.utils import get_datetime_hostname, asMinutes
 from tensorboardX import SummaryWriter
@@ -77,6 +77,26 @@ def process_input(input, target):
     return input_tokens, target_tokens, vocab, vocab_size
 
 
+def process_input_with_vocab(input, target, vocab):
+    to_ix_vocab = {vocab[idx][0]: idx for idx in range(len(vocab))}
+
+    input_tokens =  [np.array([SOS_token] + vocab_tokenize(sent, to_ix_vocab) + [EOS_token])
+                     for sent in input]
+    target_tokens = [np.array([EOS_token] + vocab_tokenize(sent, to_ix_vocab)[::-1] + [SOS_token])
+                     for sent in target]
+
+    # Sort by lengths
+    lengths = [len(input_tokens[idx]) + len(target_tokens[idx]) for idx in range(len(input_tokens))]
+    idxs = np.argsort(lengths)
+
+    print('Total input tokens: %s' % np.sum(lengths))
+
+    input_tokens = np.array(input_tokens)[idxs]
+    target_tokens = np.array(target_tokens)[idxs]
+
+    return input_tokens, target_tokens
+
+
 def _train(s1_batch, s2_batch, model, optimizer, step):
     model.zero_grad()
 
@@ -99,11 +119,6 @@ def trainIters(n_iters=10,
                min_lr=1e-5,
                checkpoint=None):
     s1, s2 = get_quora(QUORA_PATH)
-    s1, s2, vocab, vocab_size = process_input(s1, s2)
-
-    model = ParaphraseVAE(vocab_size)
-
-    optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
     epoch_start = 1
@@ -114,9 +129,12 @@ def trainIters(n_iters=10,
         vocab = checkpoint['vocab']
         vocab_size = checkpoint['vocab_size']
 
+        s1, s2 = process_input_with_vocab(s1, s2)
+
         model = ParaphraseVAE(vocab_size)
         model.load_state_dict(checkpoint_data['model_state'])
 
+        optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
 
@@ -124,6 +142,13 @@ def trainIters(n_iters=10,
 
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (
             checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
+
+    else:
+        s1, s2, vocab, vocab_size = process_input(s1, s2)
+
+        model = ParaphraseVAE(vocab_size)
+
+        optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
 
     is_cuda = torch.cuda.is_available()
 
