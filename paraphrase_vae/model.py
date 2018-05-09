@@ -11,7 +11,8 @@ from common.utils import argmax
 NLL = nn.NLLLoss(size_average=False)
 
 
-def KLDivLoss(logp, target, mean, logv, step, k=0.0025, x0=2500):
+def KLDivLoss(logp, target, mean, logv, step, k=0.0025, x0=75000):
+    # x0 ~ total number of sentences / 2 (midpoint of epoch)
     NLL_loss = 0.
     for idx in range(len(target)):
         NLL_loss += NLL(logp[idx].unsqueeze(0), target[idx])
