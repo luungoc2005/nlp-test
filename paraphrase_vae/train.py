@@ -107,6 +107,7 @@ def trainIters(n_iters=10,
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
     epoch_start = 1
+    step = 0
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
@@ -118,6 +119,8 @@ def trainIters(n_iters=10,
 
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
+
+        step = checkpoint.get('step', 0)
 
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (
             checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
@@ -137,7 +140,6 @@ def trainIters(n_iters=10,
 
     start_time = time.time()
     last_time = start_time
-    step = 0
 
     ix_to_word = {value: key for key, value in vocab.items()}
 
@@ -204,12 +206,23 @@ def trainIters(n_iters=10,
                 losses = []
                 NLL_losses = []
 
+            if step % 10000 == 0:  # Checkpointing every 10000 step
+                torch.save({
+                    'epoch': epoch,
+                    'model_state': model.state_dict(),
+                    'optimizer_state': optimizer.state_dict(),
+                    'vocab': vocab,
+                    'vocab_size': vocab_size,
+                    'step': step
+                }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
+
         torch.save({
             'epoch': epoch,
             'model_state': model.state_dict(),
             'optimizer_state': optimizer.state_dict(),
             'vocab': vocab,
-            'vocab_size': vocab_size
+            'vocab_size': vocab_size,
+            'step': step
         }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
         # Saving checkpoint
 
