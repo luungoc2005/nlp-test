@@ -34,7 +34,9 @@ def segment_ngrams(sents, vocab):
                 while i * NGRAM_SIZE < len(word):
                     token = word[i * NGRAM_SIZE:i * NGRAM_SIZE + NGRAM_SIZE]
                     tokens.append(token)
-                    c[token] += 1
+
+                    if token not in vocab:
+                        c[token] += 1
 
                     i += 1
                     if i * NGRAM_SIZE < len(word):
