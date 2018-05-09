@@ -95,7 +95,7 @@ class ParaphraseVAE(nn.Module):
 
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
-        decoder_input = torch.tensor([[EOS_token]])
+        decoder_input = torch.LongTensor([EOS_token])
         decoder_hidden = encoder_hidden
 
         decoded = torch.zeros(target_length, self.vocab_size)
