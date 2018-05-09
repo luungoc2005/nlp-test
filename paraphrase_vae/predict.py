@@ -14,12 +14,18 @@ def load_model(model_file=None):
         data = torch.load(model_file)
         vocab = data['vocab']
         vocab_size = data['vocab_size']
+        step = data.get('step', None)
 
         model = ParaphraseVAE(vocab_size)
         model.load_state_dict(data['model_state'])
 
         MODEL = model
         VOCAB = vocab
+
+        if step is not None:
+            print('Finished loading checkpoint at step %s' % step)
+        else:
+            print('Finished loading model')
 
         return model, vocab
     else:
