@@ -28,7 +28,7 @@ else:
 
         text = input(' > ')
         while text != 'exit':
-            print(' H: %s' % predict(text, beam_width=0)) # Eager attempt
+            print(' (eager) H: %s' % predict(text, beam_width=0)) # Eager attempt
             for _ in range(3):  # generate 3 times to attempt different outputs
-                print(' H: %s' % predict(text, beam_width=7))
+                print(' (beam) H: %s' % predict(text, beam_width=7))
             text = input(' > ')
