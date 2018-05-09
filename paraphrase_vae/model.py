@@ -185,7 +185,7 @@ class ParaphraseVAE(nn.Module):
                     (best_prob, best_complete), (best_prefix, _) = max(curr_beam)
                     if best_complete or len(best_prefix) - 1 == -1:
                         print('Found best candidate with probability: %s' % best_prob)
-                        return best_prefix[::-1]
+                        return best_prefix[1:][::-1]
                     prev_beam = curr_beam
 
 
