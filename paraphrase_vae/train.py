@@ -31,7 +31,7 @@ def get_quora(data_path):
                 question1.append(row['question1'])
                 question2.append(row['question2'])
     print('Duplicate question pairs: %d' % len(question1))
-    return question1, question2
+    return question1 + question2, question2 + question1  # Duplicate question pairs
 
 
 def to_idxs(tokens, vocab):
@@ -78,12 +78,13 @@ def process_input(input, target):
 
 
 def process_input_with_vocab(input, target, vocab):
-    to_ix_vocab = {vocab[idx][0]: idx for idx in range(len(vocab))}
-
-    input_tokens =  [np.array([SOS_token] + vocab_tokenize(sent, to_ix_vocab) + [EOS_token])
-                     for sent in input]
-    target_tokens = [np.array([EOS_token] + vocab_tokenize(sent, to_ix_vocab)[::-1] + [SOS_token])
-                     for sent in target]
+    input_tokens  = [vocab_tokenize(sent, vocab) for sent in input]
+    target_tokens = [vocab_tokenize(sent, vocab) for sent in target]
+    
+    input_tokens  = [np.array([SOS_token] + to_idxs(tokens, vocab) + [EOS_token])
+                     for tokens in input_tokens]
+    target_tokens = [np.array([EOS_token] + to_idxs(tokens, vocab)[::-1] + [SOS_token])
+                     for tokens in target_tokens]
 
     # Sort by lengths
     lengths = [len(input_tokens[idx]) + len(target_tokens[idx]) for idx in range(len(input_tokens))]
@@ -126,22 +127,22 @@ def trainIters(n_iters=10,
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
-        vocab = checkpoint['vocab']
-        vocab_size = checkpoint['vocab_size']
+        vocab = checkpoint_data['vocab']
+        vocab_size = checkpoint_data['vocab_size']
 
-        s1, s2 = process_input_with_vocab(s1, s2)
+        s1, s2 = process_input_with_vocab(s1, s2, vocab)
 
         model = ParaphraseVAE(vocab_size)
         model.load_state_dict(checkpoint_data['model_state'])
 
         optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
-        epoch_start = checkpoint['epoch']
+        epoch_start = checkpoint_data['epoch']
 
-        step = checkpoint.get('step', 0)
+        step = checkpoint_data.get('step', 0)
 
-        print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' % (
-            checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
+        print('Resuming from checkpoint %s (epoch %s - step: %s)' % (
+            checkpoint, checkpoint_data['epoch'], checkpoint_data['step']))
 
     else:
         s1, s2, vocab, vocab_size = process_input(s1, s2)
