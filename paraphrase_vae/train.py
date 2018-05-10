@@ -118,7 +118,8 @@ def trainIters(n_iters=10,
                lr_decay=0.99,
                lr_shrink=5,
                min_lr=1e-5,
-               checkpoint=None):
+               checkpoint=None,
+               rnn_type='GRU'):
     s1, s2 = get_quora(QUORA_PATH)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
@@ -129,10 +130,11 @@ def trainIters(n_iters=10,
         checkpoint_data = torch.load(checkpoint)
         vocab = checkpoint_data['vocab']
         vocab_size = checkpoint_data['vocab_size']
+        rnn_type = checkpoint_data.get('rnn_type', 'GRU')
 
         s1, s2 = process_input_with_vocab(s1, s2, vocab)
 
-        model = ParaphraseVAE(vocab_size)
+        model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
         model.load_state_dict(checkpoint_data['model_state'])
 
         optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
@@ -147,7 +149,9 @@ def trainIters(n_iters=10,
     else:
         s1, s2, vocab, vocab_size = process_input(s1, s2)
 
-        model = ParaphraseVAE(vocab_size)
+        print('Model RNN type: %s' % rnn_type)
+
+        model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
 
         optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
 
@@ -239,7 +243,8 @@ def trainIters(n_iters=10,
                     'optimizer_state': optimizer.state_dict(),
                     'vocab': vocab,
                     'vocab_size': vocab_size,
-                    'step': step
+                    'step': step,
+                    'rnn_type': rnn_type
                 }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
 
         torch.save({
@@ -248,7 +253,8 @@ def trainIters(n_iters=10,
             'optimizer_state': optimizer.state_dict(),
             'vocab': vocab,
             'vocab_size': vocab_size,
-            'step': step
+            'step': step,
+            'rnn_type': rnn_type
         }, path.join(SAVE_PATH, 'checkpoint_{}.bin'.format(epoch)))
         # Saving checkpoint
 

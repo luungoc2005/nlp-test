@@ -48,17 +48,22 @@ class ParaphraseVAE(nn.Module):
                  max_length=None,
                  dropout_keep_prob=0.5,
                  hidden_size=300,
-                 latent_size=100):
+                 latent_size=100,
+                 rnn_type='GRU'):
         super(ParaphraseVAE, self).__init__()
         self.vocab_size = vocab_size
         self.max_length = max_length or MAX_SEQUENCE_LENGTH
         self.latent_size = latent_size
         self.hidden_size = hidden_size
         self.dropout_keep_prob = dropout_keep_prob
+        self.rnn_type = rnn_type
 
         self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
 
-        self.encoder = EncoderRNN(self.embedding, num_layers=1, hidden_size=self.hidden_size)
+        self.encoder = EncoderRNN(self.embedding,
+                                  num_layers=1,
+                                  hidden_size=self.hidden_size,
+                                  rnn_type=self.rnn_type)
 
         self.hidden2mean = nn.Linear(self.hidden_size, latent_size)
         self.hidden2logv = nn.Linear(self.hidden_size, latent_size)
@@ -68,7 +73,8 @@ class ParaphraseVAE(nn.Module):
                                       self.vocab_size,
                                       num_layers=1,
                                       hidden_size=self.hidden_size,
-                                      dropout_keep_prob=self.dropout_keep_prob)
+                                      dropout_keep_prob=self.dropout_keep_prob,
+                                      rnn_type=self.rnn_type)
 
     def _encode_to_latent(self, input):
         encoder_hidden = self.encoder.init_hidden()
@@ -194,16 +200,20 @@ class EncoderRNN(nn.Module):
     def __init__(self,
                  embedding_layer,
                  num_layers=1,
-                 hidden_size=4096):
+                 hidden_size=4096,
+                 rnn_type='GRU'):
         super(EncoderRNN, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.rnn_type = rnn_type
 
         self.embedding = embedding_layer
-        self.rnn = nn.GRU(self.hidden_size,
-                          self.hidden_size // 2, 
-                          self.num_layers,
-                          bidirectional=True)
+
+        rnn_func = nn.GRU if self.rnn_type == 'GRU' else nn.LSTM
+        self.rnn = rnn_func(self.hidden_size,
+                            self.hidden_size // 2,
+                            self.num_layers,
+                            bidirectional=True)
 
     def forward(self, input, hidden):
         emb = self.embedding(input).view(1, 1, -1)
@@ -211,7 +221,10 @@ class EncoderRNN(nn.Module):
         return output, hidden
 
     def init_hidden(self):
-        return torch.zeros(2, 1, self.hidden_size // 2)
+        if self.rnn_type == 'GRU':
+            return torch.zeros(2, 1, self.hidden_size // 2)
+        else:
+            return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)
 
 
 class AttnDecoderRNN(nn.Module):
@@ -223,7 +236,8 @@ class AttnDecoderRNN(nn.Module):
                  num_layers=2,
                  hidden_size=4096,
                  latent_size=1100,
-                 dropout_keep_prob=0.5):
+                 dropout_keep_prob=0.5,
+                 rnn_type='GRU'):
         super(AttnDecoderRNN, self).__init__()
         self.max_length = max_length or MAX_SEQUENCE_LENGTH
         self.num_layers = num_layers
@@ -231,23 +245,31 @@ class AttnDecoderRNN(nn.Module):
         self.latent_size = latent_size
         self.dropout_keep_prob = dropout_keep_prob
         self.vocab_size = vocab_size
+        self.rnn_type = rnn_type
 
         self.embedding = embedding_layer
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
-        self.gru = nn.GRU(self.hidden_size,
-                          self.hidden_size // 2,
-                          self.num_layers,
-                          bidirectional=True)
+
+        rnn_func = nn.GRU if self.rnn_type == 'GRU' else nn.LSTM
+        self.gru = rnn_func(self.hidden_size,
+                            self.hidden_size // 2,
+                            self.num_layers,
+                            bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.vocab_size)
 
     def forward(self, input, hidden, latent_out):
         embedded = self.embedding(input).view(1, 1, -1)
         embedded = self.dropout(embedded)
 
-        attn_weights = F.softmax(
-            self.attn(torch.cat((embedded[0], hidden.view(1, 1, -1)[0]), 1)), dim=1)
+        if self.rnn_type == 'GRU':
+            attn_weights = F.softmax(
+                self.attn(torch.cat((embedded[0], hidden.view(1, 1, -1)[0]), 1)), dim=1)
+        else:  # if rnn_type is LSTM, hidden will be a tuple of (h0, c0)
+            attn_weights = F.softmax(
+                self.attn(torch.cat((embedded[0], hidden[0].view(1, 1, -1)[0]), 1)), dim=1)
+
         attn_applied = torch.bmm(attn_weights.unsqueeze(0), latent_out.unsqueeze(0))
 
         output = torch.cat((embedded[0], attn_applied[0]), 1)
@@ -260,4 +282,7 @@ class AttnDecoderRNN(nn.Module):
         return output, hidden, attn_weights
 
     def init_hidden(self):
-        return torch.zeros(2, 1, self.hidden_size)
+        if self.rnn_type == 'GRU':
+            return torch.zeros(2, 1, self.hidden_size // 2)
+        else:
+            return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)
