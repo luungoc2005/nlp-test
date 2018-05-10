@@ -14,8 +14,11 @@ def load_model(model_file=None):
         vocab = data['vocab']
         vocab_size = data['vocab_size']
         step = data.get('step', None)
+        rnn_type = data.get('rnn_type', 'GRU')
 
-        model = ParaphraseVAE(vocab_size)
+        print('Model RNN type: %s' % rnn_type)
+
+        model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
         model.load_state_dict(data['model_state'])
 
         MODEL = model
