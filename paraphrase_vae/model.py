@@ -47,7 +47,8 @@ class ParaphraseVAE(nn.Module):
                  vocab_size,
                  max_length=None,
                  dropout_keep_prob=0.5,
-                 hidden_size=300,
+                 embedding_size=300,
+                 hidden_size=600,
                  latent_size=100,
                  rnn_type='GRU'):
         super(ParaphraseVAE, self).__init__()
@@ -56,9 +57,10 @@ class ParaphraseVAE(nn.Module):
         self.latent_size = latent_size
         self.hidden_size = hidden_size
         self.dropout_keep_prob = dropout_keep_prob
+        self.embedding_size = embedding_size
         self.rnn_type = rnn_type
 
-        self.embedding = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.embedding = nn.Embedding(self.vocab_size, self.embedding_size)
 
         self.encoder = EncoderRNN(self.embedding,
                                   num_layers=1,
@@ -200,17 +202,19 @@ class EncoderRNN(nn.Module):
     def __init__(self,
                  embedding_layer,
                  num_layers=1,
-                 hidden_size=4096,
+                 embedding_size=300,
+                 hidden_size=600,
                  rnn_type='GRU'):
         super(EncoderRNN, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.rnn_type = rnn_type
+        self.embedding_size = embedding_size
 
         self.embedding = embedding_layer
 
         rnn_func = nn.GRU if self.rnn_type == 'GRU' else nn.LSTM
-        self.rnn = rnn_func(self.hidden_size,
+        self.rnn = rnn_func(self.embedding_size,
                             self.hidden_size // 2,
                             self.num_layers,
                             bidirectional=True)
@@ -234,7 +238,8 @@ class AttnDecoderRNN(nn.Module):
                  vocab_size,
                  max_length=None,
                  num_layers=2,
-                 hidden_size=4096,
+                 embedding_size=300,
+                 hidden_size=600,
                  latent_size=1100,
                  dropout_keep_prob=0.5,
                  rnn_type='GRU'):
@@ -246,14 +251,15 @@ class AttnDecoderRNN(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.vocab_size = vocab_size
         self.rnn_type = rnn_type
+        self.embedding_size = embedding_size
 
         self.embedding = embedding_layer
-        self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
-        self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
+        self.attn = nn.Linear(self.embedding_size + self.hidden_size, self.max_length)
+        self.attn_combine = nn.Linear(self.embedding_size + self.hidden_size, self.embedding_size)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
 
         rnn_func = nn.GRU if self.rnn_type == 'GRU' else nn.LSTM
-        self.gru = rnn_func(self.hidden_size,
+        self.gru = rnn_func(self.embedding_size,
                             self.hidden_size // 2,
                             self.num_layers,
                             bidirectional=True)
