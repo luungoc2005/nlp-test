@@ -40,3 +40,4 @@ QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
 
 # Flask configs
 UPLOAD_FOLDER = 'flask_app/uploads'
+CONFIG_PATH = 'flask_app/config.cfg'

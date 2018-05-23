@@ -1,5 +1,5 @@
 from glove_utils import init_glove
-from config import UPLOAD_FOLDER
+from config import UPLOAD_FOLDER, CONFIG_PATH
 from text_classification.fast_text.train import trainIters
 from text_classification.fast_text.predict import predict, load_model
 
@@ -51,7 +51,7 @@ def train_file(save_path):
     return model, classes, model_path
 
 def save_config(app):
-    with open('flask_config.cfg', 'w') as cfg_file:
+    with open(CONFIG_PATH, 'w') as cfg_file:
         json.dump({
             'MODEL_PATH', app.config.get('MODEL_PATH')
         }, cfg_file)
@@ -61,14 +61,15 @@ def initialize(app):
     app.config["SECRET_KEY"] = "test secret key".encode("utf8")
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-    if path.isfile('flask_config.cfg'):
-        cfg = json.load(open('flask_config.cfg', 'r'))
+    if path.isfile(CONFIG_PATH):
+        cfg = json.load(open(CONFIG_PATH, 'r'))
         app.config.update(cfg)
 
         if app.config.get('MODEL_PATH', None) is not None:
             model, classes = load_model(app.config['MODEL_PATH'])
             app.config['MODEL'] = model
             app.config['CLASSES'] = classes
+            print('Model loaded successfully')
 
     @app.route("/")
     def index():
