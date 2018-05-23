@@ -147,13 +147,14 @@ def evaluate_all(model, data, tag_to_ix, tokenizer=wordpunct_space_tokenize):
     correct = 0
     total = 0
     input_data = process_input(data, tokenizer=tokenizer)
-    for idx, (sentence, tags) in enumerate(input_data):
-        precheck_tags = [tag_to_ix[t] for t in tags]
-        _, tag_seq = model(sentence)
+    with torch.no_grad():
+        for idx, (sentence, tags) in enumerate(input_data):
+            precheck_tags = [tag_to_ix[t] for t in tags]
+            _, tag_seq = model(sentence)
 
-        # Compare precheck_tags and tag_seq
-        total += len(tag_seq)
-        for idx, _ in enumerate(tag_seq):
-            if tag_seq[idx] == precheck_tags[idx]:
-                correct += 1
+            # Compare precheck_tags and tag_seq
+            total += len(tag_seq)
+            for idx, _ in enumerate(tag_seq):
+                if tag_seq[idx] == precheck_tags[idx]:
+                    correct += 1
     return float(correct) / float(total)

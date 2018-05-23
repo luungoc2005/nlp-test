@@ -23,15 +23,16 @@ def predict(model, input_data, tag_to_ix,
 
     result = []
     print('Raw predicted tags:')
-    for sentence in input_data:
-        tokens_in = tokenizer(sentence)
+    with torch.no_grad():
+        for sentence in input_data:
+            tokens_in = tokenizer(sentence)
 
-        _, tag_seq = model(tokens_in)
-        print(tag_seq)
+            _, tag_seq = model(tokens_in)
+            print(tag_seq)
 
-        tag_seq = [ix_to_tag[tag] for tag in tag_seq]  # Translate to string tags
+            tag_seq = [ix_to_tag[tag] for tag in tag_seq]  # Translate to string tags
 
-        result.append(read_tags(tokens_in, tag_seq, delimiter))
+            result.append(read_tags(tokens_in, tag_seq, delimiter))
     # print('\n---')
     # Print results:
     # for idx, sentence in enumerate(input_data):
