@@ -44,7 +44,10 @@ def trainIters(data,
                optimizer='adam',
                learning_rate=1e-2,
                weight_decay=None,
-               verbose=2):
+               verbose=2,
+               save_path=None):
+
+    save_path = save_path or SAVE_PATH
     num_classes = len(classes)
     # input_data = process_input(data)
     cpu_count = mp.cpu_count()
@@ -144,7 +147,10 @@ def trainIters(data,
             print_loss_total = 0
             print_accuracy_total = 0
 
-    torch.save(model.state_dict(), SAVE_PATH)
+    torch.save({
+        'classes': classes,
+        'state_dict': model.state_dict()
+    }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)

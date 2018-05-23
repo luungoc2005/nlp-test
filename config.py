@@ -37,3 +37,6 @@ NUM_LAYERS = 1
 NLI_PATH = path.join(BASE_PATH, 'data/SNLI')
 
 QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
+
+# Flask configs
+UPLOAD_FOLDER = 'flask_app/uploads'
