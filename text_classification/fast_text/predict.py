@@ -1,6 +1,5 @@
 import torch
 
-from config import SENTENCE_DIM
 from text_classification.fast_text.model import FastText
 from text_classification.fast_text.train import SAVE_PATH, process_sentences
 from common.utils import topk
@@ -18,7 +17,7 @@ def predict(model, input_data, k=1):
     result = []
     for sentence in input_data:
         tokens_in = process_sentences([sentence])
-        scores = model(tokens_in)
+        scores = model(*tokens_in)
         topk_scores = topk(scores, k)
         result.append(topk_scores)
     return result

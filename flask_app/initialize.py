@@ -1,4 +1,4 @@
-from glove_utils import init_glove
+# from glove_utils import init_glove
 from config import UPLOAD_FOLDER, CONFIG_PATH
 from text_classification.fast_text.train import trainIters
 from text_classification.fast_text.predict import predict, load_model
@@ -50,14 +50,16 @@ def train_file(save_path):
                        save_path=save_path+'.bin')
     return model, classes, model_path
 
+
 def save_config(app):
     with open(CONFIG_PATH, 'w') as cfg_file:
         json.dump({
-            'MODEL_PATH', app.config.get('MODEL_PATH')
+            'MODEL_PATH': app.config.get('MODEL_PATH', None)
         }, cfg_file)
 
+
 def initialize(app):
-    init_glove()
+    # init_glove()
     app.config["SECRET_KEY"] = "test secret key".encode("utf8")
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -113,6 +115,6 @@ def initialize(app):
                 flash('Invalid JSON object')
                 return redirect(request.url)
             else:
-                result = predict.predict(model, [content['query']])
+                result = predict(model, [content['query']])
                 result = [(classes[val], idx) for (val, idx) in result]
                 return jsonify(result)

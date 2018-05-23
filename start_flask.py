@@ -6,4 +6,4 @@ app = Flask(__name__)
 initialize(app)
 
 if __name__ == "__main__":
-    app.run(processes=1)
+    app.run(processes=1, debug=True)
