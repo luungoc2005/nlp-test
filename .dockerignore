@@ -1,3 +1,5 @@
+.git
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -64,12 +66,11 @@ data/amazon/
 data/botbot/
 data/CoNLL-2003/
 data/quora/
-data/fasttext/
+# data/fasttext/
 output/
 flask_app/uploads/
 
 logs/
-\.ipynb_checkpoints/
 text_classification/convnet/_keras/model/
 text_classification/convnet/logs/
 text_classification/convnet/model/
@@ -79,11 +80,16 @@ text_classification/fast_text/logs/
 text_classification/fast_text/model/
 fastText/
 
+\.ipynb_checkpoints/
+
 *.json
 *.bin
-*.vec
 *.h5
 
 \.DS_Store
 
 \.idea/
+
+*.ipynb
+.gitignore
+Dockerfile
