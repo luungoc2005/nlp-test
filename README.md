@@ -44,6 +44,40 @@ Data path configurations are stored in `config.py`
 
 Note: if the progress bars doesn't show up properly during training, run `conda install -c conda-forge ipywidgets`
 
+## Scripts
+`train_quora.py` trains the paraphrasing model on the Quora duplicate questions dataset
+
+`train_sent_to_vec.py` trains the InferSent model on NLI + SNLI
+
+`train_amazon_sentiment.py` trains the classification model on the amazon sentiment dataset
+
+`train_conll_eval` trains the entity recognition model on the CoNLL2003 dataset
+
+`start_flask.py` (to be used with -debug True) is for debugging the NLU flask server
+
+### Notes about using the Flask server
+The model should be run on Gunicorn by
+
+`gunicorn -w 1 -t 1000 -b 127.0.0.1:5000 start_flask:app`
+
+Arguments:
+- `-w` number of workers
+- `-t` timeout (set to a high number because loading word vectors takes a while)
+- `-b` optionally binds to a different address
+
+After running the server
+1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./francis.json' 127.0.0.1:5000`
+
+2. `/predict (POST)` is used to send a query for prediction
+
+e.g
+```
+curl -X POST
+-H "Content-Type: application/json"  
+-d '{"query":"Hello world!"}' 
+127.0.0.1:8000/predict | json_pp
+```
+
 ## Extras
 
 1. Using GPU (TO BE IMPLEMENTED)
