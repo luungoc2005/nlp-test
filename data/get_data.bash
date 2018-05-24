@@ -12,7 +12,7 @@ SNLI='https://nlp.stanford.edu/projects/snli/snli_1.0.zip'
 MultiNLI='https://www.nyu.edu/projects/bowman/multinli/multinli_0.9.zip'
 glovepath='http://nlp.stanford.edu/data/glove.840B.300d.zip'
 fasttext='https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip'
-
+quora='http://qim.ec.quoracdn.net/quora_duplicate_questions.tsv'
 
 ZIPTOOL="unzip"
 
@@ -70,17 +70,6 @@ rm crawl-300d-2M.vec.zip
 
  rm -r MultiNLI/multinli_0.9
 
-<<<<<<< Updated upstream
-# for split in train dev.matched dev.mismatched
-# do
-#     fpath=MultiNLI/$split.multinli.txt
-#     awk '{ if ( $1 != "-" ) { print $0; } }' $fpath | cut -f 1,6,7 | sed '1d' > $fpath.tok
-#     cut -f1 $fpath.tok > MultiNLI/labels.$split
-#     cut -f2 $fpath.tok | $preprocess_exec > MultiNLI/s1.$split
-#     cut -f3 $fpath.tok | $preprocess_exec > MultiNLI/s2.$split
-#     rm $fpath $fpath.tok 
-# done
-=======
  for split in train dev.matched dev.mismatched
  do
      fpath=MultiNLI/${split}.multinli.txt
@@ -95,4 +84,3 @@ rm crawl-300d-2M.vec.zip
  echo ${quora}
  mkdir quora
  curl -Lo quora/quora_duplicate_questions.tsv ${quora}
->>>>>>> Stashed changes

@@ -110,28 +110,29 @@ def trainIters(data,
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
+            with torch.no_grad():
+                accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
 
-            _, tag_seq = model(input_data[0][0])
-            tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
-            writer.add_text(
-                'Training predictions',
-                (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' %
-                    (str(input_data[0][0]), 
-                     str(input_data[0][1]),
-                     str(tag_interpreted),
-                     accuracy)),
-                epoch)
-            
-            if verbose == 1:
-                print_loss_avg = print_loss_total / log_every
-                progress = float(epoch) / float(n_iters)
-                print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
-                      epoch,
-                      progress * 100,
-                      print_loss_avg))
-            
-            print_loss_total = 0
+                _, tag_seq = model(input_data[0][0])
+                tag_interpreted = [ix_to_tag[tag] for tag in tag_seq]
+                writer.add_text(
+                    'Training predictions',
+                    (' - Input: `%s`\r\n - Tags: `%s`\r\n - Predicted: `%s`\r\n\r\nAccuracy: %s\r\n' %
+                        (str(input_data[0][0]),
+                         str(input_data[0][1]),
+                         str(tag_interpreted),
+                         accuracy)),
+                    epoch)
+
+                if verbose == 1:
+                    print_loss_avg = print_loss_total / log_every
+                    progress = float(epoch) / float(n_iters)
+                    print('%s (%d %d%%) %.4f' % (timeSince(start, progress),
+                          epoch,
+                          progress * 100,
+                          print_loss_avg))
+
+                print_loss_total = 0
 
     torch.save(model.state_dict(), SAVE_PATH)
 
@@ -146,13 +147,14 @@ def evaluate_all(model, data, tag_to_ix, tokenizer=wordpunct_space_tokenize):
     correct = 0
     total = 0
     input_data = process_input(data, tokenizer=tokenizer)
-    for idx, (sentence, tags) in enumerate(input_data):
-        precheck_tags = [tag_to_ix[t] for t in tags]
-        _, tag_seq = model(sentence)
+    with torch.no_grad():
+        for idx, (sentence, tags) in enumerate(input_data):
+            precheck_tags = [tag_to_ix[t] for t in tags]
+            _, tag_seq = model(sentence)
 
-        # Compare precheck_tags and tag_seq
-        total += len(tag_seq)
-        for idx, _ in enumerate(tag_seq):
-            if tag_seq[idx] == precheck_tags[idx]:
-                correct += 1
+            # Compare precheck_tags and tag_seq
+            total += len(tag_seq)
+            for idx, _ in enumerate(tag_seq):
+                if tag_seq[idx] == precheck_tags[idx]:
+                    correct += 1
     return float(correct) / float(total)

@@ -165,7 +165,7 @@ class BiLSTM_CRF(nn.Module):
                  char_embedding_dim=None,
                  hidden_dim=None,
                  num_layers=None,
-                 dropout_keep_prob=0.5):
+                 dropout_keep_prob=0.8):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
