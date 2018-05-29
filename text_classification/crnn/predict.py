@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn.fu as F
 from config import SENTENCE_DIM
 from text_classification.crnn.model import TextCRNN
 from text_classification.crnn.train import SAVE_PATH
@@ -19,7 +19,7 @@ def predict(model, input_data, k=1):
     for sentence in input_data:
         tokens_in = wordpunct_tokenize(sentence)
         sentence_in = prepare_vec_sequence([tokens_in], word_to_vec, SENTENCE_DIM, output='variable')
-        scores = model(sentence_in)
+        scores = F.softmax(model(sentence_in), dim=-1)
         topk_scores = torch.topk(scores, k)
 
         result.append(topk_scores)

@@ -48,6 +48,12 @@ def nlu_predict(query):
 
 
 def nlu_train_file(save_path):
+    global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
+    CLF_MODEL = None
+    CLF_CLASSES = None
+    ENT_MODEL = None
+    ENT_TAG_TO_IX = None
+
     data = json.load(open(save_path, 'r'))
     print('Loaded %s intents' % len(data))
 
@@ -98,14 +104,15 @@ def nlu_train_file(save_path):
     ent_model_path = ''
 
     print('Training classification model')
-    clf_trainIters(training_data,
-                   classes,
-                   n_iters=50,
-                   log_every=10,
-                   verbose=1,
-                   learning_rate=1e-3,
-                   batch_size=64,
-                   save_path=clf_model_path)
+    CLF_MODEL = clf_trainIters(training_data,
+                               classes,
+                               n_iters=50,
+                               log_every=10,
+                               verbose=1,
+                               learning_rate=1e-3,
+                               batch_size=64,
+                               save_path=clf_model_path)
+    CLF_CLASSES = classes
 
     if num_entities > 0:
         tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
@@ -114,12 +121,13 @@ def nlu_train_file(save_path):
         ent_model_path = save_path+'.ent.bin'
 
         print('Training entities recognition model')
-        ent_trainIters(entities_data,
-                       tag_to_ix,
-                       n_iters=50,
-                       log_every=10,
-                       verbose=1,
-                       save_path=ent_model_path)
+        ENT_MODEL = ent_trainIters(entities_data,
+                                   tag_to_ix,
+                                   n_iters=50,
+                                   log_every=10,
+                                   verbose=1,
+                                   save_path=ent_model_path)
+        ENT_TAG_TO_IX = tag_to_ix
 
     return clf_model_path, ent_model_path
 
