@@ -15,7 +15,8 @@ def allowed_file(filename, allowed_exts=['json']):
 def save_config(app):
     with open(CONFIG_PATH, 'w') as cfg_file:
         json.dump({
-            'MODEL_PATH': app.config.get('MODEL_PATH', None)
+            'CLF_MODEL_PATH': app.config.get('CLF_MODEL_PATH', None),
+            'ENT_MODEL_PATH': app.config.get('ENT_MODEL_PATH', None)
         }, cfg_file)
 
 
@@ -28,8 +29,8 @@ def initialize(app):
         cfg = json.load(open(CONFIG_PATH, 'r'))
         app.config.update(cfg)
 
-        if app.config.get('MODEL_PATH', None) is not None:
-            nlu_init_model(app.config['MODEL_PATH'])
+        if app.config.get('CLF_MODEL_PATH', None) is not None:
+            nlu_init_model(app.config.get('CLF_MODEL_PATH', ''), app.config.get('ENT_MODEL_PATH', ''))
             print('Model loaded successfully')
 
     @app.route("/")
@@ -50,10 +51,14 @@ def initialize(app):
                 filename = secure_filename(file.filename)
                 save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(save_path)
-                flash('Upload complete. Beginning training')
-                nlu_train_file(save_path)
 
+                flash('Upload complete. Beginning training')
+                clf_model_path, ent_model_path = nlu_train_file(save_path)
+
+                app.config['CLF_MODEL_PATH'] = clf_model_path
+                app.config['ENT_MODEL_PATH'] = ent_model_path
                 save_config(app)
+
                 return redirect(request.url)
 
     @app.route("/predict", methods=['POST'])

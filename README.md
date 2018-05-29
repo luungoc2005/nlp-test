@@ -58,7 +58,7 @@ Note: if the progress bars doesn't show up properly during training, run `conda 
 ### Notes about using the Flask server
 The model should be run on Gunicorn by
 
-`gunicorn -w 1 -t 1000 -b 127.0.0.1:5000 start_flask:app`
+`gunicorn -w 1 -t 0 -b 127.0.0.1:5000 start_flask:app`
 
 Arguments:
 - `-w` number of workers
@@ -67,6 +67,11 @@ Arguments:
 
 After running the server
 1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./francis.json' 127.0.0.1:5000`
+```
+curl -X POST 
+-F "file=@./francis.json"
+127.0.0.1:5000/upload
+```
 
 2. `/predict (POST)` is used to send a query for prediction
 
@@ -75,7 +80,7 @@ e.g
 curl -X POST
 -H "Content-Type: application/json"  
 -d '{"query":"Hello world!"}' 
-127.0.0.1:8000/predict | json_pp
+127.0.0.1:5000/predict | json_pp
 ```
 
 ## Extras

@@ -9,10 +9,14 @@ from entities_recognition.bilstm.train import SAVE_PATH
 from common.utils import wordpunct_space_tokenize
 
 
-def load_model(tag_to_ix):
-    model = BiLSTM_CRF(tag_to_ix)
-    model.load_state_dict(torch.load(SAVE_PATH))
-    return model
+def load_model(save_path=None):
+    save_path = save_path or SAVE_PATH
+    data = torch.load(save_path)
+
+    model = BiLSTM_CRF(data['tag_to_ix'])
+    model.load_state_dict(data['state_dict'])
+
+    return model, data['tag_to_ix']
 
 
 def predict(model, input_data, tag_to_ix,

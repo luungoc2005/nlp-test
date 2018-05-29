@@ -1,34 +1,49 @@
 import json
+from config import START_TAG, STOP_TAG
+from common.utils import wordpunct_space_tokenize
 from glove_utils import init_glove
-from text_classification.fast_text.train import trainIters
-from text_classification.fast_text.predict import predict, load_model
+from text_classification.fast_text.train import trainIters as clf_trainIters
+from text_classification.fast_text.predict import predict as clf_predict, load_model as clf_load_model
+from entities_recognition.bilstm.train import trainIters as ent_trainIters
+from entities_recognition.bilstm.predict import predict as ent_predict, load_model as ent_load_model
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
-MODEL = None
-CLASSES = None
 
+CLF_MODEL = None
+CLF_CLASSES = None
+ENT_MODEL = None
+ENT_TAG_TO_IX = None
 
 init_glove()
 
 
-def nlu_init_model(filename):
-    global MODEL, CLASSES
-    MODEL, CLASSES = load_model(filename)
+def nlu_init_model(filename, ent_file_name):
+    global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
+    CLF_MODEL, CLF_CLASSES = clf_load_model(filename)
+    if ent_file_name is not None and ent_file_name != '':
+        ENT_MODEL, ENT_TAG_TO_IX = ent_load_model(ent_file_name)
 
 
 def nlu_predict(query):
-    probs, idxs = predict(MODEL, [query], k=5)[0]
-    probs = probs.squeeze(0)
-    idxs = idxs.squeeze(0)
-    result = {
+    cls_probs, cls_idxs = clf_predict(CLF_MODEL, [query], k=5)[0]
+    cls_probs = cls_probs.squeeze(0)
+    cls_idxs = cls_idxs.squeeze(0)
+    intents_result = {
         "intents": [
             {
-                "intent": CLASSES[cls.item()],
-                "confidence": probs[idx].item()
+                "intent": CLF_CLASSES[cls.item()],
+                "confidence": cls_probs[idx].item()
             }
-            for idx, cls in enumerate(idxs)
+            for idx, cls in enumerate(cls_idxs)
         ]
     }
+
+    entities_result = {}
+    if ENT_MODEL is not None and ENT_TAG_TO_IX is not None:
+        entities = ent_predict(ENT_MODEL, [query], ENT_TAG_TO_IX)
+        entities_result = {"entities": entities[0]}
+
+    result = {**intents_result, **entities_result}
     return result
 
 
@@ -42,6 +57,8 @@ def nlu_train_file(save_path):
         if (not IGNORE_CONTEXT or len(intent['inContexts']) == 0)
     ]))
 
+    entities_data = []
+    tag_names = []
     training_data = []
 
     for intent in data:
@@ -50,18 +67,59 @@ def nlu_train_file(save_path):
             cls = classes.index(intent['name'])
             if len(examples) > 0:
                 for example in examples:
-                    text = ''.join([entity['text'] for entity in example['entities']])
-                    training_data.append((text, cls))
+                    if example['entities']:
+                        text = ''.join([entity['text'] for entity in example['entities']])
+                        example_tags = []
+                        training_data.append((text, cls))
 
-    print('Loaded %s examples' % len(training_data))
-    model_path = save_path+'.bin'
+                        entities = [
+                            entity for entity in example['entities']
+                            if entity.get('nlpEntityId', 0) != 0
+                            and entity.get('name', '') != ''
+                        ]
 
-    model = trainIters(training_data,
-                       classes,
+                        if len(entities) > 0:
+                            for entity in example['entities']:
+                                if entity.get('nlpEntityId', 0) != 0 and \
+                                   entity.get('name', '') != '':
+                                    example_tags.extend([
+                                        'B-' + entity.get('name') if idx == 0 else 'I-' + entity.get('name')
+                                        for idx, _ in enumerate(wordpunct_space_tokenize(entity.get('text', '')))
+                                    ])
+                                    tag_names.append(entity.get('name'))
+                                else:
+                                    example_tags.extend(['-' for _ in wordpunct_space_tokenize(entity.get('text'))])
+                            entities_data.append(text, example_tags.join(' '))
+
+    num_entities = len(set(tag_names))
+    print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
+
+    clf_model_path = save_path+'.clf.bin'
+    ent_model_path = ''
+
+    print('Training classification model')
+    clf_trainIters(training_data,
+                   classes,
+                   n_iters=50,
+                   log_every=10,
+                   verbose=1,
+                   learning_rate=1e-3,
+                   batch_size=64,
+                   save_path=clf_model_path)
+
+    if num_entities > 0:
+        tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
+        tag_to_ix = {tag: idx for idx, tag in enumerate(tag_names)}
+
+        ent_model_path = save_path+'.ent.bin'
+
+        print('Training entities recognition model')
+        ent_trainIters(entities_data,
+                       tag_to_ix,
                        n_iters=50,
                        log_every=10,
                        verbose=1,
-                       learning_rate=1e-3,
-                       batch_size=64,
-                       save_path=save_path+'.bin')
-    return model, classes, model_path
+                       save_path=ent_model_path)
+
+    return clf_model_path, ent_model_path
+

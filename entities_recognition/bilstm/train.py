@@ -51,7 +51,9 @@ def trainIters(data,
                learning_rate=1e-3,
                weight_decay=None,
                tokenizer=wordpunct_space_tokenize,
-               verbose=2):
+               verbose=2,
+               save_path=None):
+    save_path = save_path or SAVE_PATH
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
 
@@ -134,7 +136,10 @@ def trainIters(data,
 
                 print_loss_total = 0
 
-    torch.save(model.state_dict(), SAVE_PATH)
+    torch.save({
+        'tag_to_ix': tag_to_ix,
+        'state_dict': model.state_dict()
+    }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)
