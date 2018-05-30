@@ -49,7 +49,8 @@ def trainIters(data,
                log_every=10,
                optimizer='adam',
                learning_rate=1e-3,
-               weight_decay=None,
+               weight_decay=1e-5,
+               gradual_unfreeze=False,
                tokenizer=wordpunct_space_tokenize,
                verbose=2,
                save_path=None):
@@ -77,7 +78,7 @@ def trainIters(data,
             weight_decay=weight_decay,
             amsgrad=True)
     else:
-        weight_decay = weight_decay or 1e-4
+        weight_decay = weight_decay or 1e-5
         model_optimizer = optim.SGD(
             model.parameters(), 
             lr=learning_rate,
@@ -101,7 +102,12 @@ def trainIters(data,
     # For timing with verbose=1
 
     start = time.time()
+    layers_count = model.layers_count()
+
     for epoch in iterator:
+        if gradual_unfreeze and epoch < layers_count:
+            model.freeze_to(layers_count - epoch)
+
         for sentence, tags in epoch_iterator:
             loss = _train(sentence, tags, tag_to_ix, model, model_optimizer)
             loss_total += loss
