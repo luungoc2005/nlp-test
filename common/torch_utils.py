@@ -29,5 +29,5 @@ def lr_schedule_slanted_triangular(step, n_epochs, max_lr=0.01, cut_frac=0.1, ra
     if step < cut:
         p = step / cut
     else:
-        p = 1 - (step - cut) / cut * (1 / cut_frac - 1)
+        p = 1 - (step - cut) / (cut * (1 / cut_frac - 1))
     return max_lr * (1 + p * (ratio - 1)) / ratio
