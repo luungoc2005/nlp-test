@@ -1,5 +1,6 @@
 import torch
 import torch.optim as optim
+import torch.nn as nn
 
 from tqdm import tqdm, trange
 # from config import START_TAG, STOP_TAG
@@ -9,6 +10,7 @@ from os import path, getcwd
 
 from entities_recognition.bilstm.model import BiLSTM_CRF
 from common.utils import get_datetime_hostname, wordpunct_space_tokenize, timeSince
+from common.torch_utils import lr_schedule_slanted_triangular
 
 import time
 
@@ -26,7 +28,7 @@ def process_input(data, tokenizer=wordpunct_space_tokenize):
     ]
 
 
-def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
+def _train(input_variable, target_variable, tag_to_ix, model, optimizer, grad_clip=5.):
     model.zero_grad()
 
     # Prepare training data
@@ -38,6 +40,11 @@ def _train(input_variable, target_variable, tag_to_ix, model, optimizer):
     # Compute the loss, gradients, and update the parameters by
     # calling optimizer.step()
     neg_log_likelihood.backward()
+
+    if grad_clip > 0:
+        # clip_grad_norm_ in pytorch unstable
+        nn.utils.clip_grad_norm(model.parameters(), grad_clip)
+
     optimizer.step()
 
     return neg_log_likelihood.data[0]
@@ -50,6 +57,7 @@ def trainIters(data,
                optimizer='adam',
                learning_rate=1e-3,
                weight_decay=1e-5,
+               grad_clip=5.,
                gradual_unfreeze=False,
                tokenizer=wordpunct_space_tokenize,
                verbose=2,
@@ -69,6 +77,7 @@ def trainIters(data,
 
     model = BiLSTM_CRF(tag_to_ix)
 
+    scheduler = None
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
         weight_decay = weight_decay or 0
@@ -83,6 +92,10 @@ def trainIters(data,
             model.parameters(), 
             lr=learning_rate,
             weight_decay=weight_decay)
+        scheduler = optim.lr_scheduler.LambdaLR(
+                        model_optimizer,
+                        lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, learning_rate)
+                    )
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'neg_loss')
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
@@ -109,9 +122,12 @@ def trainIters(data,
             model.freeze_to(layers_count - epoch)
 
         for sentence, tags in epoch_iterator:
-            loss = _train(sentence, tags, tag_to_ix, model, model_optimizer)
+            loss = _train(sentence, tags, tag_to_ix, model, model_optimizer, grad_clip)
             loss_total += loss
             print_loss_total += loss
+
+        if optimizer == 'sgd' and scheduler is not None:
+            scheduler.step()
         
         all_losses.append(loss_total)
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
