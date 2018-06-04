@@ -5,9 +5,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
-
+from common.torch_utils import set_trainable, children
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
-
 
 def _letter_to_array(letter):
     ret_val = np.zeros(1, n_letters)
@@ -25,13 +24,13 @@ def _word_to_array(word):
 def _process_sentence(sentence):
     word_lengths = np.array([len(word) for word in sentence])
     max_len = np.max(word_lengths)
-    words_batch = np.zeros((max_len, len(sentence), n_letters))
+    words_batch = np.zeros((max_len, len(sentence)))
 
     for i in range(len(sentence)):
         for li, letter in enumerate(sentence[i]):
-            words_batch[li][i][letterToIndex(letter)] = 1.
+            words_batch[li][i] = letterToIndex(letter)
 
-    words_batch = Variable(torch.from_numpy(words_batch).float())
+    words_batch = Variable(torch.from_numpy(words_batch).long())
     return words_batch, word_lengths
 
 
@@ -74,19 +73,25 @@ class BLSTMWordEncoder(nn.Module):
 
     def __init__(self,
                  hidden_dim=None,
-                 letters_dim=None):
+                 letters_dim=None,
+                 dropout_keep_prob=0.5):
         super(BLSTMWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
+        self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn = nn.LSTM(n_letters,
+        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
+        self.dropout = nn.Dropout(1 - dropout_keep_prob)
+        self.rnn = nn.LSTM(self.hidden_dim,
                            self.hidden_dim // 2,
                            num_layers=1,
                            bidirectional=True)
 
     def forward(self, sentence):
         words_batch, word_lengths = _process_sentence(sentence)
+
+        words_batch = self.dropout(self.embedding(words_batch))
 
         # Sort by length (keep idx)
         word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
@@ -115,6 +120,9 @@ class BLSTMWordEncoder(nn.Module):
 
         return embeds
 
+    def get_layer_groups(self):
+        return [(self.embedding, self.dropout), self.rnn]
+
 
 class ConvNetWordEncoder(nn.Module):
 
@@ -130,12 +138,13 @@ class ConvNetWordEncoder(nn.Module):
         self.letters_dim = letters_dim or n_letters
         self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
+        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
 
         self.convs = []
         for _ in range(self.num_filters):
             self.convs.append(
                 nn.Sequential(
-                    nn.Conv1d(self.letters_dim, self.hidden_dim // self.num_filters,
+                    nn.Conv1d(self.hidden_dim, self.hidden_dim // self.num_filters,
                               kernel_size=3, stride=1, padding=1),
                     nn.ReLU(inplace=True),
                     nn.Dropout(1 - self.dropout_keep_prob)
@@ -145,6 +154,7 @@ class ConvNetWordEncoder(nn.Module):
     def forward(self, sentence):
         words_batch, _ = _process_sentence(sentence)
 
+        words_batch = self.embedding(words_batch)
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
 
         convs_batch = []
@@ -155,6 +165,9 @@ class ConvNetWordEncoder(nn.Module):
         embeds = torch.cat(convs_batch, 1)
 
         return embeds
+
+    def get_layer_groups(self):
+        return [(self.embedding, self.dropout), *zip(self.convs)]
 
 
 class BiLSTM_CRF(nn.Module):
@@ -201,6 +214,37 @@ class BiLSTM_CRF(nn.Module):
     def init_hidden(self):
         return (Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)),
                 Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)))
+
+    def freeze_to(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        for l in c[n:]:
+            set_trainable(l, True)
+
+    def freeze_all_but(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        set_trainable(c[n], True)
+
+    def unfreeze(self): self.freeze_to(0)
+
+    def freeze(self):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+
+    def layers_count(self):
+        return len(self.get_layer_groups())
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+            (self.highway, self.dropout),
+            self.lstm,
+            self.hidden2tag
+        ]
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function

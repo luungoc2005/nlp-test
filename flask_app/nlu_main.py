@@ -9,23 +9,25 @@ from entities_recognition.bilstm.predict import predict as ent_predict, load_mod
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 
-CLF_MODEL = None
-CLF_CLASSES = None
-ENT_MODEL = None
-ENT_TAG_TO_IX = None
+CLF_MODEL = {}
+CLF_CLASSES = {}
+ENT_MODEL = {}
+ENT_TAG_TO_IX = {}
 
 init_glove()
 
 
-def nlu_init_model(filename, ent_file_name):
+def nlu_init_model(model_id, filename, ent_file_name):
     global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
-    CLF_MODEL, CLF_CLASSES = clf_load_model(filename)
-    if ent_file_name is not None and ent_file_name != '':
-        ENT_MODEL, ENT_TAG_TO_IX = ent_load_model(ent_file_name)
+
+    if model_id not in CLF_MODEL:
+        CLF_MODEL[model_id], CLF_CLASSES[model_id] = clf_load_model(filename)
+        if ent_file_name is not None and ent_file_name != '':
+            ENT_MODEL[model_id], ENT_TAG_TO_IX[model_id] = ent_load_model(ent_file_name)
 
 
-def nlu_predict(query):
-    cls_probs, cls_idxs = clf_predict(CLF_MODEL, [query], k=5)[0]
+def nlu_predict(model_id, query):
+    cls_probs, cls_idxs = clf_predict(CLF_MODEL[model_id], [query], k=5)[0]
     cls_probs = cls_probs.squeeze(0)
     cls_idxs = cls_idxs.squeeze(0)
     intents_result = {
@@ -39,20 +41,16 @@ def nlu_predict(query):
     }
 
     entities_result = {}
-    if ENT_MODEL is not None and ENT_TAG_TO_IX is not None:
-        entities = ent_predict(ENT_MODEL, [query], ENT_TAG_TO_IX)
+    if ENT_MODEL.get(model_id, None) is not None and ENT_TAG_TO_IX.get(model_id, None) is not None:
+        entities = ent_predict(ENT_MODEL[model_id], [query], ENT_TAG_TO_IX)
         entities_result = {"entities": entities[0]}
 
     result = {**intents_result, **entities_result}
     return result
 
 
-def nlu_train_file(save_path):
+def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
     global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
-    CLF_MODEL = None
-    CLF_CLASSES = None
-    ENT_MODEL = None
-    ENT_TAG_TO_IX = None
 
     data = json.load(open(save_path, 'r'))
     print('Loaded %s intents' % len(data))
@@ -100,34 +98,34 @@ def nlu_train_file(save_path):
     num_entities = len(set(tag_names))
     print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
 
-    clf_model_path = save_path+'.clf.bin'
-    ent_model_path = ''
+    clf_model_path = clf_model_path or save_path+'.clf.bin'
+    ent_model_path = ent_model_path or ''
 
     print('Training classification model')
-    CLF_MODEL = clf_trainIters(training_data,
-                               classes,
-                               n_iters=50,
-                               log_every=10,
-                               verbose=1,
-                               learning_rate=1e-3,
-                               batch_size=64,
-                               save_path=clf_model_path)
-    CLF_CLASSES = classes
+    CLF_MODEL[model_id] = clf_trainIters(training_data,
+                                         classes,
+                                         n_iters=50,
+                                         log_every=10,
+                                         verbose=1,
+                                         learning_rate=1e-3,
+                                         batch_size=64,
+                                         save_path=clf_model_path)
+    CLF_CLASSES[model_id] = classes
 
     if num_entities > 0:
         tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
         tag_to_ix = {tag: idx for idx, tag in enumerate(tag_names)}
 
-        ent_model_path = save_path+'.ent.bin'
+        ent_model_path = ent_model_path or save_path+'.ent.bin'
 
         print('Training entities recognition model')
-        ENT_MODEL = ent_trainIters(entities_data,
-                                   tag_to_ix,
-                                   n_iters=50,
-                                   log_every=10,
-                                   verbose=1,
-                                   save_path=ent_model_path)
-        ENT_TAG_TO_IX = tag_to_ix
+        ENT_MODEL[model_id] = ent_trainIters(entities_data,
+                                             tag_to_ix,
+                                             n_iters=50,
+                                             log_every=10,
+                                             verbose=1,
+                                             save_path=ent_model_path)
+        ENT_TAG_TO_IX[model_id] = tag_to_ix
 
     return clf_model_path, ent_model_path
 

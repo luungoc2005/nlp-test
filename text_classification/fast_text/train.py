@@ -45,6 +45,7 @@ def trainIters(data,
                learning_rate=1e-2,
                weight_decay=None,
                verbose=2,
+               patience=4,
                save_path=None):
 
     save_path = save_path or SAVE_PATH
@@ -146,6 +147,11 @@ def trainIters(data,
 
             print_loss_total = 0
             print_accuracy_total = 0
+
+
+        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
+            print('Early stopping')
+            break
 
     torch.save({
         'classes': classes,
