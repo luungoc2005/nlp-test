@@ -10,6 +10,7 @@ from os import path
 from config import NLI_PATH, BASE_PATH
 from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, process_batch
 from common.utils import get_datetime_hostname, asMinutes
+from common.torch_utils import lr_schedule_slanted_triangular
 
 np.random.seed(197)
 torch.manual_seed(197)
@@ -60,8 +61,8 @@ def _train(s1_data, s2_data, target_batch, model, criterion, optimizer):
 
 def trainIters(n_iters=10,
                batch_size=64,
-               lr=1e-3,
-               lr_decay=0.99,
+               lr=0.01,
+               lr_decay=1e-5,
                lr_shrink=5,
                min_lr=1e-5,
                checkpoint=None):
@@ -72,16 +73,22 @@ def trainIters(n_iters=10,
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
+    # optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
     # optimizer = optim.RMSprop(nli_net.parameters())
-    # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
+    optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
     epoch_start = 1
+
+    scheduler = optim.lr_scheduler.LambdaLR(
+        optimizer,
+        lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
+    )
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
+        scheduler.last_epoch = epoch_start
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
@@ -169,6 +176,7 @@ def trainIters(n_iters=10,
 
         train_acc = round(100 * correct / len(s1), 2)
         accuracies.append(train_acc)
+        scheduler.step()
 
         torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
         torch.save({

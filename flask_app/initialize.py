@@ -4,7 +4,7 @@ from config import UPLOAD_FOLDER, CONFIG_PATH
 from flask import request, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
 from os import path
-
+import uuid
 import json
 
 
@@ -15,8 +15,7 @@ def allowed_file(filename, allowed_exts=['json']):
 def save_config(app):
     with open(CONFIG_PATH, 'w') as cfg_file:
         json.dump({
-            'CLF_MODEL_PATH': app.config.get('CLF_MODEL_PATH', None),
-            'ENT_MODEL_PATH': app.config.get('ENT_MODEL_PATH', None)
+            'MODELS': app.config.get('MODELS', None),
         }, cfg_file)
 
 
@@ -28,10 +27,6 @@ def initialize(app):
     if path.isfile(CONFIG_PATH):
         cfg = json.load(open(CONFIG_PATH, 'r'))
         app.config.update(cfg)
-
-        if app.config.get('CLF_MODEL_PATH', None) is not None:
-            nlu_init_model(app.config.get('CLF_MODEL_PATH', ''), app.config.get('ENT_MODEL_PATH', ''))
-            print('Model loaded successfully')
 
     @app.route("/")
     def index():
@@ -48,15 +43,32 @@ def initialize(app):
                 flash('No selected file')
                 return redirect(request.url)
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+                model_id = uuid.uuid4()
+
+                filename = model_id + '_' + secure_filename(file.filename)
                 save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(save_path)
 
                 flash('Upload complete. Beginning training')
-                clf_model_path, ent_model_path = nlu_train_file(save_path)
 
-                app.config['CLF_MODEL_PATH'] = clf_model_path
-                app.config['ENT_MODEL_PATH'] = ent_model_path
+                clf_model_path = save_path
+                ent_model_path = save_path
+
+                if not app.config['USE_QUEUE']:
+                    clf_model_path, ent_model_path = nlu_train_file(model_id,
+                                                                    save_path,
+                                                                    clf_model_path,
+                                                                    ent_model_path)
+                else:
+                    pass
+
+                if app.config.get('MODELS', None) is None:
+                    app.config['MODELS'] = {}
+
+                app.config['MODELS'][model_id] = {
+                    'CLF_MODEL_PATH': clf_model_path,
+                    'ENT_MODEL_PATH': ent_model_path
+                }
                 save_config(app)
 
                 return redirect(request.url)
@@ -69,5 +81,22 @@ def initialize(app):
             flash('Invalid JSON object')
             return redirect(request.url)
         else:
-            result = nlu_predict(content['query'])
-            return jsonify(result)
+            model_count = len(list(app.config['MODELS'].keys())) \
+                if 'MODELS' in app.config \
+                else 0
+
+            if model_count == 0:
+                flash('No model trained')
+                return redirect(request.url)
+            else:
+                # Use the first ID for default model id. For easy testing only
+                model_id = content.get('model_id', next(app.config['MODELS'].keys()))
+
+                if model_id not in app.config['MODELS']:
+                    flash('Model id not found')
+                else:
+                    nlu_init_model(model_id,
+                                   app.config['MODELS'][model_id]['CLF_MODEL_PATH'],
+                                   app.config['MODELS'][model_id]['ENT_MODEL_PATH'])
+                    result = nlu_predict(model_id, content['query'])
+                    return jsonify(result)

@@ -61,6 +61,7 @@ def trainIters(data,
                gradual_unfreeze=False,
                tokenizer=wordpunct_space_tokenize,
                verbose=2,
+               patience=4,
                save_path=None):
     save_path = save_path or SAVE_PATH
     # Invert the tag dictionary
@@ -133,7 +134,7 @@ def trainIters(data,
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         loss_total = 0
 
-        if epoch % log_every == 0:
+        if epoch % log_every == 0 and verbose != 0:
             with torch.no_grad():
                 accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
 
@@ -157,6 +158,10 @@ def trainIters(data,
                           print_loss_avg))
 
                 print_loss_total = 0
+
+        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
+            print('Early stopping')
+            break
 
     torch.save({
         'tag_to_ix': tag_to_ix,
