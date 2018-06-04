@@ -15,18 +15,15 @@
 
 ## Environmental setup:
 
-1. Download the fastText English word vectors from [https://github.com/facebookresearch/fastText/blob/master/docs/pretrained-vectors.md](https://github.com/facebookresearch/fastText/blob/master/docs/pretrained-vectors.md)
-(Download the `bin+text` file but only copy the `.bin` model file)
-
-Note: Technically, the models can be generalized to use vectors from [https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md) for all other languages
+1. Run `data/get_data.bash` to download data files
+Notes:
+- Modify this file to selectively download only required files (usually either GLoVE/fasttext vectors)
+- You might need to run `chmod u+x data/get_data.bash` as well to grant execute permissions
+- Technically, the models can be generalized to use vectors from [https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md](https://github.com/facebookresearch/fastText/blob/master/docs/crawl-vectors.md) for all other languages
 
 Data path configurations are stored in `config.py`
 
-(Deprecated but might have possible future uses)
-GloVE word vectors can be downloaded from:
-- [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/) - This project uses `glove.6B.zip` but can also be changed to the other files by changing `config.py`
-- Place the downloaded `glove.6B.300d.txt` file into data/glove
-- The project also uses 20.000 most common words list from [https://github.com/first20hours/google-10000-english/blob/master/20k.txt](https://github.com/first20hours/google-10000-english/blob/master/20k.txt)
+- The project (might) also uses 20.000 most common words list from [https://github.com/first20hours/google-10000-english/blob/master/20k.txt](https://github.com/first20hours/google-10000-english/blob/master/20k.txt)
 
 2. Setup Python environment:
 - Download Anaconda/Miniconda for Python 3.6
@@ -35,7 +32,10 @@ GloVE word vectors can be downloaded from:
 - Install dependencies by running `pip install -r requirements.txt` or `pip install -r requirements_win.txt` for Windows
 - Install any missing dependencies (because of platform differences)
 
-3. Using Jupyter notebook for evaluation
+3. Build Cython modules
+- Run `python setup.py build_ext --inplace` (requires gcc/clang - `sudo apt-get install build-essentials` on Deb/Ubuntu or Xcode+CLI tools on OSX)
+
+4. Using Jupyter notebook for evaluation
 - Activate the environment by `source activate botbot-nlp`
 - Navigate to the root directory by `cd`
 - Run `jupyter notebook`. A browser tab should open and navigate to jupyter notebook at `localhost:8888` by default
@@ -43,6 +43,45 @@ GloVE word vectors can be downloaded from:
 - Click Kernel > Run All to start training
 
 Note: if the progress bars doesn't show up properly during training, run `conda install -c conda-forge ipywidgets`
+
+## Scripts
+`train_quora.py` trains the paraphrasing model on the Quora duplicate questions dataset
+
+`train_sent_to_vec.py` trains the InferSent model on NLI + SNLI
+
+`train_amazon_sentiment.py` trains the classification model on the amazon sentiment dataset
+
+`train_conll_eval` trains the entity recognition model on the CoNLL2003 dataset
+
+`start_flask.py` (to be used with -debug True) is for debugging the NLU flask server
+
+### Notes about using the Flask server
+The model should be run on Gunicorn by
+
+`gunicorn -w 1 -t 0 -b 127.0.0.1:5000 start_flask:app`
+
+Arguments:
+- `-w` number of workers
+- `-t` timeout (set to a high number because loading word vectors takes a while)
+- `-b` optionally binds to a different address
+
+After running the server
+1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./francis.json' 127.0.0.1:5000`
+```
+curl -X POST 
+-F "file=@./francis.json"
+127.0.0.1:5000/upload
+```
+
+2. `/predict (POST)` is used to send a query for prediction
+
+e.g
+```
+curl -X POST
+-H "Content-Type: application/json"  
+-d '{"query":"Hello world!"}' 
+127.0.0.1:5000/predict | json_pp
+```
 
 ## Extras
 

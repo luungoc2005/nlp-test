@@ -1,71 +1,87 @@
 import torch
-import string
+# import string
 
-from os import path, getcwd
+# from os import path, getcwd
 
-from config import START_TAG, STOP_TAG
+# from config import START_TAG, STOP_TAG
 from entities_recognition.bilstm.model import BiLSTM_CRF
 from entities_recognition.bilstm.train import SAVE_PATH
 from common.utils import wordpunct_space_tokenize
 
-def load_model(tag_to_ix):
-    model = BiLSTM_CRF(tag_to_ix)
-    model.load_state_dict(torch.load(SAVE_PATH))
-    return model
 
-def predict(model, input_data, tag_to_ix):
+def load_model(save_path=None):
+    save_path = save_path or SAVE_PATH
+    data = torch.load(save_path)
+
+    model = BiLSTM_CRF(data['tag_to_ix'])
+    model.load_state_dict(data['state_dict'])
+
+    return model, data['tag_to_ix']
+
+
+def predict(model, input_data, tag_to_ix,
+            tokenizer=wordpunct_space_tokenize,
+            delimiter=''):
     # Invert the tag dictionary
     ix_to_tag = {value: key for key, value in tag_to_ix.items()}
 
     result = []
-    print ('Raw predicted tags:')
-    for sentence in input_data:
-        tokens_in = wordpunct_space_tokenize(sentence)
-        _, tag_seq = model(tokens_in)
+    print('Raw predicted tags:')
+    with torch.no_grad():
+        for sentence in input_data:
+            tokens_in = tokenizer(sentence)
 
-        entities = {}
-        entity_name = ''
-        buffer = []
-        print(tag_seq)
+            _, tag_seq = model(tokens_in)
+            print(tag_seq)
 
-        for idx, tag in enumerate(tag_seq):
-            tag_name = ix_to_tag[tag]
+            tag_seq = [ix_to_tag[tag] for tag in tag_seq]  # Translate to string tags
 
-            if len(tag_name) > 2 and tag_name[:2] in ['B-', 'I-', 'O-']:
-                new_entity_name = tag_name[2:]
-                if entity_name != '' and \
-                    (tag_name[:2] == 'B-' or \
-                    entity_name != new_entity_name):
-                    # Flush the previous entity
-                    if not entity_name in entities:
-                        entities[entity_name] = []
-                        entities[entity_name].append(''.join(buffer))
-                        buffer = []
+            result.append(read_tags(tokens_in, tag_seq, delimiter))
+    # print('\n---')
+    # Print results:
+    # for idx, sentence in enumerate(input_data):
+    #     print('Input: %s' % sentence)
+    #     print('Output: \n%s' % str(result[idx]))
+    #     print ('')
 
-                entity_name = new_entity_name
-            
-            # If idx is currently inside a tag
-            if entity_name != '':
+    return result
+
+
+def read_tags(tokens_in, tag_seq, delimiter=''):
+    entities = {}
+    entity_name = ''
+    buffer = []
+
+    for idx, tag_name in enumerate(tag_seq):
+        if len(tag_name) > 2 and tag_name[:2] in ['B-', 'I-']:
+            new_entity_name = tag_name[2:]
+            if entity_name != '' and \
+                    (tag_name[:2] == 'B-' or entity_name != new_entity_name):
+                # Flush the previous entity
+                if entity_name not in entities:
+                    entities[entity_name] = []
+                    entities[entity_name].append(delimiter.join(buffer))
+                    buffer = []
+
+            entity_name = new_entity_name
+
+        # If idx is currently inside a tag
+        if entity_name != '':
+            # Going outside the tag
+            if idx == len(tag_seq) - 1 or \
+                    tag_name == '-' or \
+                    tag_name == 'O':
+
+                # if end of tag sequence then append the final token
+                if idx == len(tag_seq) - 1 and tag_name != '-':
+                    buffer.append(tokens_in[idx])
+
+                if entity_name not in entities:
+                    entities[entity_name] = []
+                entities[entity_name].append(delimiter.join(buffer))
+                buffer = []
+                entity_name = ''
+            else:
                 buffer.append(tokens_in[idx])
 
-                # Going outside the tag
-                if idx == len(tag_seq) or \
-                    tag_name == '-' or \
-                    tag_name[:2] == 'O-':
-
-                    if not entity_name in entities:
-                        entities[entity_name] = []
-                    entities[entity_name].append(''.join(buffer))
-                    buffer = []
-                    entity_name = ''
-
-        result.append(entities)
-
-    print('\n---')
-    # Print results:
-    for idx, sentence in enumerate(input_data):
-        print('Input: %s' % sentence)
-        print('Output: \n%s' % str(result[idx]))
-        print ('')
-    
-    return result
+    return entities

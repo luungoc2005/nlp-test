@@ -1,55 +1,97 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config import START_TAG, STOP_TAG, EMBEDDING_DIM, HIDDEN_DIM
-
-from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, to_scalar, argmax, prepare_sequence, log_sum_exp
+from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
+from common.torch_utils import set_trainable, children
+from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
 
 def _letter_to_array(letter):
-    ret_val = np.zeros(1, self.letters_dim)
+    ret_val = np.zeros(1, n_letters)
     ret_val[0][letterToIndex(letter)] = 1
     return ret_val
 
+
 def _word_to_array(word):
-    ret_val = np.zeros(len(word), 1, self.letters_dim)
+    ret_val = np.zeros(len(word), 1, n_letters)
     for li, letter in enumerate(word):
         ret_val[li][0][letterToIndex(letter)] = 1
     return ret_val
 
+
 def _process_sentence(sentence):
     word_lengths = np.array([len(word) for word in sentence])
     max_len = np.max(word_lengths)
-    words_batch = np.zeros((max_len, len(sentence), n_letters))
+    words_batch = np.zeros((max_len, len(sentence)))
 
     for i in range(len(sentence)):
         for li, letter in enumerate(sentence[i]):
-            words_batch[li][0][letterToIndex(letter)] = 1.
-    
-    words_batch = Variable(torch.from_numpy(words_batch).float())
+            words_batch[li][i] = letterToIndex(letter)
+
+    words_batch = Variable(torch.from_numpy(words_batch).long())
     return words_batch, word_lengths
+
+
+class Highway(nn.Module):
+
+    def __init__(self, size, num_layers, f):
+        super(Highway, self).__init__()
+
+        self.num_layers = num_layers
+
+        self.nonlinear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
+
+        self.linear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
+
+        self.gate = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
+
+        self.f = f
+
+    def forward(self, x):
+        """
+            :param x: tensor with shape of [batch_size, size]
+            :return: tensor with shape of [batch_size, size]
+            applies σ(x) ⨀ (f(G(x))) + (1 - σ(x)) ⨀ (Q(x)) transformation | G and Q is affine transformation,
+            f is non-linear transformation, σ(x) is affine transformation with sigmoid non-linearition
+            and ⨀ is element-wise multiplication
+            """
+
+        for layer in range(self.num_layers):
+            gate = F.sigmoid(self.gate[layer](x))
+
+            nonlinear = self.f(self.nonlinear[layer](x))
+            linear = self.linear[layer](x)
+
+            x = gate * nonlinear + (1 - gate) * linear
+
+        return x
+
 
 class BLSTMWordEncoder(nn.Module):
 
-    def __init__(self, 
-                 hidden_dim = None,
-                 letters_dim = None,
-                 dropout_keep_prob = 1):
+    def __init__(self,
+                 hidden_dim=None,
+                 letters_dim=None,
+                 dropout_keep_prob=0.5):
         super(BLSTMWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn = nn.LSTM(n_letters,
+        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
+        self.dropout = nn.Dropout(1 - dropout_keep_prob)
+        self.rnn = nn.LSTM(self.hidden_dim,
                            self.hidden_dim // 2,
                            num_layers=1,
-                           dropout=1-self.dropout_keep_prob,
                            bidirectional=True)
 
     def forward(self, sentence):
         words_batch, word_lengths = _process_sentence(sentence)
+
+        words_batch = self.dropout(self.embedding(words_batch))
 
         # Sort by length (keep idx)
         word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
@@ -63,7 +105,7 @@ class BLSTMWordEncoder(nn.Module):
         words_packed = pack_padded_sequence(words_batch, word_lengths)
         words_output = self.rnn(words_packed)[0]
         words_output = pad_packed_sequence(words_output)[0]
-        
+
         # Un-sort by length
         idx_unsort = torch.from_numpy(idx_unsort)
         words_output = words_output.index_select(1, Variable(idx_unsort))
@@ -74,85 +116,85 @@ class BLSTMWordEncoder(nn.Module):
             embeds = embeds.squeeze(0)
             assert embeds.ndimension() == 2
 
+        # print(embeds)
+
         return embeds
+
+    def get_layer_groups(self):
+        return [(self.embedding, self.dropout), self.rnn]
+
 
 class ConvNetWordEncoder(nn.Module):
 
     def __init__(self,
-                 hidden_dim = None,
-                 letters_dim = None,
-                 dropout_keep_prob = 0.5):
+                 hidden_dim=None,
+                 letters_dim=None,
+                 num_filters=None,
+                 dropout_keep_prob=0.5):
         super(ConvNetWordEncoder, self).__init__()
 
+        # https://arxiv.org/pdf/1603.01354.pdf
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
+        self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
+        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
 
-        self.conv1 = nn.Sequential(
-            nn.Conv1d(self.letters_dim, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
-        self.conv4 = nn.Sequential(
-            nn.Conv1d(self.hidden_dim // 4, self.hidden_dim // 4,
-                      kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Dropout(1 - self.dropout_keep_prob)
-        )
+        self.convs = []
+        for _ in range(self.num_filters):
+            self.convs.append(
+                nn.Sequential(
+                    nn.Conv1d(self.hidden_dim, self.hidden_dim // self.num_filters,
+                              kernel_size=3, stride=1, padding=1),
+                    nn.ReLU(inplace=True),
+                    nn.Dropout(1 - self.dropout_keep_prob)
+                )
+            )
 
     def forward(self, sentence):
         words_batch, _ = _process_sentence(sentence)
-        
+
+        words_batch = self.embedding(words_batch)
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
 
-        words_batch = self.conv1(words_batch)
-        u1 = torch.max(words_batch, 2)[0]
+        convs_batch = []
+        for conv in self.convs:
+            conv_batch = conv(words_batch)
+            convs_batch.append(torch.max(conv_batch, 2)[0])
 
-        words_batch = self.conv2(words_batch)
-        u2 = torch.max(words_batch, 2)[0]
-
-        words_batch = self.conv3(words_batch)
-        u3 = torch.max(words_batch, 2)[0]
-
-        words_batch = self.conv4(words_batch)
-        u4 = torch.max(words_batch, 2)[0]
-
-        embeds = torch.cat((u1, u2, u3, u4), 1)
+        embeds = torch.cat(convs_batch, 1)
 
         return embeds
 
+    def get_layer_groups(self):
+        return [(self.embedding, self.dropout), *zip(self.convs)]
+
+
 class BiLSTM_CRF(nn.Module):
 
-    def __init__(self, 
+    def __init__(self,
                  tag_to_ix,
-                 embedding_dim = None, 
-                 hidden_dim = None,
-                 dropout_keep_prob = 0.5):
+                 embedding_dim=None,
+                 char_embedding_dim=None,
+                 hidden_dim=None,
+                 num_layers=None,
+                 dropout_keep_prob=0.8):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
         self.hidden_dim = hidden_dim or HIDDEN_DIM
         self.tag_to_ix = tag_to_ix
+        self.num_layers = num_layers or NUM_LAYERS
         self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
 
-        self.word_encoder = BLSTMWordEncoder(self.embedding_dim)
-        self.lstm = nn.LSTM(self.embedding_dim * 2, 
-                            self.hidden_dim // 2,
-                            num_layers=1, bidirectional=True)
+        self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
+        self.highway = Highway(self.embedding_dim + self.char_embedding_dim, 2, F.relu)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
+        self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
+                            self.hidden_dim // 2,
+                            num_layers=self.num_layers,
+                            bidirectional=True)
 
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(self.hidden_dim, self.tagset_size)
@@ -170,8 +212,39 @@ class BiLSTM_CRF(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return (Variable(torch.randn(2, 1, self.hidden_dim // 2)),
-                Variable(torch.randn(2, 1, self.hidden_dim // 2)))
+        return (Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)),
+                Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)))
+
+    def freeze_to(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        for l in c[n:]:
+            set_trainable(l, True)
+
+    def freeze_all_but(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        set_trainable(c[n], True)
+
+    def unfreeze(self): self.freeze_to(0)
+
+    def freeze(self):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+
+    def layers_count(self):
+        return len(self.get_layer_groups())
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+            (self.highway, self.dropout),
+            self.lstm,
+            self.hidden2tag
+        ]
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function
@@ -189,18 +262,20 @@ class BiLSTM_CRF(nn.Module):
             max_tag_var, _ = torch.max(tag_var, dim=1)
             tag_var = tag_var - max_tag_var.view(-1, 1)
             forward_var = max_tag_var + torch.log(torch.sum(torch.exp(tag_var), dim=1)).view(1, -1)
-        
+
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         alpha = log_sum_exp(terminal_var)
         return alpha
 
     def _get_lstm_features(self, sentence):
         self.hidden = self.init_hidden()
-        embeds = sentence.view(len(sentence), 1, -1)
+        seq_len = len(sentence)
+
+        embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
         lstm_out, self.hidden = self.lstm(embeds, self.hidden)
-        lstm_out = lstm_out.view(len(sentence), self.hidden_dim)
-        lstm_out = self.dropout(lstm_out)
+        lstm_out = lstm_out.view(seq_len, self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
+
         return lstm_feats
 
     def _score_sentence(self, feats, tags):
@@ -210,7 +285,7 @@ class BiLSTM_CRF(nn.Module):
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
             score = score + \
-                self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
+                    self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
         score = score + self.transitions[self.tag_to_ix[STOP_TAG], tags[-1]]
         return score
 
@@ -237,7 +312,7 @@ class BiLSTM_CRF(nn.Module):
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
         terminal_var.data[self.tag_to_ix[STOP_TAG]] = -10000.
         terminal_var.data[self.tag_to_ix[START_TAG]] = -10000.
-        
+
         best_tag_id = argmax(terminal_var.unsqueeze(0))
         path_score = terminal_var[best_tag_id]
 
@@ -256,6 +331,8 @@ class BiLSTM_CRF(nn.Module):
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
         char_embeds = self.word_encoder(sentence)
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = self.highway(sentence_in)
+        sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
@@ -266,6 +343,7 @@ class BiLSTM_CRF(nn.Module):
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
         char_embeds = self.word_encoder(sentence)
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = self.highway(sentence_in)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)

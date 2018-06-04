@@ -8,11 +8,13 @@ PREDICT_MODEL = None
 TOKENIZER = None
 CLASSES = None
 
+
 def load_saved_model(model_path='', ignore_cache=False):
     global PREDICT_MODEL
     if PREDICT_MODEL is None or ignore_cache:
         PREDICT_MODEL = load_model(model_path)
     return PREDICT_MODEL
+
 
 def load_tokenizer(tokenizer_path='', ignore_cache=False):
     global TOKENIZER
@@ -21,12 +23,14 @@ def load_tokenizer(tokenizer_path='', ignore_cache=False):
             TOKENIZER = pickle.load(tokenizer_file)
     return TOKENIZER
 
+
 def load_classes(classes_path='', ignore_cache=False):
     global CLASSES
     if CLASSES is None or ignore_cache:
         with open(classes_path, 'r') as classes_file:
             CLASSES = json.load(classes_file)
     return CLASSES
+
 
 def run_predict(text, model=None, tokenizer=None):
     """
@@ -50,6 +54,7 @@ def run_predict(text, model=None, tokenizer=None):
 
     return result
 
+
 def interpret_netout(result, classes=None):
     """
     Generator for interpreting network outputs
@@ -60,5 +65,5 @@ def interpret_netout(result, classes=None):
     for result_item in result:
         max_point = result_item.argmax()
         proba = result_item[max_point] * 100
-        
+
         yield (classes[max_point], proba)

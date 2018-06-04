@@ -1,19 +1,19 @@
 import matplotlib
-matplotlib.use('Agg')
-
 import argparse
 import sys
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from tensorboardX import SummaryWriter
-from sklearn.feature_extraction.text import CountVectorizer,TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from matplotlib import offsetbox
 from textwrap import shorten
 
 from common.data_utils import *
+
+matplotlib.use('Agg')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -47,17 +47,17 @@ if __name__ == '__main__':
     DATA_POINTS = 100
 
     print("Reading data...")
-    if (len(args.input) > 5 and args.input[-5:].lower() == '.json'):
+    if len(args.input) > 5 and args.input[-5:].lower() == '.json':
         X_data, y_data = get_data_pairs(data_from_json(args.input))
     else:
         X_data = [
             line.rstrip() for line in
             open(args.input, 'r')
         ]
-    
+
     vectorizer = TfidfVectorizer(min_df=2,
-        strip_accents = 'unicode', lowercase=True, ngram_range=(1,2),
-        norm='l2', smooth_idf=True, sublinear_tf=False, use_idf=True)
+                                 strip_accents='unicode', lowercase=True, ngram_range=(1, 2),
+                                 norm='l2', smooth_idf=True, sublinear_tf=False, use_idf=True)
 
     print("Converting data to vectors...")
     X_data = X_data[:args.cutoff]
@@ -71,12 +71,12 @@ if __name__ == '__main__':
 
         print("Analysing with t-SNE...")
         tsne = TSNE(n_components=2,
-            perplexity=5,
-            learning_rate=10, 
-            n_iter=3000)
+                    perplexity=5,
+                    learning_rate=10,
+                    n_iter=3000)
         X_tsne = tsne.fit_transform(X)
-        
-        print("Ploting scatter graph...")
+
+        print("Plotting scatter graph...")
         x_min, x_max = np.min(X_tsne, 0), np.max(X_tsne, 0)
         X_tsne = (X_tsne - x_min) / (x_max - x_min)
         fig = plt.figure()
@@ -84,8 +84,8 @@ if __name__ == '__main__':
         for i in range(X_tsne.shape[0]):
             X_txt = shorten(X_data[i], width=args.width, placeholder='...')
             plt.text(X_tsne[i, 0], X_tsne[i, 1], X_txt,
-                        color=plt.cm.Dark2(y_pred[i] / 9.),
-                        fontdict={'weight': 'bold', 'size': 6})
+                     color=plt.cm.Dark2(y_pred[i] / 9.),
+                     fontdict={'weight': 'bold', 'size': 6})
         plt.xticks([]), plt.yticks([])
         if hasattr(offsetbox, 'AnnotationBbox'):
             # only print thumbnails with matplotlib > 1.0

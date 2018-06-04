@@ -60,6 +60,13 @@ target/
 data/glove/
 data/SNLI/
 data/MultiNLI/
+data/amazon/
+data/botbot/
+data/CoNLL-2003/
+data/quora/
+data/fasttext/
+output/
+flask_app/uploads/
 
 logs/
 \.ipynb_checkpoints/
@@ -75,5 +82,8 @@ fastText/
 *.json
 *.bin
 *.vec
+*.h5
 
 \.DS_Store
+
+\.idea/

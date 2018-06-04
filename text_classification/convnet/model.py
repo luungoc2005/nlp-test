@@ -3,14 +3,15 @@ import torch.nn.functional as F
 import torch.nn as nn
 from config import FILTER_SIZES, KERNEL_NUM, EMBEDDING_DIM
 
+
 class TextCNN(nn.Module):
 
     def __init__(self,
-                 classes = 10,
-                 filter_sizes = None,
-                 embedding_dim = None,
-                 kernel_num = 0,
-                 dropout_keep_prob = 0.5):
+                 classes=10,
+                 filter_sizes=None,
+                 embedding_dim=None,
+                 kernel_num=0,
+                 dropout_keep_prob=0.5):
         super(TextCNN, self).__init__()
 
         self.filter_sizes = filter_sizes or FILTER_SIZES

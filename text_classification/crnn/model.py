@@ -4,16 +4,16 @@ import torch.nn.functional as F
 import torch.nn as nn
 from config import EMBEDDING_DIM, KERNEL_NUM, SENTENCE_DIM
 
+
 class TextCRNN(nn.Module):
 
     def __init__(self,
-                 classes = 10,
-                 filter_sizes = None,
-                 embedding_dim = None,
-                 kernel_num = None,
-                 filter_size = 3,
-                 hidden_size = 100,
-                 dropout_keep_prob = 0.5):
+                 classes=10,
+                 embedding_dim=None,
+                 kernel_num=None,
+                 filter_size=3,
+                 hidden_size=100,
+                 dropout_keep_prob=0.5):
         super(TextCRNN, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
@@ -30,6 +30,7 @@ class TextCRNN(nn.Module):
                            bidirectional=True)
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.fc1 = nn.Linear(self.kernel_num, classes)
+        self.hidden = None
 
     def init_hidden(self, batch_size):
         return (autograd.Variable(torch.randn(2, batch_size, self.kernel_num // 2)),

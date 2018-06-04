@@ -11,7 +11,8 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from text_classification.crnn.model import TextCRNN
-from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, word_to_vec, timeSince
+from common.utils import argmax, to_variable, wordpunct_tokenize, get_datetime_hostname, prepare_vec_sequence, \
+    word_to_vec, timeSince
 
 import time
 
@@ -19,15 +20,17 @@ BASE_PATH = path.dirname(__file__)
 SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
-"""
-Input is in the form of tuples of (class:int, sent:string)
-"""
+
 def process_input(data):
+    """
+    Input is in the form of tuples of (class:int, sent:string)
+    """
     return [
-        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'), 
-        label)
+        (prepare_vec_sequence(wordpunct_tokenize(sent), word_to_vec, SENTENCE_DIM, output='tensor'),
+         label)
         for sent, label in data
     ]
+
 
 def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
@@ -40,7 +43,8 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     loss.backward()
     optimizer.step()
 
-    return loss.data[0]
+    return loss.item()
+
 
 def trainIters(data,
                classes,
@@ -50,7 +54,11 @@ def trainIters(data,
                optimizer='adam',
                learning_rate=1e-3,
                weight_decay=None,
-               verbose=2):
+               verbose=2,
+               patience=4,
+               save_path=None):
+    save_path = save_path or SAVE_PATH
+
     num_classes = len(classes)
     input_data = process_input(data)
 
@@ -59,7 +67,7 @@ def trainIters(data,
     intents_count = float(len(data))
     weights_tensor = torch.zeros(num_classes).float()
     for _, label in data:
-        if not label in class_weights:
+        if label not in class_weights:
             class_weights[label] = 1.
         else:
             class_weights[label] += 1.
@@ -69,20 +77,20 @@ def trainIters(data,
     model = TextCRNN(classes=num_classes)
     criterion = nn.CrossEntropyLoss(weight=weights_tensor)
 
-    model = TextCRNN(classes=num_classes)
-    criterion = nn.CrossEntropyLoss()
+    # model = TextCRNN(classes=num_classes)
+    # criterion = nn.CrossEntropyLoss()
 
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
         weight_decay = weight_decay or 0
         model_optimizer = optim.Adam(
-            model.parameters(), 
+            model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-4
         model_optimizer = optim.SGD(
-            model.parameters(), 
+            model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay)
 
@@ -90,14 +98,18 @@ def trainIters(data,
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
     writer = SummaryWriter(log_dir=INST_LOG_DIR)
 
+    all_losses = []
     loss_total = 0
+    accuracy_total = 0
     print_loss_total = 0
+    print_accuracy_total = 0
+    real_batch = 0
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
     else:
         iterator = range(1, n_iters + 1)
-    
+
     # For timing with verbose=1
     start = time.time()
     data_loader = DataLoader(input_data, batch_size=batch_size)
@@ -108,44 +120,81 @@ def trainIters(data,
             # Prepare training data
             sentence_in, target_variable = Variable(sentences), Variable(labels.type(torch.LongTensor))
 
+            real_batch += len(sentences)  # real batch size
+
             # Run the training epoch
             loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
 
             loss_total += loss
-            print_loss_total += loss
-        
+
+            accuracy_total += evaluate(model, sentence_in, labels)
+
+        loss_total = loss_total / real_batch
+        accuracy_total = accuracy_total / real_batch
+
+        print_accuracy_total += accuracy_total
+        print_loss_total += loss_total
+
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+        all_losses.append(loss_total)
+
+        real_batch = 0
+        accuracy_total = 0
         loss_total = 0
 
         if epoch % log_every == 0:
-            accuracy = evaluate(model, data, classes)
+            print_accuracy_total = print_accuracy_total / log_every
 
             if verbose == 1:
                 print_loss_avg = print_loss_total / log_every
                 progress = float(epoch) / float(n_iters)
                 print('%s (%d %d%%) %.4f - accuracy: %.4f' % (timeSince(start, progress),
-                    epoch, 
-                    progress * 100, 
-                    print_loss_avg,
-                    accuracy))
-            
-            print_loss_total = 0
+                                                              epoch,
+                                                              progress * 100,
+                                                              print_loss_avg,
+                                                              print_accuracy_total))
 
-    torch.save(model.state_dict(), SAVE_PATH)
+            print_loss_total = 0
+            print_accuracy_total = 0
+
+        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
+            print('Early stopping')
+            break
+
+    torch.save({
+        'classes': classes,
+        'state_dict': model.state_dict()
+    }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)
     writer.close()
 
-    return model
+    return all_losses, model
 
-def evaluate(model, data, classes):
-    correct = 0
-    total = len(data)
-    input_data = process_input(data)
-    for sentence, gt_class in input_data:
-        precheck_sent = Variable(sentence)
-        pred_class = argmax(model(precheck_sent.unsqueeze(0)))
-        if gt_class == pred_class:
-            correct += 1
+
+def evaluate(model, input, output):
+    with torch.no_grad():
+        correct = 0
+
+        result = model(input)
+
+        for idx, gt_class in enumerate(output):
+            pred_class = argmax(result[idx])
+            if gt_class == pred_class:
+                correct += 1
+    return float(correct)
+
+
+def evaluate_all(model, data):
+    with torch.no_grad():
+        correct = 0
+        total = len(data)
+        input_data = process_input(data)
+        for sentence, gt_class in input_data:
+            precheck_sent = Variable(sentence)
+            pred_class = argmax(model(precheck_sent.unsqueeze(0)))
+            if gt_class == pred_class:
+                correct += 1
     return float(correct) / float(total)
+

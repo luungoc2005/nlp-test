@@ -19,9 +19,10 @@ SAVE_PATH = path.join(BASE_PATH, 'model/model.h5')
 TOKENIZER_PATH = path.join(BASE_PATH, 'model/tokenizer.pickle')
 CLASSES_PATH = path.join(BASE_PATH, 'model/classes.json')
 
-def train_model(X_train, 
-                y_train, 
-                classes=None, 
+
+def train_model(X_train,
+                y_train,
+                classes=None,
                 tokenizer_path=None,
                 model_path=None,
                 load_weights_only=True,
@@ -29,7 +30,7 @@ def train_model(X_train,
                 use_tqdm=True):
     if tokenizer_path is None:
         tokenizer = get_tokenizer_from_file(WORDS_PATH)
-        tokenizer.fit_on_texts(X_train) # Add samples-unique vocabulary for the tokenizer
+        tokenizer.fit_on_texts(X_train)  # Add samples-unique vocabulary for the tokenizer
 
         with open(TOKENIZER_PATH, 'wb') as tokenizer_file:
             pickle.dump(tokenizer, tokenizer_file)
@@ -51,10 +52,10 @@ def train_model(X_train,
     else:
         model = load_model(model_path, compile=False)
 
-    model.compile(optimizer='adam', 
-        loss='categorical_crossentropy',
-        metrics=['accuracy'])
-    
+    model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+
     if not model_path is None and load_weights_only and path.isfile(model_path):
         model.load_weights(model_path, by_name=True)
 
@@ -66,34 +67,34 @@ def train_model(X_train,
     callbacks = [
         CyclicLR(mode='triangular2'),
         TensorBoard(log_dir=LOG_DIR,
-            write_graph=True,
-            write_images=True, 
-            write_grads=True,
-            batch_size=batch_size),
-        ModelCheckpoint(CHECKPOINT_PATH, 
-            monitor='loss', 
-            verbose=1, 
-            save_best_only=True, 
-            mode='min',
-            period=2),
-        EarlyStopping(monitor='loss', 
-            min_delta=0.0001, 
-            patience=5, 
-            verbose=1, 
-            mode='auto')
+                    write_graph=True,
+                    write_images=True,
+                    write_grads=True,
+                    batch_size=batch_size),
+        ModelCheckpoint(CHECKPOINT_PATH,
+                        monitor='loss',
+                        verbose=1,
+                        save_best_only=True,
+                        mode='min',
+                        period=2),
+        EarlyStopping(monitor='loss',
+                      min_delta=0.0001,
+                      patience=5,
+                      verbose=1,
+                      mode='auto')
     ]
 
     if use_tqdm:
         callbacks.append(TQDMNotebookCallback())
 
     try:
-        model.fit([X_tokens, X_pos], [y_train], 
-                epochs=500, 
-                batch_size=batch_size,
-                callbacks=callbacks,
-                shuffle=True,
-                verbose=(0 if use_tqdm else 1))
-    
+        model.fit([X_tokens, X_pos], [y_train],
+                  epochs=500,
+                  batch_size=batch_size,
+                  callbacks=callbacks,
+                  shuffle=True,
+                  verbose=(0 if use_tqdm else 1))
+
         model.save(SAVE_PATH)
     except KeyboardInterrupt:
         model.save(SAVE_PATH)
