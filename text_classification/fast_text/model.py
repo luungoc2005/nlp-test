@@ -31,6 +31,14 @@ class Highway(nn.Module):
 
         self.f = f
 
+        self.init_weights()
+
+    def init_weights(self):
+        for layer in range(self.num_layers):
+            nn.init.xavier_normal_(self.nonlinear[layer].weight)
+            nn.init.xavier_normal_(self.linear[layer].weight, gain=2)
+            nn.init.xavier_normal_(self.gate[layer].weight)
+
     def forward(self, x):
         """
             :param x: tensor with shape of [batch_size, size]
@@ -72,7 +80,7 @@ class FastText(nn.Module):
         self.ngrams_embs = nn.Embedding(NGRAM_BINS, EMBEDDING_DIM, 
                                         padding_idx=0, sparse=True)
         self.ngrams_embs.weight.requires_grad = False
-        self.highway = Highway(EMBEDDING_DIM * 2, 2, F.relu)
+        self.highway = Highway(EMBEDDING_DIM * 2, 1, F.relu)
 
         self.i2o = nn.Linear(EMBEDDING_DIM * 2, self.classes)
 

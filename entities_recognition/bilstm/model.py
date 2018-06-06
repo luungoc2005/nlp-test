@@ -287,10 +287,7 @@ class BiLSTM_CRF(nn.Module):
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
 
         # Wrap in a variable so that we will get automatic backprop
-        forward_var = Variable(init_alphas)
-
-        if self.is_cuda:
-            forward_var = forward_var.cuda()
+        forward_var = init_alphas.cuda() if self.is_cuda else init_alphas
 
         # Iterate through the sentence
         for feat in feats:
@@ -339,14 +336,19 @@ class BiLSTM_CRF(nn.Module):
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1
-        forward_var = Variable(init_vvars)
+        forward_var = init_vvars.cuda() if self.is_cuda else init_vvars
+
         for feat in feats:
             next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
             _, bptrs_t = torch.max(next_tag_var, dim=1)
             bptrs_t = bptrs_t.squeeze().data.cpu().numpy()
             next_tag_var = next_tag_var.data.cpu().numpy()
             viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
-            viterbivars_t = Variable(torch.FloatTensor(viterbivars_t))
+            viterbivars_t = torch.FloatTensor(viterbivars_t)
+
+            if self.is_cuda:
+                viterbivars_t = viterbivars_t.cuda()
+
             forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
 
