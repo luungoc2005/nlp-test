@@ -89,7 +89,7 @@ class FastText(nn.Module):
         # nn.init.xavier_normal_(self.n2h.weight, gain=2)
         # nn.init.xavier_normal_(self.i2h.weight, gain=2)
         # nn.init.xavier_normal_(self.h2o.weight)
-        nn.init.xavier_normal_(self.i2o.weight, gain=2)
+        nn.init.xavier_normal_(self.i2o.weight)
         # self.i2h.bias.data.fill_(0)
         # self.w2h.bias.data.fill_(0)
         # self.n2h.bias.data.fill_(0)

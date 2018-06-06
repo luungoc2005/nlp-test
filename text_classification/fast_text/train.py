@@ -56,9 +56,9 @@ def trainIters(data,
     # Set class weights - this is kinda rough...
     weights = torch.zeros(num_classes)
     for _, class_idx in data:
-        weights[class_idx] += 1
+        weights[int(class_idx)] += 1
     for class_idx in range(num_classes):
-        weights[class_idx] = 1 / weights[class_idx]
+        weights[int(class_idx)] = 1 / weights[int(class_idx)]
 
     print('Training started')
     criterion = nn.CrossEntropyLoss(weight=weights)
@@ -89,6 +89,8 @@ def trainIters(data,
     print_loss_total = 0
     print_accuracy_total = 0
     real_batch = 0
+    best_loss = 1e15
+    wait = 0
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
@@ -129,6 +131,15 @@ def trainIters(data,
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         all_losses.append(loss_total)
 
+        if loss_total < best_loss:
+            best_loss = loss_total
+            wait = 1
+        else:
+            if wait >= patience:
+                print('Early stopping')
+                break
+            wait += 1
+
         real_batch = 0
         accuracy_total = 0
         loss_total = 0
@@ -148,10 +159,6 @@ def trainIters(data,
             print_loss_total = 0
             print_accuracy_total = 0
 
-
-        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
-            print('Early stopping')
-            break
 
     torch.save({
         'classes': classes,

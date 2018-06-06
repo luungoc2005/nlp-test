@@ -89,6 +89,7 @@ def trainIters(n_iters=10,
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
         scheduler.last_epoch = epoch_start
+        checkpoint_start = checkpoint.get('batch_number', 0)
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
@@ -123,7 +124,7 @@ def trainIters(n_iters=10,
         batch_idx = 0.
         total_steps = len(s1) / batch_size
 
-        for start_idx in range(0, len(s1), batch_size):
+        for start_idx in range(checkpoint_start, len(s1), batch_size):
             s1_batch, s1_len = process_batch(s1[start_idx:start_idx + batch_size])
             s2_batch, s2_len = process_batch(s2[start_idx:start_idx + batch_size])
             target_batch = torch.LongTensor(target[start_idx:start_idx + batch_size])
@@ -145,7 +146,7 @@ def trainIters(n_iters=10,
 
             losses.append(loss)
 
-            # log for every 100 batches:
+            # log for every 100 minibatches:
             if len(losses) % 100 == 0:
                 loss_total = np.mean(losses)
 
@@ -174,18 +175,24 @@ def trainIters(n_iters=10,
                 last_time = time.time()
                 losses = []
 
+            # checkpoint every 5000 minibatches
+            if len(losses) % 5000 == 0:
+                torch.save(nli_net.encoder.state_dict(),
+                           path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
+                torch.save({
+                    'epoch': epoch,
+                    'nli_state': nli_net.state_dict(),
+                    'optimizer_state': optimizer.state_dict(),
+                    'accuracy': train_acc,
+                    'batch_number': start_idx
+                }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
+                # Saving checkpoint
+
         train_acc = round(100 * correct / len(s1), 2)
         accuracies.append(train_acc)
         scheduler.step()
 
-        torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
-        torch.save({
-            'epoch': epoch,
-            'nli_state': nli_net.state_dict(),
-            'optimizer_state': optimizer.state_dict(),
-            'accuracy': train_acc
-        }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
-        # Saving checkpoing
+        checkpoint_start = 0
 
         # Decaying LR
         # if epoch>1:

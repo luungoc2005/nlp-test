@@ -1,14 +1,11 @@
 import torch
-import torch.autograd as autograd
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 from nltk.tokenize import word_tokenize
-from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from glove_utils import get_glove_data, get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
-
+from common.torch_utils import set_trainable, children
 
 def process_batch(batch):
     lengths = np.array([len(sent) for sent in batch])
@@ -157,9 +154,14 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.GRU(self.embedding_dim, self.hidden_dim, 1,
-                           bidirectional=True,
-                           dropout=1-self.dropout_keep_prob)
+        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 2,
+                            bidirectional=True,
+                            dropout=1-self.dropout_keep_prob)
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+        ]
 
     def forward(self, sent_tuple):
         sent, sent_len = sent_tuple
@@ -216,6 +218,37 @@ class NLINet(nn.Module):
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.Linear(self.hidden_dim, self.classes)
         )
+
+    def freeze_to(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        for l in c[n:]:
+            set_trainable(l, True)
+
+    def freeze_all_but(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        set_trainable(c[n], True)
+
+    def unfreeze(self): self.freeze_to(0)
+
+    def freeze(self):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+
+    def layers_count(self):
+        return len(self.get_layer_groups())
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+            (self.highway, self.dropout),
+            self.lstm,
+            self.hidden2tag
+        ]
 
     def forward(self, sent1, sent2):
         # sent1/sent2 are tuples of (sentences, lengths)
