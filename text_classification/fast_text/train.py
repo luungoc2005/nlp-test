@@ -2,7 +2,6 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.multiprocessing as mp
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from tqdm import tqdm, trange
@@ -26,7 +25,7 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     optimizer.zero_grad()
 
     # Run the forward pass
-    logits = model(*input_variable)
+    logits = model(input_variable)
 
     loss = criterion(logits, output_variable)
 
@@ -108,16 +107,14 @@ def trainIters(data,
             real_batch += len(sentences)  # real batch size
 
             # Prepare training data
-            sentence_in, target_variable = \
-                process_sentences(sentences), \
-                Variable(labels.long())
+            target_variable = labels.long()
 
             # Run the training epoch
-            loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
+            loss = _train(sentences, target_variable, model, criterion, model_optimizer)
 
             loss_total += loss
 
-            accuracy_total += evaluate(model, sentence_in, labels)
+            accuracy_total += evaluate(model, sentences, labels)
 
             if verbose == 2:
                 iterator.set_description('Minibatch: %s' % real_batch)
@@ -159,10 +156,14 @@ def trainIters(data,
             print_loss_total = 0
             print_accuracy_total = 0
 
+    print('Calibrating model')
+    model._calibrate(data_loader, weights)
+    print('Training completed')
 
     torch.save({
         'classes': classes,
-        'state_dict': model.state_dict()
+        'state_dict': model.state_dict(),
+        'detector': model.detector
     }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
@@ -175,9 +176,7 @@ def trainIters(data,
 def evaluate(model, input, output):
     with torch.no_grad():
         correct = 0
-
-        result = model(*input)
-
+        result = model(input)
         for idx, gt_class in enumerate(output):
             pred_class = argmax(result[idx])
             if gt_class == pred_class:
@@ -191,8 +190,7 @@ def evaluate_all(model, data):
         correct = 0
         total = len(data)
         for sentence, gt_class in data:
-            precheck_sent = process_sentences([sentence])
-            pred_class = argmax(model(*precheck_sent))
+            pred_class = argmax(model([sentence]))
             if gt_class == pred_class:
                 correct += 1
 

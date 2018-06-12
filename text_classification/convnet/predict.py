@@ -15,12 +15,13 @@ def load_model(save_path=None):
 
 
 def predict(model, input_data, k=1):
-    result = []
-    for sentence in input_data:
-        tokens_in = wordpunct_tokenize(sentence)
-        sentence_in = prepare_vec_sequence(tokens_in, word_to_vec, SENTENCE_DIM, output='variable')
-        scores = F.softmax(model(sentence_in), dim=-1)
-        topk_scores = torch.topk(scores, k)
+    with torch.no_grad():
+        result = []
+        for sentence in input_data:
+            tokens_in = wordpunct_tokenize(sentence)
+            sentence_in = prepare_vec_sequence(tokens_in, word_to_vec, SENTENCE_DIM, output='variable')
+            scores = F.softmax(model(sentence_in), dim=-1)
+            topk_scores = torch.topk(scores, k)
 
-        result.append(topk_scores)
-    return result
+            result.append(topk_scores)
+        return result

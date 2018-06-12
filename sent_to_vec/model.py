@@ -6,6 +6,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from glove_utils import get_glove_data, get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 from common.torch_utils import set_trainable, children
+from common.modules import Highway
 
 def process_batch(batch):
     lengths = np.array([len(sent) for sent in batch])

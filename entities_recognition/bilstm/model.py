@@ -34,41 +34,6 @@ def _process_sentence(sentence):
     return words_batch, word_lengths
 
 
-class Highway(nn.Module):
-
-    def __init__(self, size, num_layers, f):
-        super(Highway, self).__init__()
-
-        self.num_layers = num_layers
-
-        self.nonlinear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.linear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.gate = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.f = f
-
-    def forward(self, x):
-        """
-            :param x: tensor with shape of [batch_size, size]
-            :return: tensor with shape of [batch_size, size]
-            applies σ(x) ⨀ (f(G(x))) + (1 - σ(x)) ⨀ (Q(x)) transformation | G and Q is affine transformation,
-            f is non-linear transformation, σ(x) is affine transformation with sigmoid non-linearition
-            and ⨀ is element-wise multiplication
-            """
-
-        for layer in range(self.num_layers):
-            gate = F.sigmoid(self.gate[layer](x))
-
-            nonlinear = self.f(self.nonlinear[layer](x))
-            linear = self.linear[layer](x)
-
-            x = gate * nonlinear + (1 - gate) * linear
-
-        return x
-
-
 class BLSTMWordEncoder(nn.Module):
 
     def __init__(self,
@@ -208,11 +173,9 @@ class BiLSTM_CRF(nn.Module):
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
-        self.highway = Highway(self.embedding_dim + self.char_embedding_dim, 2, F.relu)
 
         if self.is_cuda:
             self.word_encoder = self.word_encoder.cuda()
-            self.highway = self.highway.cuda()
 
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
@@ -275,7 +238,6 @@ class BiLSTM_CRF(nn.Module):
     def get_layer_groups(self):
         return [
             *zip(self.word_encoder.get_layer_groups()),
-            (self.highway, self.dropout),
             self.lstm,
             self.hidden2tag
         ]
@@ -380,7 +342,6 @@ class BiLSTM_CRF(nn.Module):
         char_embeds = self.word_encoder(sentence)
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
-        sentence_in = self.highway(sentence_in)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
@@ -397,7 +358,6 @@ class BiLSTM_CRF(nn.Module):
         char_embeds = self.word_encoder(sentence)
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
-        sentence_in = self.highway(sentence_in)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)
