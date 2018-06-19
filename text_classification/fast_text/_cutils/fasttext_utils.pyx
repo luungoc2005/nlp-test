@@ -15,17 +15,20 @@ def wordpunct_tokenize(str sent):
 def md5_hash_function(str word):
     return int(md5(word.encode()).hexdigest(), 16)
 
+# buckets must be power of 2 - sized
 def unigram_hash(list sequence, int idx, int buckets, bint lower=True):
     cdef str unigram
     if lower: unigram = sequence[idx].lower()
-    return (md5_hash_function(unigram) % (buckets - 1) + 1)
+    # return (md5_hash_function(unigram) % (buckets - 1) + 1)
+    return (md5_hash_function(unigram) & (buckets - 1))
 
 def bigram_hash(list sequence, int idx, int buckets, bint lower=True):
     cdef str bigram
     if idx >= 1:
         bigram = sequence[idx - 1] + ' ' + sequence[idx]
         if lower: bigram = bigram.lower()
-        return (md5_hash_function(bigram) % (buckets - 1) + 1)
+        # return (md5_hash_function(bigram) % (buckets - 1) + 1)
+        return (md5_hash_function(bigram) & (buckets - 1))
     else:
         return 0
 
