@@ -204,8 +204,8 @@ def trainIters(n_iters=10,
             NLL_losses.append(NLL_loss)
             losses.append(loss)
 
-            # log for every 100 batches:
-            if len(losses) % 100 == 0:
+            # log for every 1000 batches:
+            if len(losses) % 1000 == 0:
                 loss_total = np.mean(NLL_losses)
                 kl_loss_total = np.mean(losses)
 
