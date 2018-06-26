@@ -171,7 +171,6 @@ def trainIters(n_iters=10,
     if is_cuda:
         print('Training with GPU mode')
         model = model.cuda()
-        optimizer = optimizer.cuda()
     else:
         print('Training with CPU mode')
 
