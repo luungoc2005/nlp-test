@@ -45,6 +45,12 @@ class ILearner(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def on_training_start(self): raise NotImplementedError
+    
+    @abstractmethod
+    def on_training_end(self): raise NotImplementedError
+
+    @abstractmethod
     def on_epoch(self, x, y): raise NotImplementedError
 
     @abstractmethod
