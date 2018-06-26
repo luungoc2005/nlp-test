@@ -10,6 +10,9 @@ from common.utils import argmax
 
 NLL = nn.NLLLoss(size_average=False)
 
+if torch.cuda.is_available():
+    NLL = NLL.cuda()
+
 
 def KLDivLoss(logp, target, mean, logv, step, k=0.0025, x0=75000):
     # x0 ~ total number of sentences / 2 (midpoint of epoch)
@@ -59,6 +62,7 @@ class ParaphraseVAE(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.embedding_size = embedding_size
         self.rnn_type = rnn_type
+        self.is_cuda = torch.cuda.is_available()
 
         self.embedding = nn.Embedding(self.vocab_size, self.embedding_size)
 
@@ -79,11 +83,14 @@ class ParaphraseVAE(nn.Module):
                                       rnn_type=self.rnn_type)
 
     def _encode_to_latent(self, input):
-        encoder_hidden = self.encoder.init_hidden()
+        encoder_hidden = self.encoder.init_hidden(self.is_cuda)
 
         input_length = input.size(0)
 
         encoder_outputs = torch.zeros(self.max_length, self.encoder.hidden_size)
+
+        if self.is_cuda:
+            encoder_outputs = encoder_outputs.cuda()
 
         for ei in range(input_length):
             encoder_output, encoder_hidden = self.encoder(input[ei], encoder_hidden)
@@ -108,6 +115,11 @@ class ParaphraseVAE(nn.Module):
         decoder_hidden = encoder_hidden
 
         decoded = torch.zeros(target_length, self.vocab_size)
+
+        if self.is_cuda:
+            decoder_input = decoder_input.cuda()
+            decoded = decoded.cuda()
+
         if target is not None and use_teacher_forcing:
             # Teacher forcing: Feed the target as the next input
             for di in range(target_length):
@@ -136,6 +148,10 @@ class ParaphraseVAE(nn.Module):
 
         std = torch.exp(0.5 * logv)
         z = torch.randn((self.max_length, self.latent_size))
+
+        if self.is_cuda:
+            z = z.cuda()
+
         z = z * std + mean
         
         decoded = self._latent_to_output(z, encoder_hidden, target, teacher_forcing_ratio)
@@ -224,11 +240,17 @@ class EncoderRNN(nn.Module):
         output, hidden = self.rnn(emb, hidden)
         return output, hidden
 
-    def init_hidden(self):
-        if self.rnn_type == 'GRU':
-            return torch.zeros(2, 1, self.hidden_size // 2)
+    def init_hidden(self, is_cuda=False):
+        if is_cuda:
+            if self.rnn_type == 'GRU':
+                return torch.zeros(2, 1, self.hidden_size // 2).cuda()
+            else:
+                return torch.zeros(2, 1, self.hidden_size // 2).cuda(), torch.zeros(2, 1, self.hidden_size // 2).cuda()
         else:
-            return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)
+            if self.rnn_type == 'GRU':
+                return torch.zeros(2, 1, self.hidden_size // 2)
+            else:
+                return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)
 
 
 class AttnDecoderRNN(nn.Module):
@@ -287,8 +309,14 @@ class AttnDecoderRNN(nn.Module):
         output = F.log_softmax(self.out(output[0]), dim=1)
         return output, hidden, attn_weights
 
-    def init_hidden(self):
-        if self.rnn_type == 'GRU':
-            return torch.zeros(2, 1, self.hidden_size // 2)
+    def init_hidden(self, is_cuda=False):
+        if is_cuda:
+            if self.rnn_type == 'GRU':
+                return torch.zeros(2, 1, self.hidden_size // 2).cuda()
+            else:
+                return torch.zeros(2, 1, self.hidden_size // 2).cuda(), torch.zeros(2, 1, self.hidden_size // 2).cuda()
         else:
-            return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)
+            if self.rnn_type == 'GRU':
+                return torch.zeros(2, 1, self.hidden_size // 2)
+            else:
+                return torch.zeros(2, 1, self.hidden_size // 2), torch.zeros(2, 1, self.hidden_size // 2)

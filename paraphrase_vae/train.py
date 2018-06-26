@@ -110,7 +110,7 @@ def _train(s1_batch, s2_batch, model, optimizer, step):
     loss.backward()
     optimizer.step()
 
-    return decoded, NLL_loss.item(), KL_loss.item()
+    return decoded, NLL_loss.detach().item(), KL_loss.detach().item()
 
 
 def trainIters(n_iters=10,
@@ -120,6 +120,8 @@ def trainIters(n_iters=10,
                min_lr=1e-5,
                checkpoint=None,
                rnn_type='GRU'):
+    is_cuda = torch.cuda.is_available()
+
     s1, s2 = get_quora(QUORA_PATH)
     # optimizer = optim.RMSprop(nli_net.parameters())
     # optimizer = optim.SGD(nli_net.parameters(), lr=lr)
@@ -143,6 +145,12 @@ def trainIters(n_iters=10,
 
         step = checkpoint_data.get('step', 0)
 
+        if is_cuda:
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.cuda()
+
         print('Resuming from checkpoint %s (epoch %s - step: %s)' % (
             checkpoint, checkpoint_data['epoch'], checkpoint_data['step']))
 
@@ -154,8 +162,6 @@ def trainIters(n_iters=10,
         model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
 
         optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
-
-    is_cuda = torch.cuda.is_available()
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'cross_entropy_loss')
     KDIV_LOG_FILE = path.join(LOG_DIR, 'kl_div_loss')
