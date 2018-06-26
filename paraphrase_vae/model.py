@@ -162,6 +162,7 @@ class ParaphraseVAE(nn.Module):
         with torch.no_grad():
             if beam_width == 0:  # Eager
                 decoded, _, _ = self.forward(input)
+                decoded = decoded.detach().cpu()
                 result = []
                 for idx in range(len(decoded)):
                     token = argmax(decoded[idx])
@@ -175,6 +176,8 @@ class ParaphraseVAE(nn.Module):
 
                 std = torch.exp(0.5 * logv)
                 z = torch.randn((self.max_length, self.latent_size))
+                if self.is_cuda:
+                    z = z.cuda()
                 z = z * std + mean
 
                 prev_beam = Beam(beam_width)
@@ -190,6 +193,8 @@ class ParaphraseVAE(nn.Module):
                             curr_beam.add(prefix_prob, True, prefix, hidden_state)
                         else:
                             decoder_input = torch.LongTensor([prefix[-1]])
+                            if self.is_cuda:
+                                decoder_input = decoder_input.cuda()
                             decoder_output, decoder_hidden, decoder_attention = self.decoder(
                                 decoder_input, hidden_state, hidden)
 
@@ -200,8 +205,8 @@ class ParaphraseVAE(nn.Module):
                             topv, topi = topv.squeeze(), topi.squeeze()
 
                             for idx, next_prob in enumerate(topv):
-                                next_prob = next_prob.detach().item()
-                                token = topi[idx].detach().item()
+                                next_prob = next_prob.cpu().detach().item()
+                                token = topi[idx].cpu().detach().item()
                                 complete = (token == SOS_token)
 
                                 # Adding probs because this is actually log probs (from log softmax)
