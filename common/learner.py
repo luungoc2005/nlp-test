@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader
 
 class IModel(metaclass=ABCMeta):
 
+    def __init__(self, model):
+        self._model = model
+
     @abstractmethod
     def get_state_dict(self): raise NotImplementedError
 

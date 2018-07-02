@@ -34,8 +34,8 @@ class FastText(nn.Module):
         self.word_embs.padding_idx = 0
         self.word_embs.weight.requires_grad = False
 
-        self.ngrams_embs = nn.Embedding(NGRAM_BINS, EMBEDDING_DIM, 
-                                        padding_idx=0, sparse=True)
+        self.ngrams_embs = nn.EmbeddingBag(NGRAM_BINS, EMBEDDING_DIM,
+                                           mode='mean', sparse=True)
         self.ngrams_embs.weight.requires_grad = False
         # self.highway = Highway(EMBEDDING_DIM * 2, 1, F.relu)
 
@@ -101,13 +101,13 @@ class FastText(nn.Module):
             all_feats.append(feats)
             # all_logits.append(self._forward_alg(feats))
         # logits_tensor = torch.cat(all_logits, dim=0)
-        feats_tensor = torch.cat(all_feats, dim=0)
+        # feats_tensor = torch.cat(all_feats, dim=0)
 
-        # Scale all logits
-        logits_tensor = self._temperature_scale(logits_tensor)
+        # # Scale all logits
+        # logits_tensor = self._temperature_scale(logits_tensor)
 
-        self.detector = SVC(kernel='linear', probability=True)
-        self.detector.fit(feats_tensor.detach().numpy(), targets_tensor.detach().numpy())
+        # self.detector = SVC(kernel='linear', probability=True)
+        # self.detector.fit(feats_tensor.detach().numpy(), targets_tensor.detach().numpy())
         self.train()
 
     def _get_hidden_features(self, embs, ngram_embs):
@@ -115,12 +115,14 @@ class FastText(nn.Module):
         # embs = F.dropout(embs, 1 - self.dropout_keep_prob)
         # embs = F.relu(self.w2h(embs))
 
-        ngram_embs = torch.mean(self.ngrams_embs(ngram_embs), dim=1)
+        ngram_embs = self.ngrams_embs(ngram_embs)
+        # ngram_embs = torch.mean(self.ngrams_embs(ngram_embs), dim=1)
         # ngram_embs = F.dropout(ngram_embs, 1 - self.dropout_keep_prob)
         # ngram_embs = F.relu(self.n2h(ngram_embs))
 
         x = torch.cat([embs, ngram_embs], dim=1)
-        x = F.relu(F.dropout(x, 1 - self.dropout_keep_prob))
+        x = F.dropout(x, 1 - self.dropout_keep_prob)
+        x = F.relu(x)
         # x = self.highway(x)
         # x = self.i2o(x)
         x = self.i2h(x)
@@ -138,17 +140,17 @@ class FastText(nn.Module):
 
         if calibrated:
             # d_results = None
-            # logits = self._temperature_scale(logits)
+            logits = self._temperature_scale(logits)
 
-            if self.detector is not None:
-                logits = self.detector.predict_proba(feats.detach().numpy())
-                logits = torch.from_numpy(logits)
+            # if self.detector is not None:
+                # logits = self.detector.predict_proba(feats.detach().numpy())
+                # logits = torch.from_numpy(logits)
                 # d_results = self.detector.predict(logits.detach().numpy()).reshape(-1, 1)
                 # print(self.detector.decision_function(logits.detach().numpy()).reshape(-1, 1))
                 # print(d_results)
                 # d_results = torch.from_numpy(d_results).float().expand(-1, logits.size(1))
 
-            # logits = F.softmax(logits, dim=-1)
+            logits = F.softmax(logits, dim=-1)
             # return logits if d_results is None else logits / d_results
             return logits
         else:

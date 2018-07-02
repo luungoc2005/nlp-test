@@ -43,7 +43,9 @@ def predict(input_sent, beam_width=10):
     tokens = [SOS_token] + tokens + [EOS_token]
     tokens = torch.LongTensor(tokens).view(-1, 1)
 
+    model.eval()
     decoded = model.generate(tokens, beam_width=beam_width)
+    model.train()
 
     return ' '.join([ix_to_word[ix] for ix in decoded])
 

@@ -23,3 +23,4 @@ class ICallback(metaclass=ABCMeta):
 
     @abstractmethod
     def on_training_end(self): pass
+

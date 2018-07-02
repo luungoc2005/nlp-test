@@ -148,7 +148,7 @@ def trainIters(n_iters=10,
         if is_cuda:
             for state in optimizer.state.values():
                 for k, v in state.items():
-                    if isinstance(v, torch.Tensor):
+                    if torch.is_tensor(v):
                         state[k] = v.cuda()
 
         print('Resuming from checkpoint %s (epoch %s - step: %s)' % (
