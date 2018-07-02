@@ -5,6 +5,7 @@ CACHE_DATA = False
 BASE_PATH = path.dirname(__file__)
 
 GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
+MAGNITUDE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')

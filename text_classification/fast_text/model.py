@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.sparse
 from torch.autograd import Variable
-from glove_utils import get_emb_matrix
+from common.word_vectors import get_emb_matrix
 from config import NGRAM_BINS, EMBEDDING_DIM
 from fasttext_utils import _process_sentences
 from sklearn.svm import SVC

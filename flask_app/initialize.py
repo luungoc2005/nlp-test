@@ -1,4 +1,3 @@
-# from glove_utils import init_glove
 from flask_app.nlu_main import nlu_init_model, nlu_predict, nlu_train_file
 from config import UPLOAD_FOLDER, CONFIG_PATH
 from flask import request, flash, redirect, jsonify

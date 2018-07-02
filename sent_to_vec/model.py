@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 from nltk.tokenize import word_tokenize
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from glove_utils import get_glove_data, get_word_vector
+# from glove_utils import get_glove_data, get_word_vector
+from common.word_vectors import get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 from common.torch_utils import set_trainable, children
 from common.modules import Highway
@@ -24,10 +25,10 @@ def process_batch(batch):
 
 def process_input(sentences):
     # Filter out words without word vectors
-    glove_data = get_glove_data()
+    # glove_data = get_glove_data()
     
     sentences = [
-        [START_TAG] + [word for word in word_tokenize(sent) if word in glove_data] + [STOP_TAG]
+        [START_TAG] + [word for word in word_tokenize(sent)] + [STOP_TAG]
         for sent in sentences
     ]
     sentences = [sent if len(sent) > 2 else [STOP_TAG] for sent in sentences]

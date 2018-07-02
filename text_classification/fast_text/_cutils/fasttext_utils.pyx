@@ -6,7 +6,8 @@ import numpy as np
 from config import NGRAM_BINS
 from nltk.tokenize import RegexpTokenizer
 from hashlib import md5
-from glove_utils import get_text_to_ix
+# from glove_utils import get_text_to_ix
+from common.word_vectors import get_word_vector
 
 _rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
 def wordpunct_tokenize(str sent):
@@ -41,16 +42,19 @@ def trigram_hash(list sequence, int idx, int buckets, bint lower=True):
     else:
         return 0
 
+"""
 def prepare_sequence(list seq, to_ix):
     cdef int unk_token
     unk_token = 0
     idxs = [to_ix.get(w, unk_token) for w in seq]
     return idxs
+"""
 
 def sentence_vector(str sentence):
     cdef list tokens, words_sequence, ngrams_sequence
     tokens = wordpunct_tokenize(sentence)
-    words_sequence = prepare_sequence(tokens, get_text_to_ix())
+    # words_sequence = prepare_sequence(tokens, get_text_to_ix())
+    words_sequence = get_word_vector(tokens)
     ngrams_sequence = []
 
     # n-gram features
