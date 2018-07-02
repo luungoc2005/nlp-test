@@ -33,7 +33,7 @@ Data path configurations are stored in `config.py`
 - Install any missing dependencies (because of platform differences)
 
 3. Build Cython modules
-- Run `python setup.py build_ext --inplace` (requires gcc/clang - `sudo apt-get install build-essentials` on Deb/Ubuntu or Xcode+CLI tools on OSX)
+- Run `python setup.py build_ext --inplace` (requires gcc/clang - `sudo apt-get install build-essential` on Deb/Ubuntu or Xcode+CLI tools on OSX)
 
 4. Using Jupyter notebook for evaluation
 - Activate the environment by `source activate botbot-nlp`

@@ -12,8 +12,8 @@ from sklearn.svm import SVC
 
 def process_sentences(sentences):
     words, ngrams = _process_sentences(list(sentences))
-    return Variable(torch.from_numpy(words).long(), requires_grad=False), \
-        Variable(torch.from_numpy(ngrams).long(), requires_grad=False)
+    return Variable(torch.from_numpy(words).float(), requires_grad=False), \
+           Variable(torch.from_numpy(ngrams).long(), requires_grad=False)
 
 
 class FastText(nn.Module):
@@ -29,10 +29,10 @@ class FastText(nn.Module):
         self.classes = classes
 
         # self.mean_embs = nn.EmbeddingBag(MAX_NUM_WORDS + 1, EMBEDDING_DIM, mode='mean', padding_idx=-1)
-        emb_matrix = torch.from_numpy(get_emb_matrix()).float()
-        self.word_embs = nn.Embedding.from_pretrained(emb_matrix)
-        self.word_embs.padding_idx = 0
-        self.word_embs.weight.requires_grad = False
+        # emb_matrix = torch.from_numpy(get_emb_matrix()).float()
+        # self.word_embs = nn.Embedding.from_pretrained(emb_matrix)
+        # self.word_embs.padding_idx = 0
+        # self.word_embs.weight.requires_grad = False
 
         self.ngrams_embs = nn.EmbeddingBag(NGRAM_BINS, EMBEDDING_DIM,
                                            mode='mean', sparse=True)
@@ -111,7 +111,8 @@ class FastText(nn.Module):
         self.train()
 
     def _get_hidden_features(self, embs, ngram_embs):
-        embs = torch.mean(self.word_embs(embs), dim=1)
+        embs = torch.mean(embs, dim=1)
+        # embs = torch.mean(self.word_embs(embs), dim=1)
         # embs = F.dropout(embs, 1 - self.dropout_keep_prob)
         # embs = F.relu(self.w2h(embs))
 

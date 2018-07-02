@@ -95,14 +95,14 @@ def _process_sentences(list sentences):
 
     cdef list word_seq
     for word_seq in words_seqs:
-      new_seq = np.zeros((1, max_words))
-      new_seq[:,:len(word_seq)] = word_seq
-      result_words.append(new_seq)
+        new_seq = np.zeros((1, max_words))
+        new_seq[:,:len(word_seq)] = word_seq
+        result_words.append(new_seq)
 
     for ngram_seq in ngrams_seqs:
-      new_seq = np.zeros((1, max_ngrams))
-      new_seq[:,:len(ngram_seq)] = ngram_seq
-      result_ngrams.append(new_seq)
+        new_seq = np.zeros((1, max_ngrams))
+        new_seq[:,:len(ngram_seq)] = ngram_seq
+        result_ngrams.append(new_seq)
 
     return np.concatenate(np.array(result_words), axis=0), \
            np.concatenate(np.array(result_ngrams), axis=0)
