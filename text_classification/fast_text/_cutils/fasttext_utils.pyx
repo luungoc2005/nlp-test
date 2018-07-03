@@ -7,7 +7,7 @@ from config import NGRAM_BINS
 from nltk.tokenize import RegexpTokenizer
 from hashlib import md5
 # from glove_utils import get_text_to_ix
-from common.word_vectors import get_word_vector
+from common.word_vectors import get_word_vector, get_dim
 
 _rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
 def wordpunct_tokenize(str sent):
@@ -51,7 +51,7 @@ def prepare_sequence(list seq, to_ix):
 """
 
 def sentence_vector(str sentence):
-    cdef list tokens, words_sequence, ngrams_sequence
+    cdef list tokens, ngrams_sequence
     tokens = wordpunct_tokenize(sentence)
     # words_sequence = prepare_sequence(tokens, get_text_to_ix())
     words_sequence = get_word_vector(tokens)
@@ -61,7 +61,7 @@ def sentence_vector(str sentence):
     # TODO: experiment with bigrams + trigrams - only bigrams for now
     cdef int idx
     for idx in range(len(tokens)):
-        ngrams_sequence.append(unigram_hash(tokens, idx, NGRAM_BINS))
+        # ngrams_sequence.append(unigram_hash(tokens, idx, NGRAM_BINS))
         ngrams_sequence.append(bigram_hash(tokens, idx, NGRAM_BINS))
         # ngrams_sequence.append(trigram_hash(tokens, idx, NGRAM_BINS))
     
@@ -77,7 +77,7 @@ def _process_sentences(list sentences):
     max_ngrams = 0
 
     cdef str sent
-    cdef list words_seq, ngrams_seq
+    cdef list ngrams_seq
     for sent in sentences:
         words_seq, ngrams_seq = sentence_vector(sent)
 
@@ -90,12 +90,13 @@ def _process_sentences(list sentences):
         ngrams_seqs.append(ngrams_seq)
     
     cdef list result_words, result_ngrams
+    cdef int wordvec_dim
     result_words = []
     result_ngrams = []
+    wordvec_dim = get_dim()
 
-    cdef list word_seq
     for word_seq in words_seqs:
-        new_seq = np.zeros((1, max_words))
+        new_seq = np.zeros((1, max_words, wordvec_dim))
         new_seq[:,:len(word_seq)] = word_seq
         result_words.append(new_seq)
 

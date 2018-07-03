@@ -34,12 +34,11 @@ class FastText(nn.Module):
         # self.word_embs.padding_idx = 0
         # self.word_embs.weight.requires_grad = False
 
-        self.ngrams_embs = nn.EmbeddingBag(NGRAM_BINS, EMBEDDING_DIM,
-                                           mode='mean', sparse=True)
+        self.ngrams_embs = nn.Embedding(NGRAM_BINS, EMBEDDING_DIM, sparse=True)
         self.ngrams_embs.weight.requires_grad = False
         # self.highway = Highway(EMBEDDING_DIM * 2, 1, F.relu)
 
-        self.i2h = nn.Linear(EMBEDDING_DIM * 2, self.hidden_size, bias=False)
+        self.i2h = nn.Linear(EMBEDDING_DIM, self.hidden_size, bias=False)
         self.h2o = nn.Linear(self.hidden_size, self.classes)
 
         self.temperature = nn.Parameter(torch.ones(1) * 1.5)
@@ -111,17 +110,14 @@ class FastText(nn.Module):
         self.train()
 
     def _get_hidden_features(self, embs, ngram_embs):
-        embs = torch.mean(embs, dim=1)
         # embs = torch.mean(self.word_embs(embs), dim=1)
         # embs = F.dropout(embs, 1 - self.dropout_keep_prob)
         # embs = F.relu(self.w2h(embs))
 
         ngram_embs = self.ngrams_embs(ngram_embs)
-        # ngram_embs = torch.mean(self.ngrams_embs(ngram_embs), dim=1)
-        # ngram_embs = F.dropout(ngram_embs, 1 - self.dropout_keep_prob)
-        # ngram_embs = F.relu(self.n2h(ngram_embs))
 
         x = torch.cat([embs, ngram_embs], dim=1)
+        x = torch.mean(x, dim=1)
         x = F.dropout(x, 1 - self.dropout_keep_prob)
         x = F.relu(x)
         # x = self.highway(x)
