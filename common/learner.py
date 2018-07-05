@@ -5,14 +5,22 @@ from torch.utils.data import DataLoader
 
 class IModel(metaclass=ABCMeta):
 
-    def __init__(self, model):
-        self._model = model
+    def __init__(self, model_class=None, from_fp=None, *args, **kwargs):
+        if from_fp is None:
+            self._model = model_class(*args, **kwargs)
+        else:
+            self._model = None
+
+            if torch.cuda.is_available():
+                self.load_state_dict(torch.load(from_fp))
+            else:
+                self.load_state_dict(torch.load(from_fp), map_location=lambda storage, loc: storage)
 
     @abstractmethod
     def get_state_dict(self): raise NotImplementedError
 
     @abstractmethod
-    def load_state_dict(self, state_dict): raise NotImplementedError
+    def load_state_dict(self, state_dict, *args, **kwargs): raise NotImplementedError
 
     @abstractmethod
     def predict(self, input): raise NotImplementedError

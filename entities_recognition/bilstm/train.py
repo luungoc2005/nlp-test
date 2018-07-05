@@ -87,8 +87,7 @@ def trainIters(data,
         model_optimizer = optim.Adam(
             model.parameters(), 
             lr=learning_rate,
-            weight_decay=weight_decay,
-            amsgrad=True)
+            weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-5
         model_optimizer = optim.SGD(

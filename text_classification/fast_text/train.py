@@ -3,7 +3,6 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
-
 from tqdm import tqdm, trange
 # from config import SENTENCE_DIM
 # import numpy as np
@@ -12,7 +11,7 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from common.utils import argmax, get_datetime_hostname, timeSince
-from text_classification.fast_text.model import FastText, process_sentences
+from text_classification.fast_text.model import FastText, FastTextDataset
 
 import time
 
@@ -21,7 +20,7 @@ SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
 
-def _train(input_variable, output_variable, model, criterion, optimizer):
+def _train(input_variable, output_variable, model, criterion, optimizer, adam_decay=0):
     optimizer.zero_grad()
 
     # Run the forward pass
@@ -30,6 +29,12 @@ def _train(input_variable, output_variable, model, criterion, optimizer):
     loss = criterion(logits, output_variable)
 
     loss.backward()
+
+    if adam_decay > 0:
+        for group in optimizer.param_groups():
+            for param in group['params']:
+                param.data = param.data.add(-adam_decay * group['lr'], param.data)
+
     optimizer.step()
 
     return loss.item()
@@ -60,19 +65,22 @@ def trainIters(data,
         weights[int(class_idx)] = 1 / weights[int(class_idx)]
 
     print('Training started')
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    # criterion = nn.CrossEntropyLoss(weight=weights)
     # criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCELoss(weight=weights)
     model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
-        weight_decay = weight_decay or 0
+        weight_decay = 0
+        adam_decay = weight_decay
         model_optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay)
+            betas=(0.7, 0.99),
+            lr=learning_rate)
     else:
         weight_decay = weight_decay or 1e-4
+        adam_decay = 0
         model_optimizer = optim.SGD(
             filter(lambda p: p.requires_grad, model.parameters()),
             lr=learning_rate,
@@ -97,20 +105,19 @@ def trainIters(data,
         iterator = range(1, n_iters + 1)
 
     # For timing with verbose=1
-    start = time.time()
-    data_loader = DataLoader(data, batch_size=batch_size, num_workers=cpu_count)
+    dataset = FastTextDataset(data, num_classes)
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=cpu_count)
 
+    start = time.time()
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
-            sentences, labels = data_batch
+            sentences = data_batch['sentence']
+            labels = data_batch['label']
 
-            real_batch += len(sentences)  # real batch size
-
-            # Prepare training data
-            target_variable = labels.long()
+            real_batch += len(labels)  # real batch size
 
             # Run the training epoch
-            loss = _train(sentences, target_variable, model, criterion, model_optimizer)
+            loss = _train(sentences, labels, model, criterion, model_optimizer, adam_decay)
 
             loss_total += loss
 
@@ -163,7 +170,6 @@ def trainIters(data,
     torch.save({
         'classes': classes,
         'state_dict': model.state_dict(),
-        'detector': model.detector
     }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
@@ -179,6 +185,7 @@ def evaluate(model, input, output):
         result = model(input)
         for idx, gt_class in enumerate(output):
             pred_class = argmax(result[idx])
+            gt_class = argmax(gt_class)
             if gt_class == pred_class:
                 correct += 1
     return float(correct)
@@ -191,6 +198,7 @@ def evaluate_all(model, data):
         total = len(data)
         for sentence, gt_class in data:
             pred_class = argmax(model([sentence]))
+            gt_class = argmax(gt_class)
             if gt_class == pred_class:
                 correct += 1
 

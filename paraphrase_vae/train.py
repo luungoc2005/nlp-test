@@ -139,7 +139,7 @@ def trainIters(n_iters=10,
         model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
         model.load_state_dict(checkpoint_data['model_state'])
 
-        optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
+        optimizer = optim.Adam(model.parameters(), lr=lr)
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint_data['epoch']
 
@@ -161,7 +161,7 @@ def trainIters(n_iters=10,
 
         model = ParaphraseVAE(vocab_size, rnn_type=rnn_type)
 
-        optimizer = optim.Adam(model.parameters(), lr=lr, amsgrad=True)
+        optimizer = optim.Adam(model.parameters(), lr=lr)
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'cross_entropy_loss')
     KDIV_LOG_FILE = path.join(LOG_DIR, 'kl_div_loss')
