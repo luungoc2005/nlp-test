@@ -83,6 +83,7 @@ def trainIters(n_iters=10,
         lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
     )
     epoch_start = 0
+    checkpoint_start = 0
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
