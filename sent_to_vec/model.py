@@ -216,7 +216,7 @@ class QRNNEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = QRNN(self.embedding_dim, self.hidden_dim, 1,
+        self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 1,
                          dropout=1-self.dropout_keep_prob)
 
     def get_layer_groups(self):
@@ -225,29 +225,29 @@ class QRNNEncoder(nn.Module):
         ]
 
     def forward(self, sent_tuple):
-        sent, sent_len = sent_tuple
+        sent, _ = sent_tuple
 
         # Sort by length (keep idx)
-        sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
-        idx_unsort = np.argsort(idx_sort)
+        # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
+        # idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = torch.from_numpy(idx_sort)
+        # idx_sort = torch.from_numpy(idx_sort)
 
-        if self.is_cuda:
-            idx_sort = idx_sort.cuda()
+        # if self.is_cuda:
+        #     idx_sort = idx_sort.cuda()
 
-        sent = sent.index_select(1, idx_sort)
+        # sent = sent.index_select(1, idx_sort)
 
         # Handling padding in Recurrent Networks
-        sent_packed = pack_padded_sequence(sent, sent_len)
-        sent_output = self.lstm(sent_packed)[0]  # seqlen x batch x 2*nhid
-        sent_output = pad_packed_sequence(sent_output)[0]
+        # sent_packed = pack_padded_sequence(sent, sent_len)
+        sent_output = self.qrnn(sent)[0]  # seqlen x batch x 2*nhid
+        # sent_output = pad_packed_sequence(sent_output)[0]
 
         # Un-sort by length
-        idx_unsort = torch.from_numpy(idx_unsort)
-        if self.is_cuda:
-            idx_unsort = idx_unsort.cuda()
-        sent_output = sent_output.index_select(1, idx_unsort)
+        # idx_unsort = torch.from_numpy(idx_unsort)
+        # if self.is_cuda:
+        #     idx_unsort = idx_unsort.cuda()
+        # sent_output = sent_output.index_select(1, idx_unsort)
 
         # Max Pooling
         embeds = torch.max(sent_output, 0)[0]
