@@ -12,7 +12,7 @@ from torchqrnn import QRNN
 
 def process_batch(batch):
     batch = [
-        [START_TAG] + [word for word in sent.split()] + [STOP_TAG]
+        [START_TAG] + [word for word in word_tokenize(sent)] + [STOP_TAG]
         for sent in batch
     ]
     lengths = np.array([len(sent) for sent in batch])
@@ -231,6 +231,7 @@ class QRNNEncoder(nn.Module):
 
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
+        print(sent.size())
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
@@ -259,8 +260,6 @@ class QRNNEncoder(nn.Module):
         if embeds.ndimension() == 3:
             embeds = embeds.squeeze(0)
             assert embeds.ndimension() == 2
-
-        print(embeds.size())
 
         return embeds
 
