@@ -220,7 +220,7 @@ class QRNNEncoder(nn.Module):
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 1,
                          dropout=1-self.dropout_keep_prob)
-        self.init_lstm = torch.zeros((1, self.bsize, self.enc_lstm_dim)).float().cuda()
+        self.init_lstm = torch.zeros((1, self.bsize, self.hidden_dim)).float().cuda()
 
     def get_layer_groups(self):
         return [
@@ -233,7 +233,7 @@ class QRNNEncoder(nn.Module):
         bsize = sent.size(1)
 
         self.init_lstm = self.init_lstm if bsize == self.init_lstm.size(1) else \
-                torch.zeros((1, self.bsize, self.enc_lstm_dim)).float().cuda()
+                torch.zeros((1, self.bsize, self.hidden_dim)).float().cuda()
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
