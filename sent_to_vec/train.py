@@ -118,6 +118,7 @@ def trainIters(n_iters=10,
     start_time = time.time()
     last_time = start_time
     accuracies = []
+    train_acc = 0
 
     for epoch in range(epoch_start, n_iters + 1):
 
@@ -180,7 +181,7 @@ def trainIters(n_iters=10,
             # checkpoint every 5000 minibatches
             if len(losses) % 5000 == 0:
                 torch.save(nli_net.encoder.state_dict(),
-                           path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
+                            path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
                 torch.save({
                     'epoch': epoch,
                     'nli_state': nli_net.state_dict(),
