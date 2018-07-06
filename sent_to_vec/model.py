@@ -260,6 +260,8 @@ class QRNNEncoder(nn.Module):
             embeds = embeds.squeeze(0)
             assert embeds.ndimension() == 2
 
+        print(embeds.size())
+
         return embeds
 
 
