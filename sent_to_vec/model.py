@@ -216,9 +216,11 @@ class QRNNEncoder(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.bsize = 64
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 1,
                          dropout=1-self.dropout_keep_prob)
+        self.init_lstm = torch.zeros((1, self.bsize, self.enc_lstm_dim)).float().cuda()
 
     def get_layer_groups(self):
         return [
@@ -227,6 +229,11 @@ class QRNNEncoder(nn.Module):
 
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
+
+        bsize = sent.size(1)
+
+        self.init_lstm = self.init_lstm if bsize == self.init_lstm.size(1) else \
+                torch.zeros((1, self.bsize, self.enc_lstm_dim)).float().cuda()
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
@@ -241,7 +248,7 @@ class QRNNEncoder(nn.Module):
 
         # Handling padding in Recurrent Networks
         # sent_packed = pack_padded_sequence(sent, sent_len)
-        sent_output = self.qrnn(sent)[0]  # seqlen x batch x 2*nhid
+        sent_output = self.qrnn(sent, (self.init_lstm, self.init_lstm))[1][0].squeeze(0)
         # sent_output = pad_packed_sequence(sent_output)[0]
 
         # Un-sort by length
@@ -251,12 +258,12 @@ class QRNNEncoder(nn.Module):
         # sent_output = sent_output.index_select(1, idx_unsort)
 
         # Max Pooling
-        embeds = torch.max(sent_output, 0)[0]
-        if embeds.ndimension() == 3:
-            embeds = embeds.squeeze(0)
-            assert embeds.ndimension() == 2
+        # embeds = torch.max(sent_output, 0)[0]
+        # if embeds.ndimension() == 3:
+        #     embeds = embeds.squeeze(0)
+        #     assert embeds.ndimension() == 2
 
-        return embeds
+        return sent_output
 
 
 class NLINet(nn.Module):
