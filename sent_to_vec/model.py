@@ -13,13 +13,14 @@ from torchqrnn import QRNN
 def process_batch(batch):
     lengths = np.array([len(sent) for sent in batch])
     max_len = np.max(lengths)
-    embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
+    # embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
 
-    for i in range(len(batch)):
-        for j in range(len(batch[i])):
-            vec = get_word_vector(batch[i][j])
-            if vec is not None:
-                embeds[j, i, :] = vec
+    # for i in range(len(batch)):
+    #     for j in range(len(batch[i])):
+    #         vec = get_word_vector(batch[i][j])
+    #         if vec is not None:
+    #             embeds[j, i, :] = vec
+    embeds = get_word_vector(batch)
 
     return torch.from_numpy(embeds).float(), lengths
 
