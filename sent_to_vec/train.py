@@ -68,7 +68,7 @@ def trainIters(n_iters=10,
                checkpoint=None):
     encoder = QRNNEncoder()
     # encoder = ConvNetEncoder()
-    nli_net = NLINet(encoder=encoder)
+    nli_net = NLINet(encoder=encoder, bidirectional_encoder=False)
 
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False

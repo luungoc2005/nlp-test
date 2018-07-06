@@ -263,11 +263,12 @@ class NLINet(nn.Module):
     def __init__(self,
                  lstm_dim=2048,
                  hidden_dim=512,
+                 bidirectional_encoder=True,
                  encoder=None):
         super(NLINet, self).__init__()
 
         self.lstm_dim = lstm_dim
-        self.input_dim = 4 * 2 * lstm_dim
+        self.input_dim = 4 * 2 * lstm_dim if bidirectional_encoder else 4 * lstm_dim
         self.hidden_dim = hidden_dim
         self.classes = 3
 
