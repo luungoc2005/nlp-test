@@ -113,7 +113,7 @@ class ConvNetEncoder(nn.Module):
     def __init__(self,
                  embedding_dim=None,
                  vocab_size=None,
-                 hidden_dim=2048,
+                 hidden_dim=2400,
                  is_cuda=None,
                  dropout_keep_prob=1):
         super(ConvNetEncoder, self).__init__()
@@ -147,7 +147,7 @@ class BiGRUEncoder(nn.Module):
     def __init__(self,
                  embedding_dim=None,
                  vocab_size=None,
-                 hidden_dim=2048,
+                 hidden_dim=2400,
                  is_cuda=None,
                  dropout_keep_prob=1):
         super(BiGRUEncoder, self).__init__()
@@ -206,9 +206,9 @@ class QRNNEncoder(nn.Module):
     def __init__(self,
                  embedding_dim=None,
                  vocab_size=None,
-                 hidden_dim=2048,
+                 hidden_dim=2400,
                  is_cuda=None,
-                 dropout_keep_prob=1):
+                 dropout_keep_prob=0.6):
         super(QRNNEncoder, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
@@ -262,7 +262,7 @@ class QRNNEncoder(nn.Module):
 class NLINet(nn.Module):
     
     def __init__(self,
-                 lstm_dim=2048,
+                 lstm_dim=2400,
                  hidden_dim=512,
                  bidirectional_encoder=True,
                  encoder=None):
