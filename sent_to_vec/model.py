@@ -22,7 +22,7 @@ def process_batch(batch):
     #             embeds[j, i, :] = vec
     embeds = get_word_vector(batch)
 
-    return torch.from_numpy(embeds).float().permute(1, 0, 2), lengths
+    return torch.from_numpy(embeds).float(), lengths
 
 
 def process_input(sentences):
@@ -227,6 +227,9 @@ class QRNNEncoder(nn.Module):
 
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
+        print(sent.size())
+        sent = sent.permute(1, 0, 2)
+        print(sent.size())
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
