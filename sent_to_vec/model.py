@@ -217,7 +217,6 @@ class QRNNEncoder(nn.Module):
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.lstm = QRNN(self.embedding_dim, self.hidden_dim, 1,
-                         bidirectional=True,
                          dropout=1-self.dropout_keep_prob)
 
     def get_layer_groups(self):
