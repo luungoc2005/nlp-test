@@ -227,6 +227,7 @@ class QRNNEncoder(nn.Module):
 
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
+        print(sent.size())
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
