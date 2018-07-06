@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import NLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, process_batch
+from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, QRNNEncoder, process_batch
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
 
@@ -66,7 +66,7 @@ def trainIters(n_iters=10,
                lr_shrink=5,
                min_lr=1e-5,
                checkpoint=None):
-    encoder = BiGRUEncoder()
+    encoder = QRNNEncoder()
     # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder)
 
