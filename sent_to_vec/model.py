@@ -11,10 +11,6 @@ from common.modules import Highway
 from torchqrnn import QRNN
 
 def process_batch(batch):
-    batch = [
-        [START_TAG] + [word for word in word_tokenize(sent)] + [STOP_TAG]
-        for sent in batch
-    ]
     lengths = np.array([len(sent) for sent in batch])
     max_len = np.max(lengths)
     # embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
@@ -231,7 +227,7 @@ class QRNNEncoder(nn.Module):
 
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
-        print(sent.size())
+        sent = sent.permute(1, 0, 2)
 
         # Sort by length (keep idx)
         # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
