@@ -12,7 +12,7 @@ from torchqrnn import QRNN
 
 def process_batch(batch):
     batch = [
-        [['<s>'] + [word for word in sent.split()] + ['</s>']]
+        [[START_TAG] + [word for word in sent.split()] + [STOP_TAG]]
         for sent in batch
     ]
     lengths = np.array([len(sent) for sent in batch])
