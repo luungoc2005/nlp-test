@@ -57,7 +57,7 @@ class FastText(nn.Module):
         self.ngrams_embs.weight.requires_grad = False
 
         self.i2h = nn.Linear(EMBEDDING_DIM, self.hidden_size)
-        self.h2o = nn.Linear(self.hidden_size, self.classes)
+        self.h2o = nn.Linear(self.hidden_size, self.classes, bias=False)
 
         self.temperature = nn.Parameter(torch.ones(1) * 1.5)
 
@@ -134,6 +134,6 @@ class FastText(nn.Module):
             # print(topk_scores)
             # logits = F.softmax(logits, dim=-1)
             # return logits if d_results is None else logits / d_results
-            return logits
-        else:
             return F.sigmoid(logits)
+        else:
+            return logits

@@ -8,6 +8,7 @@ from common.word_vectors import get_word_vector
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, MAX_NUM_WORDS
 from common.torch_utils import set_trainable, children
 from common.modules import Highway
+from torchqrnn import QRNN
 
 def process_batch(batch):
     lengths = np.array([len(sent) for sent in batch])
@@ -156,9 +157,68 @@ class BiGRUEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 2,
+        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 1,
                             bidirectional=True,
                             dropout=1-self.dropout_keep_prob)
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+        ]
+
+    def forward(self, sent_tuple):
+        sent, sent_len = sent_tuple
+
+        # Sort by length (keep idx)
+        sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
+        idx_unsort = np.argsort(idx_sort)
+
+        idx_sort = torch.from_numpy(idx_sort)
+
+        if self.is_cuda:
+            idx_sort = idx_sort.cuda()
+
+        sent = sent.index_select(1, idx_sort)
+
+        # Handling padding in Recurrent Networks
+        sent_packed = pack_padded_sequence(sent, sent_len)
+        sent_output = self.lstm(sent_packed)[0]  # seqlen x batch x 2*nhid
+        sent_output = pad_packed_sequence(sent_output)[0]
+
+        # Un-sort by length
+        idx_unsort = torch.from_numpy(idx_unsort)
+        if self.is_cuda:
+            idx_unsort = idx_unsort.cuda()
+        sent_output = sent_output.index_select(1, idx_unsort)
+
+        # Max Pooling
+        embeds = torch.max(sent_output, 0)[0]
+        if embeds.ndimension() == 3:
+            embeds = embeds.squeeze(0)
+            assert embeds.ndimension() == 2
+
+        return embeds
+
+
+class QRNNEncoder(nn.Module):
+
+    def __init__(self,
+                 embedding_dim=None,
+                 vocab_size=None,
+                 hidden_dim=2048,
+                 is_cuda=None,
+                 dropout_keep_prob=1):
+        super(QRNNEncoder, self).__init__()
+
+        self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.vocab_size = vocab_size or MAX_NUM_WORDS
+        self.dropout_keep_prob = dropout_keep_prob
+        self.hidden_dim = hidden_dim
+        self.is_cuda = is_cuda or torch.cuda.is_available()
+
+        self.lstm = QRNN(self.embedding_dim, self.hidden_dim, 1,
+                         bidirectional=True,
+                         dropout=1-self.dropout_keep_prob)
 
     def get_layer_groups(self):
         return [

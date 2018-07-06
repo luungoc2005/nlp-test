@@ -67,7 +67,7 @@ def trainIters(data,
     print('Training started')
     # criterion = nn.CrossEntropyLoss(weight=weights)
     # criterion = nn.CrossEntropyLoss()
-    criterion = nn.BCELoss(weight=weights)
+    criterion = nn.BCEWithLogitsLoss(weight=weights)
     model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
