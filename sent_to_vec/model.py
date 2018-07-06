@@ -36,11 +36,11 @@ def process_input(sentences):
     sentences = [sent if len(sent) > 2 else [STOP_TAG] for sent in sentences]
 
     # Sort sentences by lengths
-    lengths = np.array([len(sent) for sent in sentences])
-    lengths, idx_sort = np.sort(lengths)[::-1], np.argsort(-lengths)
-    sentences = np.array(sentences)[idx_sort]
+    # lengths = np.array([len(sent) for sent in sentences])
+    # lengths, idx_sort = np.sort(lengths)[::-1], np.argsort(-lengths)
+    # sentences = np.array(sentences)[idx_sort]
 
-    return sentences, lengths, idx_sort
+    return sentences #, lengths, idx_sort
 
 
 class MaskedConv1d(nn.Conv1d):

@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import NLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, QRNNEncoder, process_batch
+from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, QRNNEncoder, process_batch, process_input
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
 
@@ -96,6 +96,9 @@ def trainIters(n_iters=10,
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
     s1, s2, target = get_nli(NLI_PATH)
+
+    s1 = process_input(s1)
+    s2 = process_input(s2)
     # permutation = np.random.permutation(len(s1))
     # s1 = s1[permutation]
     # s2 = s2[permutation]
