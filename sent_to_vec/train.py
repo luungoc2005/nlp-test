@@ -78,10 +78,10 @@ def trainIters(n_iters=10,
     optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
     epoch_start = 1
 
-    scheduler = optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
-    )
+    # scheduler = optim.lr_scheduler.LambdaLR(
+    #     optimizer,
+    #     lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
+    # )
     epoch_start = 0
     checkpoint_start = 0
 
@@ -90,7 +90,7 @@ def trainIters(n_iters=10,
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
         epoch_start = checkpoint['epoch']
-        scheduler.last_epoch = epoch_start
+        # scheduler.last_epoch = epoch_start
         checkpoint_start = checkpoint.get('batch_number', 0)
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
@@ -202,7 +202,7 @@ def trainIters(n_iters=10,
 
         train_acc = round(100 * correct / len(s1), 2)
         accuracies.append(train_acc)
-        scheduler.step()
+        # scheduler.step()
 
         checkpoint_start = 0
 
