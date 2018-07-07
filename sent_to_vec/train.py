@@ -128,6 +128,7 @@ def trainIters(n_iters=10,
     last_time = start_time
     accuracies = []
     train_acc = 0
+    train_best_acc = 0
 
     for epoch in range(epoch_start, n_iters + 1):
 
@@ -214,8 +215,11 @@ def trainIters(n_iters=10,
         # if accuracies[-1] < accuracies[-2] and accuracies[-2] < accuracies[-3]:
         # Early stopping
         # break
-        # optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
-        # print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
+        if train_acc > train_best_acc:
+            train_best_acc = train_acc
+        else:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
+            print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
         # if optimizer.param_groups[0]['lr'] < min_lr:
         # Early stopping
         # break
