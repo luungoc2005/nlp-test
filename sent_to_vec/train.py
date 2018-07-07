@@ -73,9 +73,9 @@ def trainIters(n_iters=10,
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    optimizer = optim.Adam(nli_net.parameters(), lr=lr)
+    # optimizer = optim.Adam(nli_net.parameters(), lr=lr)
     # optimizer = optim.RMSprop(nli_net.parameters())
-    # optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
+    optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
     epoch_start = 1
 
     # scheduler = optim.lr_scheduler.LambdaLR(
@@ -208,11 +208,11 @@ def trainIters(n_iters=10,
         checkpoint_start = 0
 
         # Decaying LR
-        # if train_acc > train_best_acc:
-        #     train_best_acc = train_acc
-        # else:
-        #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
-        #     print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
+        if train_acc > train_best_acc:
+            train_best_acc = train_acc
+        else:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
+            print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
         # if optimizer.param_groups[0]['lr'] < min_lr:
         # Early stopping
         # break
