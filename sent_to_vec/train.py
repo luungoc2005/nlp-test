@@ -7,7 +7,7 @@ import time
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
-from config import NLI_PATH, BASE_PATH
+from config import SNLI_PATH, MultiNLI_PATH, BASE_PATH
 from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, QRNNEncoder, process_batch, process_input
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
@@ -33,10 +33,10 @@ def get_nli(data_path):
         line.rstrip().lower() for line in
         open(path.join(data_path, 's2.train'), 'r')
     ]
-    target = np.array([
+    target = [
         target_dict[line.rstrip()] for line in
         open(path.join(data_path, 'labels.train'), 'r')
-    ])
+    ]
 
     assert len(s1) == len(s2) == len(target)
 
@@ -95,10 +95,16 @@ def trainIters(n_iters=10,
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
-    s1, s2, target = get_nli(NLI_PATH)
+    s1, s2, target = get_nli(SNLI_PATH)
+    m_s1, m_s2, m_target = get_nli(MultiNLI_PATH)
+    s1 = s1 + m_s1
+    s2 = s2 + m_s2
+    target = np.array(target + m_target)
 
+    print('Preprocessing inputs (%s sentence pairs)' % len(s1))
     s1 = process_input(s1)
     s2 = process_input(s2)
+    print('Preprocessing completed')
     # permutation = np.random.permutation(len(s1))
     # s1 = s1[permutation]
     # s2 = s2[permutation]

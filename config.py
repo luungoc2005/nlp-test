@@ -37,7 +37,8 @@ HIDDEN_DIM = 200
 NUM_LAYERS = 1
 
 # InferSent configs
-NLI_PATH = path.join(BASE_PATH, 'data/SNLI')
+SNLI_PATH = path.join(BASE_PATH, 'data/SNLI')
+MultiNLI_PATH = path.join(BASE_PATH, 'data/MultiNLI')
 
 QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
 
