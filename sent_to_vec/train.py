@@ -113,6 +113,7 @@ def trainIters(n_iters=10,
     is_cuda = torch.cuda.is_available()
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'cross_entropy_loss')
+    ACC_LOG_FILE = path.join(LOG_DIR, 'train_accuracy')
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
     writer = SummaryWriter(log_dir=INST_LOG_DIR)
 
@@ -162,8 +163,10 @@ def trainIters(n_iters=10,
             # log for every 100 minibatches:
             if len(losses) % 100 == 0:
                 loss_total = np.mean(losses)
+                accuracy_current = round(100. * correct / (start_idx + k), 2)
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+                writer.add_scalar(ACC_LOG_FILE, accuracy_current, epoch)
 
                 # metrics for floydhub
                 # print(json.dumps({
@@ -183,7 +186,7 @@ def trainIters(n_iters=10,
                       (asMinutes(time.time() - start_time),
                        epoch, loss_total,
                        round(batch_size * 100 / (time.time() - last_time), 2),
-                       round(100. * correct / (start_idx + k), 2),
+                       accuracy_current,
                        round(100. * batch_idx / total_steps, 2)))
                 last_time = time.time()
                 losses = []

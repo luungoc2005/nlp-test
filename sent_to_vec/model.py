@@ -261,6 +261,64 @@ class QRNNEncoder(nn.Module):
         return sent_output
 
 
+class QRNNEncoderConcat(nn.Module):
+
+    def __init__(self,
+                 embedding_dim=None,
+                 vocab_size=None,
+                 hidden_dim=2400,
+                 num_layers=3,
+                 is_cuda=None,
+                 dropout_keep_prob=0.6):
+        super(QRNNEncoder, self).__init__()
+
+        assert hidden_dim % num_layers == 0, 'Number of hidden dims must be divisable by number of layers'
+
+        self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.vocab_size = vocab_size or MAX_NUM_WORDS
+        self.dropout_keep_prob = dropout_keep_prob
+        self.num_layers = num_layers
+        self.hidden_dim = hidden_dim / self.num_layers
+        self.is_cuda = is_cuda or torch.cuda.is_available()
+
+        self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 
+                         self.num_layers, dropout=1-self.dropout_keep_prob)
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+        ]
+
+    def forward(self, sent_tuple):
+        sent, _ = sent_tuple
+
+        # Sort by length (keep idx)
+        # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
+        # idx_unsort = np.argsort(idx_sort)
+
+        # idx_sort = torch.from_numpy(idx_sort)
+
+        # if self.is_cuda:
+        #     idx_sort = idx_sort.cuda()
+
+        # sent = sent.index_select(1, idx_sort)
+
+        # Handling padding in Recurrent Networks
+        # sent_packed = pack_padded_sequence(sent, sent_len)
+        sent_output = self.qrnn(sent)[1][0] #h0: num_layers * num_directions, batch, hidden_size
+        sent_output = sent_output.permute(1, 0, 2) # batch, layers, hidden
+        sent_output = sent_output.reshape(sent_output.size[0], self.num_layers * self.hidden_dim)
+        # sent_output = pad_packed_sequence(sent_output)[0]
+
+        # Un-sort by length
+        # idx_unsort = torch.from_numpy(idx_unsort)
+        # if self.is_cuda:
+        #     idx_unsort = idx_unsort.cuda()
+        # sent_output = sent_output.index_select(1, idx_unsort)
+
+        return sent_output
+
+
 class NLINet(nn.Module):
     
     def __init__(self,
