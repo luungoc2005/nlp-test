@@ -273,7 +273,7 @@ class QRNNEncoderConcat(nn.Module):
         self.vocab_size = vocab_size or MAX_NUM_WORDS
         self.dropout_keep_prob = dropout_keep_prob
         self.num_layers = num_layers
-        self.hidden_dim = hidden_dim / self.num_layers
+        self.hidden_dim = int(hidden_dim / self.num_layers)
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 
