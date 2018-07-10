@@ -224,7 +224,7 @@ class QRNNEncoder(nn.Module):
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, self.num_layers,
-                         dropout=1-self.dropout_keep_prob)
+                         dropout=1-self.dropout_keep_prob) # Outputs: output, h_n
 
     def get_layer_groups(self):
         return [
@@ -234,7 +234,7 @@ class QRNNEncoder(nn.Module):
     def forward(self, sent_tuple):
         sent, sent_len = sent_tuple
 
-        sent_output = self.qrnn(sent)[1][0] #h0: num_layers * num_directions, batch, hidden_size
+        sent_output = self.qrnn(sent)[1] #h_n: num_layers * num_directions, batch, hidden_size
 
         # Max/Mean Pooling
         if self.pool_type == 'max':
@@ -247,9 +247,7 @@ class QRNNEncoder(nn.Module):
             sent_len = torch.FloatTensor(sent_len.copy()).unsqueeze(1)
             if self.is_cuda:
                 sent_len = sent_len.cuda()
-            print(sent_output.size())
             sent_output = torch.sum(sent_output, 0)
-            print(sent_output.size())
             if sent_output.ndimension() == 3: # might not be necessary?
                 sent_output = sent_output.squeeze(0)
                 assert sent_output.ndimension() == 2
@@ -279,7 +277,7 @@ class QRNNEncoderConcat(nn.Module):
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 
-                         self.num_layers, dropout=1-self.dropout_keep_prob)
+                         self.num_layers, dropout=1-self.dropout_keep_prob) # Outputs: output, h_n
 
     def get_layer_groups(self):
         return [
@@ -289,7 +287,7 @@ class QRNNEncoderConcat(nn.Module):
     def forward(self, sent_tuple):
         sent, _ = sent_tuple
 
-        sent_output = self.qrnn(sent)[1][0] #h0: num_layers * num_directions, batch, hidden_size
+        sent_output = self.qrnn(sent)[1] #h_n: num_layers * num_directions, batch, hidden_size
         sent_output = sent_output.permute(1, 0, 2) # batch, layers, hidden
         sent_output = sent_output.reshape(sent_output.size(0), self.num_layers * self.hidden_dim)
 
