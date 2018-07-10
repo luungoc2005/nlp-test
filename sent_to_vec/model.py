@@ -247,7 +247,10 @@ class QRNNEncoder(nn.Module):
             sent_len = torch.FloatTensor(sent_len.copy()).unsqueeze(1)
             if self.is_cuda:
                 sent_len = sent_len.cuda()
-            sent_output = torch.sum(sent_output, 0).squeeze(0)
+            sent_output = torch.sum(sent_output, 0)
+            if sent_output.ndimension() == 3: # might not be necessary?
+                sent_output = sent_output.squeeze(0)
+                assert sent_output.ndimension() == 2
             sent_output = sent_output / sent_len.expand_as(sent_output)
 
         return sent_output
