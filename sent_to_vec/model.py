@@ -243,6 +243,7 @@ class QRNNEncoder(nn.Module):
                 sent_output = sent_output.squeeze(0)
                 assert sent_output.ndimension() == 2
         else:
+            # Might not work well due to no sequence masking (QRNN)
             sent_len = torch.FloatTensor(sent_len.copy()).unsqueeze(1)
             if self.is_cuda:
                 sent_len = sent_len.cuda()
