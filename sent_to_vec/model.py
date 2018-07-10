@@ -208,10 +208,14 @@ class QRNNEncoder(nn.Module):
                  vocab_size=None,
                  hidden_dim=2400,
                  num_layers=3,
-                 is_cuda=None,
-                 dropout_keep_prob=0.6):
+                 dropout_keep_prob=0.6,
+                 pool_type='max',
+                 is_cuda=None):
         super(QRNNEncoder, self).__init__()
 
+        assert pool_type in ['max', 'mean']
+
+        self.pool_type = pool_type
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.vocab_size = vocab_size or MAX_NUM_WORDS
         self.dropout_keep_prob = dropout_keep_prob
@@ -228,35 +232,22 @@ class QRNNEncoder(nn.Module):
         ]
 
     def forward(self, sent_tuple):
-        sent, _ = sent_tuple
+        sent, sent_len = sent_tuple
 
-        # Sort by length (keep idx)
-        # sent_len, idx_sort = np.sort(sent_len)[::-1], np.argsort(-sent_len)
-        # idx_unsort = np.argsort(idx_sort)
-
-        # idx_sort = torch.from_numpy(idx_sort)
-
-        # if self.is_cuda:
-        #     idx_sort = idx_sort.cuda()
-
-        # sent = sent.index_select(1, idx_sort)
-
-        # Handling padding in Recurrent Networks
-        # sent_packed = pack_padded_sequence(sent, sent_len)
         sent_output = self.qrnn(sent)[1][0] #h0: num_layers * num_directions, batch, hidden_size
-        # sent_output = pad_packed_sequence(sent_output)[0]
 
-        # Un-sort by length
-        # idx_unsort = torch.from_numpy(idx_unsort)
-        # if self.is_cuda:
-        #     idx_unsort = idx_unsort.cuda()
-        # sent_output = sent_output.index_select(1, idx_unsort)
-
-        # Max Pooling
-        embeds = torch.max(sent_output, 0)[0]
-        if embeds.ndimension() == 3:
-            embeds = embeds.squeeze(0)
-            assert embeds.ndimension() == 2
+        # Max/Mean Pooling
+        if self.pool_type == 'max':
+            sent_output = torch.max(sent_output, 0)[0]
+            if sent_output.ndimension() == 3:
+                sent_output = sent_output.squeeze(0)
+                assert sent_output.ndimension() == 2
+        else:
+            sent_len = torch.FloatTensor(sent_len.copy()).unsqueeze(1)
+            if self.is_cuda:
+                sent_len = sent_len.cuda()
+            sent_output = torch.sum(sent_output, 0).squeeze(0)
+            sent_output = sent_output / sent_len.expand_as(sent_output)
 
         return sent_output
 

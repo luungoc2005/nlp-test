@@ -134,6 +134,6 @@ class FastText(nn.Module):
             # print(topk_scores)
             # logits = F.softmax(logits, dim=-1)
             # return logits if d_results is None else logits / d_results
-            return F.sigmoid(logits)
+            return logits
         else:
             return logits
