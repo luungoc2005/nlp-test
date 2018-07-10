@@ -209,7 +209,7 @@ class QRNNEncoder(nn.Module):
                  hidden_dim=2400,
                  num_layers=3,
                  dropout_keep_prob=0.6,
-                 pool_type='max',
+                 pool_type='mean',
                  is_cuda=None):
         super(QRNNEncoder, self).__init__()
 
