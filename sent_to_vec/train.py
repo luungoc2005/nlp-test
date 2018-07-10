@@ -27,15 +27,15 @@ def get_nli(data_path):
     target_dict = {'entailment': 0, 'neutral': 1, 'contradiction': 2}
     s1 = [
         line.rstrip().lower() for line in
-        open(path.join(data_path, 's1.train'), 'r', encoding='utf8')
+        open(path.join(data_path, 's1.train'), 'r', encoding='utf-8')
     ]
     s2 = [
         line.rstrip().lower() for line in
-        open(path.join(data_path, 's2.train'), 'r', encoding='utf8')
+        open(path.join(data_path, 's2.train'), 'r', encoding='utf-8')
     ]
     target = [
         target_dict[line.rstrip()] for line in
-        open(path.join(data_path, 'labels.train'), 'r', encoding='utf8')
+        open(path.join(data_path, 'labels.train'), 'r', encoding='utf-8')
     ]
 
     assert len(s1) == len(s2) == len(target)
