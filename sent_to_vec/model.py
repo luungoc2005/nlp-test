@@ -142,7 +142,7 @@ class ConvNetEncoder(nn.Module):
         return emb
 
 
-class BiGRUEncoder(nn.Module):
+class BiLSTMEncoder(nn.Module):
 
     def __init__(self,
                  embedding_dim=None,
@@ -150,7 +150,7 @@ class BiGRUEncoder(nn.Module):
                  hidden_dim=2400,
                  is_cuda=None,
                  dropout_keep_prob=1):
-        super(BiGRUEncoder, self).__init__()
+        super(BiLSTMEncoder, self).__init__()
 
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.vocab_size = vocab_size or MAX_NUM_WORDS

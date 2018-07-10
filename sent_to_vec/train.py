@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import SNLI_PATH, MultiNLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, QRNNEncoder, process_batch, process_input
+from sent_to_vec.model import NLINet, BiLSTMEncoder, ConvNetEncoder, QRNNEncoder, QRNNEncoderConcat, process_batch, process_input
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
 
@@ -65,8 +65,22 @@ def trainIters(n_iters=10,
                lr_decay=1e-5,
                lr_shrink=5,
                min_lr=1e-5,
+               encoder_type='qrnn_mean',
                checkpoint=None):
-    encoder = QRNNEncoder()
+    
+    assert encoder_type in ['qrnn_mean', 'qrnn_max', 'qrnn_concat', 'bilstm', 'convnet']
+    
+    if encoder_type == 'qrnn_mean':
+        encoder = QRNNEncoder(pool_type='mean')
+    elif encoder_type == 'qrnn_max':
+        encoder = QRNNEncoder(pool_type='max')
+    elif encoder_type == 'qrnn_concat':
+        encoder = QRNNEncoderConcat()
+    elif encoder_type == 'bilstm':
+        encoder = BiLSTMEncoder()
+    elif encoder_type == 'convnet':
+        encoder = ConvNetEncoder()
+    
     # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder, bidirectional_encoder=False)
 
