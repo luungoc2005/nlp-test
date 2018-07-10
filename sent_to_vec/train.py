@@ -216,9 +216,9 @@ def trainIters(n_iters=10,
         else:
             optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
             print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
-        # if optimizer.param_groups[0]['lr'] < min_lr:
-        # Early stopping
-        # break
+        if optimizer.param_groups[0]['lr'] < min_lr:
+            # Early stopping
+            break
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)
