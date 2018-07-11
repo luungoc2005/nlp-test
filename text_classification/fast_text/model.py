@@ -57,11 +57,11 @@ class FastText(nn.Module):
         self.ngrams_embs.weight.requires_grad = False
 
         self.i2h = nn.Linear(EMBEDDING_DIM, self.hidden_size)
-        self.h2o = nn.Linear(self.hidden_size, self.classes, bias=False)
+        self.h2o = nn.Linear(self.hidden_size, self.classes)
 
         self.temperature = nn.Parameter(torch.ones(1) * 1.5)
 
-        self.init_weights()
+        # self.init_weights()
 
     def init_weights(self):
         # nn.init.xavier_normal_(self.i2o.weight)
@@ -117,9 +117,7 @@ class FastText(nn.Module):
         return x
 
     def _forward_alg(self, feats):
-        x = self.h2o(feats)
-
-        return x
+        return self.h2o(feats)
 
     def forward(self, sents, calibrated=False):
         if torch.is_tensor(sents[0]):
@@ -134,6 +132,6 @@ class FastText(nn.Module):
             # print(topk_scores)
             # logits = F.softmax(logits, dim=-1)
             # return logits if d_results is None else logits / d_results
-            return logits
+            return F.sigmoid(logits)
         else:
             return logits
