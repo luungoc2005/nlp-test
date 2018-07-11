@@ -5,7 +5,6 @@ import torch.optim as optim
 import torch.sparse
 from torch.utils.data import Dataset
 from common.utils import to_categorical
-from common.word_vectors import get_emb_matrix
 from config import NGRAM_BINS, EMBEDDING_DIM
 from fasttext_utils import _process_sentences
 from sklearn.svm import SVC
