@@ -47,7 +47,7 @@ def trigram_hash(list sequence, int idx, int buckets, bint lower=True):
 
 def _process_sentences(list sentences):
     cdef list tokens_list, ngram_idxs
-    cdef int max_len
+    cdef int max_len, idx
     max_len = 0
     tokens_list = [wordpunct_tokenize(sent) for sent in sentences]
     embeddings = get_word_vector(tokens_list)
@@ -60,7 +60,6 @@ def _process_sentences(list sentences):
         ngram_idxs.append(bigrams)
 
     ngram_ndarray = np.zeros((len(tokens_list), max_len))
-    cdef int idx
     cdef list ngrams_seq
     for idx, ngrams_seq in enumerate(ngram_idxs):
         ngram_ndarray[idx,:len(ngrams_seq)] = ngrams_seq
