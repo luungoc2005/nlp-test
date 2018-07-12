@@ -119,6 +119,12 @@ brew install hdf5
 - Activate the environment by `source activate botbot-nlp`
 - Run `python -m nltk.downloader all`
 
+## Notes about pytorch-qrnn
+Although almost as effective as LSTMs - Salesforce's QRNN is hardly maintained. I needed to create a fork for the following issues:
+- cupy & pynvrtc should be optional imports on a machine without NVIDIA GPU (it's supposed to support CPU as well)
+- The CUDA code is encoded twice, once by QRNN library code and once more by pynvrtc. I needed to remove the one in pynvrtc.
+
+To install, run `pip install cupy pynvrtc git+https://github.com/luungoc2005/pytorch-qrnn`
 
 ## Explanation
 This demonstrates the use of Facebook fastText for intent classification
