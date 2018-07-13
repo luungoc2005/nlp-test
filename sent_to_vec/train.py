@@ -103,7 +103,7 @@ def trainIters(n_iters=10,
         checkpoint_data = torch.load(checkpoint)
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
-        epoch_start = checkpoint['epoch']
+        epoch_start = checkpoint_data['epoch']
         # scheduler.last_epoch = epoch_start
         checkpoint_start = checkpoint.get('batch_number', 0)
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
