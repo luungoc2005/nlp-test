@@ -78,6 +78,8 @@ def trainIters(data,
 
     model = BiLSTM_CRF(tag_to_ix)
 
+    is_cuda = torch.cuda.is_available()
+
     scheduler = None
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
@@ -85,8 +87,7 @@ def trainIters(data,
         model_optimizer = optim.Adam(
             model.parameters(), 
             lr=learning_rate,
-            weight_decay=weight_decay,
-            amsgrad=True)
+            weight_decay=weight_decay)
     else:
         weight_decay = weight_decay or 1e-5
         model_optimizer = optim.SGD(
@@ -105,6 +106,16 @@ def trainIters(data,
     loss_total = 0
     print_loss_total = 0
     all_losses = []
+    best_loss = 1e15
+    wait = 0
+
+    if is_cuda:
+        if verbose > 0:
+            print('Training with GPU mode')
+        model = model.cuda()
+    else:
+        if verbose > 0:
+            print('Training with CPU mode')
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
@@ -134,6 +145,15 @@ def trainIters(data,
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         loss_total = 0
 
+        if loss_total < best_loss:
+            best_loss = loss_total
+            wait = 1
+        else:
+            if wait >= patience:
+                print('Early stopping')
+                break
+            wait += 1
+
         if epoch % log_every == 0 and verbose != 0:
             with torch.no_grad():
                 accuracy = evaluate_all(model, data, tag_to_ix, tokenizer)
@@ -158,10 +178,6 @@ def trainIters(data,
                           print_loss_avg))
 
                 print_loss_total = 0
-
-        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
-            print('Early stopping')
-            break
 
     torch.save({
         'tag_to_ix': tag_to_ix,

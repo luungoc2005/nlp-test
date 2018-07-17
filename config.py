@@ -5,6 +5,7 @@ CACHE_DATA = False
 BASE_PATH = path.dirname(__file__)
 
 GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
+MAGNITUDE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')
@@ -17,7 +18,9 @@ MAX_NUM_WORDS = 50000 # Max vocabulary size
 WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 50
-NGRAM_BINS = 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py
+# NGRAM_BINS = 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py
+NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m
+# 2097152
 
 BATCH_SIZE = 32
 
@@ -34,7 +37,8 @@ HIDDEN_DIM = 200
 NUM_LAYERS = 1
 
 # InferSent configs
-NLI_PATH = path.join(BASE_PATH, 'data/SNLI')
+SNLI_PATH = path.join(BASE_PATH, 'data/SNLI')
+MultiNLI_PATH = path.join(BASE_PATH, 'data/MultiNLI')
 
 QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
 

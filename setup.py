@@ -7,7 +7,7 @@ import numpy
 setup(
     name="Botbot-NLP",
     ext_modules=cythonize([
-        "common/_cutils/*.pyx",
+        # "common/_cutils/*.pyx",
         "text_classification/fast_text/_cutils/*.pyx"
     ]
         , include_path=[

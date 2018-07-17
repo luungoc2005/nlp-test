@@ -87,3 +87,4 @@ fastText/
 \.DS_Store
 
 \.idea/
+data/MSRParaphraseCorpus/

@@ -34,52 +34,19 @@ def _process_sentence(sentence):
     return words_batch, word_lengths
 
 
-class Highway(nn.Module):
-
-    def __init__(self, size, num_layers, f):
-        super(Highway, self).__init__()
-
-        self.num_layers = num_layers
-
-        self.nonlinear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.linear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.gate = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.f = f
-
-    def forward(self, x):
-        """
-            :param x: tensor with shape of [batch_size, size]
-            :return: tensor with shape of [batch_size, size]
-            applies σ(x) ⨀ (f(G(x))) + (1 - σ(x)) ⨀ (Q(x)) transformation | G and Q is affine transformation,
-            f is non-linear transformation, σ(x) is affine transformation with sigmoid non-linearition
-            and ⨀ is element-wise multiplication
-            """
-
-        for layer in range(self.num_layers):
-            gate = F.sigmoid(self.gate[layer](x))
-
-            nonlinear = self.f(self.nonlinear[layer](x))
-            linear = self.linear[layer](x)
-
-            x = gate * nonlinear + (1 - gate) * linear
-
-        return x
-
-
 class BLSTMWordEncoder(nn.Module):
 
     def __init__(self,
                  hidden_dim=None,
                  letters_dim=None,
-                 dropout_keep_prob=0.5):
+                 dropout_keep_prob=0.5,
+                 is_cuda=None):
         super(BLSTMWordEncoder, self).__init__()
 
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
         self.dropout_keep_prob = dropout_keep_prob
+        self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.embedding = nn.Embedding(n_letters, self.hidden_dim)
         self.dropout = nn.Dropout(1 - dropout_keep_prob)
@@ -91,15 +58,21 @@ class BLSTMWordEncoder(nn.Module):
     def forward(self, sentence):
         words_batch, word_lengths = _process_sentence(sentence)
 
+        if self.is_cuda:
+            words_batch = words_batch.cuda()
+
         words_batch = self.dropout(self.embedding(words_batch))
 
         # Sort by length (keep idx)
         word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
         idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = torch.from_numpy(idx_sort)
+        if self.is_cuda:
+            idx_sort = torch.from_numpy(idx_sort).cuda()
+        else:
+            idx_sort = torch.from_numpy(idx_sort)
 
-        words_batch = words_batch.index_select(1, Variable(idx_sort))
+        words_batch = words_batch.index_select(1, idx_sort)
 
         # Handling padding in Recurrent Networks
         words_packed = pack_padded_sequence(words_batch, word_lengths)
@@ -107,8 +80,12 @@ class BLSTMWordEncoder(nn.Module):
         words_output = pad_packed_sequence(words_output)[0]
 
         # Un-sort by length
-        idx_unsort = torch.from_numpy(idx_unsort)
-        words_output = words_output.index_select(1, Variable(idx_unsort))
+        if self.is_cuda:
+            idx_unsort = torch.from_numpy(idx_unsort).cuda()
+        else:
+            idx_unsort = torch.from_numpy(idx_unsort)
+
+        words_output = words_output.index_select(1, idx_unsort)
 
         # Max Pooling
         embeds = torch.max(words_output, 0)[0]
@@ -130,7 +107,8 @@ class ConvNetWordEncoder(nn.Module):
                  hidden_dim=None,
                  letters_dim=None,
                  num_filters=None,
-                 dropout_keep_prob=0.5):
+                 dropout_keep_prob=0.5,
+                 is_cuda=None):
         super(ConvNetWordEncoder, self).__init__()
 
         # https://arxiv.org/pdf/1603.01354.pdf
@@ -139,6 +117,7 @@ class ConvNetWordEncoder(nn.Module):
         self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
         self.embedding = nn.Embedding(n_letters, self.hidden_dim)
+        self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.convs = []
         for _ in range(self.num_filters):
@@ -153,6 +132,9 @@ class ConvNetWordEncoder(nn.Module):
 
     def forward(self, sentence):
         words_batch, _ = _process_sentence(sentence)
+
+        if self.is_cuda:
+            words_batch = words_batch.cuda()
 
         words_batch = self.embedding(words_batch)
         words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
@@ -178,7 +160,8 @@ class BiLSTM_CRF(nn.Module):
                  char_embedding_dim=None,
                  hidden_dim=None,
                  num_layers=None,
-                 dropout_keep_prob=0.8):
+                 dropout_keep_prob=0.8,
+                 is_cuda=None):
         super(BiLSTM_CRF, self).__init__()
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
@@ -187,9 +170,13 @@ class BiLSTM_CRF(nn.Module):
         self.num_layers = num_layers or NUM_LAYERS
         self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
+        self.is_cuda = is_cuda or torch.cuda.is_available()
 
         self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
-        self.highway = Highway(self.embedding_dim + self.char_embedding_dim, 2, F.relu)
+
+        if self.is_cuda:
+            self.word_encoder = self.word_encoder.cuda()
+
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
                             self.hidden_dim // 2,
@@ -201,19 +188,29 @@ class BiLSTM_CRF(nn.Module):
 
         # Matrix of transition parameters.  Entry i,j is the score of
         # transitioning *to* i *from* j.
-        self.transitions = nn.Parameter(
-            torch.randn(self.tagset_size, self.tagset_size))
+        self.transitions = torch.randn(self.tagset_size, self.tagset_size)
 
         # These two statements enforce the constraint that we never transfer
         # to the start tag and we never transfer from the stop tag
-        self.transitions.data[tag_to_ix[START_TAG], :] = -10000
-        self.transitions.data[:, tag_to_ix[STOP_TAG]] = -10000
+        self.transitions[tag_to_ix[START_TAG], :] = -10000
+        self.transitions[:, tag_to_ix[STOP_TAG]] = -10000
+
+        if self.is_cuda:
+            self.transitions = self.transitions.cuda()
+
+        self.transitions = nn.Parameter(self.transitions)
 
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        return (Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)),
-                Variable(torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)))
+        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
+        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
+
+        if self.is_cuda:
+            hidden_0 = hidden_0.cuda()
+            hidden_1 = hidden_1.cuda()
+
+        return hidden_0, hidden_1
 
     def freeze_to(self, n):
         c = self.get_layer_groups()
@@ -241,7 +238,6 @@ class BiLSTM_CRF(nn.Module):
     def get_layer_groups(self):
         return [
             *zip(self.word_encoder.get_layer_groups()),
-            (self.highway, self.dropout),
             self.lstm,
             self.hidden2tag
         ]
@@ -253,7 +249,7 @@ class BiLSTM_CRF(nn.Module):
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
 
         # Wrap in a variable so that we will get automatic backprop
-        forward_var = Variable(init_alphas)
+        forward_var = init_alphas.cuda() if self.is_cuda else init_alphas
 
         # Iterate through the sentence
         for feat in feats:
@@ -280,8 +276,13 @@ class BiLSTM_CRF(nn.Module):
 
     def _score_sentence(self, feats, tags):
         # Gives the score of a provided tag sequence
-        score = Variable(torch.Tensor([0]))
+        score = torch.Tensor([0])
         tags = torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags])
+
+        if self.is_cuda:
+            score = score.cuda()
+            tags = tags.cuda()
+
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
             score = score + \
@@ -297,14 +298,19 @@ class BiLSTM_CRF(nn.Module):
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1
-        forward_var = Variable(init_vvars)
+        forward_var = init_vvars.cuda() if self.is_cuda else init_vvars
+
         for feat in feats:
             next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
             _, bptrs_t = torch.max(next_tag_var, dim=1)
             bptrs_t = bptrs_t.squeeze().data.cpu().numpy()
             next_tag_var = next_tag_var.data.cpu().numpy()
             viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
-            viterbivars_t = Variable(torch.FloatTensor(viterbivars_t))
+            viterbivars_t = torch.FloatTensor(viterbivars_t)
+
+            if self.is_cuda:
+                viterbivars_t = viterbivars_t.cuda()
+
             forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
 
@@ -329,9 +335,13 @@ class BiLSTM_CRF(nn.Module):
 
     def neg_log_likelihood(self, sentence, tags):
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+
+        if self.is_cuda:
+            word_embeds = word_embeds.cuda()
+
         char_embeds = self.word_encoder(sentence)
+
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
-        sentence_in = self.highway(sentence_in)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
@@ -341,9 +351,13 @@ class BiLSTM_CRF(nn.Module):
 
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
         word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+
+        if self.is_cuda:
+            word_embeds = word_embeds.cuda()
+
         char_embeds = self.word_encoder(sentence)
+
         sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
-        sentence_in = self.highway(sentence_in)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)

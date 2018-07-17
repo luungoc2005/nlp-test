@@ -7,8 +7,8 @@ import time
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
-from config import NLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiGRUEncoder, ConvNetEncoder, process_batch
+from config import SNLI_PATH, MultiNLI_PATH, BASE_PATH
+from sent_to_vec.model import NLINet, BiLSTMEncoder, ConvNetEncoder, QRNNEncoder, QRNNEncoderConcat, process_batch, process_input
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
 
@@ -27,16 +27,16 @@ def get_nli(data_path):
     target_dict = {'entailment': 0, 'neutral': 1, 'contradiction': 2}
     s1 = [
         line.rstrip().lower() for line in
-        open(path.join(data_path, 's1.train'), 'r')
+        open(path.join(data_path, 's1.train'), 'r', encoding='utf-8')
     ]
     s2 = [
         line.rstrip().lower() for line in
-        open(path.join(data_path, 's2.train'), 'r')
+        open(path.join(data_path, 's2.train'), 'r', encoding='utf-8')
     ]
-    target = np.array([
+    target = [
         target_dict[line.rstrip()] for line in
-        open(path.join(data_path, 'labels.train'), 'r')
-    ])
+        open(path.join(data_path, 'labels.train'), 'r', encoding='utf-8')
+    ]
 
     assert len(s1) == len(s2) == len(target)
 
@@ -65,34 +65,60 @@ def trainIters(n_iters=10,
                lr_decay=1e-5,
                lr_shrink=5,
                min_lr=1e-5,
+               encoder_type='qrnn_mean',
                checkpoint=None):
-    encoder = BiGRUEncoder()
+    
+    assert encoder_type in ['qrnn_mean', 'qrnn_max', 'qrnn_concat', 'bilstm', 'convnet']
+    
+    if encoder_type == 'qrnn_mean':
+        encoder = QRNNEncoder(pool_type='mean')
+    elif encoder_type == 'qrnn_max':
+        encoder = QRNNEncoder(pool_type='max')
+    elif encoder_type == 'qrnn_concat':
+        encoder = QRNNEncoderConcat()
+    elif encoder_type == 'bilstm':
+        encoder = BiLSTMEncoder()
+    elif encoder_type == 'convnet':
+        encoder = ConvNetEncoder()
+    
     # encoder = ConvNetEncoder()
-    nli_net = NLINet(encoder=encoder)
+    nli_net = NLINet(encoder=encoder, bidirectional_encoder=False)
 
     criterion = nn.CrossEntropyLoss()
     criterion.size_average = False
 
-    # optimizer = optim.Adam(nli_net.parameters(), lr=lr, amsgrad=True)
+    # optimizer = optim.Adam(nli_net.parameters(), lr=lr)
     # optimizer = optim.RMSprop(nli_net.parameters())
     optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
     epoch_start = 1
 
-    scheduler = optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
-    )
+    # scheduler = optim.lr_scheduler.LambdaLR(
+    #     optimizer,
+    #     lr_lambda=lambda step: lr_schedule_slanted_triangular(step, n_iters, lr)
+    # )
+    epoch_start = 0
+    checkpoint_start = 0
 
     if checkpoint is not None and checkpoint != '':
         checkpoint_data = torch.load(checkpoint)
         nli_net.load_state_dict(checkpoint_data['nli_state'])
         optimizer.load_state_dict(checkpoint_data['optimizer_state'])
-        epoch_start = checkpoint['epoch']
-        scheduler.last_epoch = epoch_start
+        epoch_start = checkpoint_data.get('epoch', 0)
+        # scheduler.last_epoch = epoch_start
+        checkpoint_start = checkpoint_data.get('batch_number', 0)
         print('Resuming from checkpoint %s (epoch %s - accuracy: %s)' %
               (checkpoint, checkpoint_data['epoch'], checkpoint_data['accuracy']))
 
-    s1, s2, target = get_nli(NLI_PATH)
+    s1, s2, target = get_nli(SNLI_PATH)
+    m_s1, m_s2, m_target = get_nli(MultiNLI_PATH)
+    s1 = s1 + m_s1
+    s2 = s2 + m_s2
+    target = np.array(target + m_target)
+
+    print('Preprocessing inputs (%s sentence pairs)' % len(s1))
+    s1 = process_input(s1)
+    s2 = process_input(s2)
+    print('Preprocessing completed')
     # permutation = np.random.permutation(len(s1))
     # s1 = s1[permutation]
     # s2 = s2[permutation]
@@ -101,6 +127,7 @@ def trainIters(n_iters=10,
     is_cuda = torch.cuda.is_available()
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'cross_entropy_loss')
+    ACC_LOG_FILE = path.join(LOG_DIR, 'train_accuracy')
     INST_LOG_DIR = path.join(LOG_DIR, get_datetime_hostname())
     writer = SummaryWriter(log_dir=INST_LOG_DIR)
 
@@ -115,6 +142,8 @@ def trainIters(n_iters=10,
     start_time = time.time()
     last_time = start_time
     accuracies = []
+    train_acc = 0
+    train_best_acc = 0
 
     for epoch in range(epoch_start, n_iters + 1):
 
@@ -123,7 +152,7 @@ def trainIters(n_iters=10,
         batch_idx = 0.
         total_steps = len(s1) / batch_size
 
-        for start_idx in range(0, len(s1), batch_size):
+        for start_idx in range(checkpoint_start, len(s1), batch_size):
             s1_batch, s1_len = process_batch(s1[start_idx:start_idx + batch_size])
             s2_batch, s2_len = process_batch(s2[start_idx:start_idx + batch_size])
             target_batch = torch.LongTensor(target[start_idx:start_idx + batch_size])
@@ -145,11 +174,13 @@ def trainIters(n_iters=10,
 
             losses.append(loss)
 
-            # log for every 100 batches:
+            # log for every 100 minibatches:
             if len(losses) % 100 == 0:
                 loss_total = np.mean(losses)
+                accuracy_current = round(100. * correct / (start_idx + k), 2)
 
                 writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
+                writer.add_scalar(ACC_LOG_FILE, accuracy_current, epoch)
 
                 # metrics for floydhub
                 # print(json.dumps({
@@ -169,37 +200,40 @@ def trainIters(n_iters=10,
                       (asMinutes(time.time() - start_time),
                        epoch, loss_total,
                        round(batch_size * 100 / (time.time() - last_time), 2),
-                       round(100. * correct / (start_idx + k), 2),
+                       accuracy_current,
                        round(100. * batch_idx / total_steps, 2)))
                 last_time = time.time()
                 losses = []
 
+            # checkpoint every 5000 minibatches
+            if len(losses) % 5000 == 0:
+                torch.save(nli_net.encoder.state_dict(),
+                            path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
+                torch.save({
+                    'epoch': epoch,
+                    'nli_state': nli_net.state_dict(),
+                    'optimizer_state': optimizer.state_dict(),
+                    'accuracy': train_acc,
+                    'batch_number': start_idx
+                }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
+                # Saving checkpoint
+
         train_acc = round(100 * correct / len(s1), 2)
         accuracies.append(train_acc)
-        scheduler.step()
+        # scheduler.step()
 
-        torch.save(nli_net.encoder.state_dict(), path.join(SAVE_PATH, 'encoder_{}_{}.bin'.format(epoch, train_acc)))
-        torch.save({
-            'epoch': epoch,
-            'nli_state': nli_net.state_dict(),
-            'optimizer_state': optimizer.state_dict(),
-            'accuracy': train_acc
-        }, path.join(SAVE_PATH, 'checkpoint_{}_{}.bin'.format(epoch, train_acc)))
-        # Saving checkpoing
+        checkpoint_start = 0
 
         # Decaying LR
-        # if epoch>1:
-        #     optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] * lr_decay
-
-        # if len(accuracies) > 5: # Minimum of 2 epochs:
-        # if accuracies[-1] < accuracies[-2] and accuracies[-2] < accuracies[-3]:
-        # Early stopping
-        # break
-        # optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
-        # print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
-        # if optimizer.param_groups[0]['lr'] < min_lr:
-        # Early stopping
-        # break
+        if train_acc > train_best_acc:
+            train_best_acc = train_acc
+        else:
+            optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
+            print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s' % (lr_shrink, optimizer.param_groups[0]['lr']))
+        if optimizer.param_groups[0]['lr'] < min_lr:
+            print('Early stopping')
+            # Early stopping
+            break
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
     writer.export_scalars_to_json(LOG_JSON)

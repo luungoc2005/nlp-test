@@ -1,4 +1,5 @@
 
+"""
 import cython
 cimport cython
 
@@ -124,3 +125,4 @@ def get_glove_data():
     if not GLOVE_DATA:
         init_glove()
     return GLOVE_DATA
+"""

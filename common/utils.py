@@ -3,7 +3,8 @@ import torch.autograd as autograd
 import numpy as np
 from config import EMBEDDING_DIM  # FASTTEXT_BIN
 from nltk.tokenize import RegexpTokenizer
-from glove_utils import get_word_vector
+# from glove_utils import get_word_vector
+from common.word_vectors import get_word_vector
 import unicodedata
 import string
 import time

@@ -1,7 +1,7 @@
 import json
 from config import START_TAG, STOP_TAG
 from common.utils import wordpunct_space_tokenize
-from glove_utils import init_glove
+# from glove_utils import init_glove
 from text_classification.fast_text.train import trainIters as clf_trainIters
 from text_classification.fast_text.predict import predict as clf_predict, load_model as clf_load_model
 from entities_recognition.bilstm.train import trainIters as ent_trainIters
@@ -14,7 +14,7 @@ CLF_CLASSES = {}
 ENT_MODEL = {}
 ENT_TAG_TO_IX = {}
 
-init_glove()
+# init_glove()
 
 
 def nlu_init_model(model_id, filename, ent_file_name):

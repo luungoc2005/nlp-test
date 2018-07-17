@@ -1,55 +1,44 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import torch.optim as optim
 import torch.sparse
-from torch.autograd import Variable
-import numpy as np
-from glove_utils import get_emb_matrix
-from config import MAX_NUM_WORDS, NGRAM_BINS, EMBEDDING_DIM, SENTENCE_DIM
+from torch.utils.data import Dataset
+from common.utils import to_categorical
+from config import NGRAM_BINS, EMBEDDING_DIM
 from fasttext_utils import _process_sentences
+from sklearn.svm import SVC
 
 
 def process_sentences(sentences):
     words, ngrams = _process_sentences(list(sentences))
-    return Variable(torch.from_numpy(words).long(), requires_grad=False), \
-        Variable(torch.from_numpy(ngrams).long(), requires_grad=False)
+    return torch.from_numpy(words).float(), \
+           torch.from_numpy(ngrams).long()
 
+class FastTextDataset(Dataset):
+    def __init__(self, input_array, n_classes):
+        self.input_array = input_array
+        self.sentences = []
+        self.labels = []
+        self.n_classes = n_classes
 
-class Highway(nn.Module):
+        for sent, label in input_array:
+            self.sentences.append(sent)
+            self.labels.append(label)
+        
+        self.words, self.ngrams = _process_sentences(self.sentences)
 
-    def __init__(self, size, num_layers, f):
+    def __len__(self):
+        return len(self.input_array)
 
-        super(Highway, self).__init__()
-
-        self.num_layers = num_layers
-
-        self.nonlinear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.linear = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.gate = nn.ModuleList([nn.Linear(size, size) for _ in range(num_layers)])
-
-        self.f = f
-
-    def forward(self, x):
-        """
-            :param x: tensor with shape of [batch_size, size]
-            :return: tensor with shape of [batch_size, size]
-            applies σ(x) ⨀ (f(G(x))) + (1 - σ(x)) ⨀ (Q(x)) transformation | G and Q is affine transformation,
-            f is non-linear transformation, σ(x) is affine transformation with sigmoid non-linearition
-            and ⨀ is element-wise multiplication
-            """
-
-        for layer in range(self.num_layers):
-            gate = F.sigmoid(self.gate[layer](x))
-
-            nonlinear = self.f(self.nonlinear[layer](x))
-            linear = self.linear[layer](x)
-
-            x = gate * nonlinear + (1 - gate) * linear
-
-        return x
-
+    def __getitem__(self, idx):
+        return {
+            'sentence': (
+                torch.from_numpy(self.words[idx]).float(), 
+                torch.from_numpy(self.ngrams[idx]).long()
+            ),
+            'label': to_categorical(int(self.labels[idx]), self.n_classes).float()
+        }
 
 class FastText(nn.Module):
 
@@ -63,50 +52,85 @@ class FastText(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.classes = classes
 
-        # self.mean_embs = nn.EmbeddingBag(MAX_NUM_WORDS + 1, EMBEDDING_DIM, mode='mean', padding_idx=-1)
-        emb_matrix = torch.from_numpy(get_emb_matrix()).float()
-        self.word_embs = nn.Embedding.from_pretrained(emb_matrix)
-        self.word_embs.padding_idx = 0
-        self.word_embs.weight.requires_grad = False
-
-        self.ngrams_embs = nn.Embedding(NGRAM_BINS, EMBEDDING_DIM, 
-                                        padding_idx=0, sparse=True)
+        self.ngrams_embs = nn.Embedding(NGRAM_BINS, EMBEDDING_DIM, sparse=True, padding_idx=0)
         self.ngrams_embs.weight.requires_grad = False
-        self.highway = Highway(EMBEDDING_DIM * 2, 2, F.relu)
 
-        self.i2o = nn.Linear(EMBEDDING_DIM * 2, self.classes)
+        self.i2h = nn.Linear(EMBEDDING_DIM, self.hidden_size)
+        self.h2o = nn.Linear(self.hidden_size, self.classes)
 
-        # self.i2h = nn.Linear(EMBEDDING_DIM * 2, self.hidden_size)
-        # self.w2h = nn.Linear(emb_matrix.size(1), self.hidden_size // 2)
-        # self.n2h = nn.Linear(EMBEDDING_DIM, self.hidden_size // 2)
+        self.temperature = nn.Parameter(torch.ones(1) * 1.5)
 
-        # self.h2o = nn.Linear(self.hidden_size, self.classes)
-
-        self.init_weights()
+        # self.init_weights()
 
     def init_weights(self):
-        # nn.init.xavier_normal_(self.w2h.weight, gain=2)
-        # nn.init.xavier_normal_(self.n2h.weight, gain=2)
-        # nn.init.xavier_normal_(self.i2h.weight, gain=2)
-        # nn.init.xavier_normal_(self.h2o.weight)
-        nn.init.xavier_normal_(self.i2o.weight, gain=2)
-        # self.i2h.bias.data.fill_(0)
-        # self.w2h.bias.data.fill_(0)
-        # self.n2h.bias.data.fill_(0)
-        # self.h2o.bias.data.fill_(0)
+        # nn.init.xavier_normal_(self.i2o.weight)
+        nn.init.xavier_normal_(self.i2h.weight)
+        nn.init.xavier_normal_(self.h2o.weight)
 
-    def forward(self, sequence, ngrams):
-        embs = torch.mean(self.word_embs(sequence), dim=1)
-        embs = F.dropout(embs, 1 - self.dropout_keep_prob)
-        # embs = F.relu(self.w2h(embs))
+    def _temperature_scale(self, logits):
+        temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
+        return logits / temperature
 
-        ngram_embs = torch.mean(self.ngrams_embs(ngrams), dim=1)
-        ngram_embs = F.dropout(ngram_embs, 1 - self.dropout_keep_prob)
-        # ngram_embs = F.relu(self.n2h(ngram_embs))
+    def _calibrate(self, data_loader, weight=None):
+        pass
+        # all_logits = []
+        # all_targets = []
+
+        # with torch.no_grad():
+        #     for _, data_batch in enumerate(data_loader, 0):
+        #         sentences = data_batch['sentence']
+        #         labels = data_batch['label']
+
+        #         feats = self._get_hidden_features(*sentences)
+        #         all_logits.append(self._forward_alg(feats))
+        #         all_targets.append(labels)
+        # logits_tensor = torch.cat(all_logits, dim=0)
+        # targets_tensor = torch.cat(all_targets, dim=0)
+
+        # # Find temperature (probability calibration)
+        # optimizer = optim.LBFGS([self.temperature], lr=0.01, max_iter=50)
+
+        # if weight is None:
+        #     criterion = nn.CrossEntropyLoss()
+        # else:
+        #     criterion = nn.CrossEntropyLoss(weight=weight)
+
+        # def _step():
+        #     optimizer.zero_grad()
+        #     loss = criterion(self._temperature_scale(logits_tensor), targets_tensor)
+        #     loss.backward()
+        #     return loss
+
+        # optimizer.step(_step)
+
+    def _get_hidden_features(self, embs, ngram_embs):
+        # embs = self.word_embs(embs)
+        ngram_embs = self.ngrams_embs(ngram_embs)
 
         x = torch.cat([embs, ngram_embs], dim=1)
-        x = self.highway(x)
-        # x = F.relu(self.i2h(x))
-        # x = self.h2o(x)
-        x = self.i2o(x)
+        x = torch.mean(x, dim=1)
+        x = F.dropout(x, 1 - self.dropout_keep_prob)
+        # x = F.relu(x)
+        x = self.i2h(x)
+
         return x
+
+    def _forward_alg(self, feats):
+        return self.h2o(feats)
+
+    def forward(self, sents, calibrated=False):
+        if torch.is_tensor(sents[0]):
+            feats = self._get_hidden_features(*sents)
+        else:
+            feats = self._get_hidden_features(*process_sentences(sents))
+        logits = self._forward_alg(feats)
+
+        if calibrated:
+            # logits = self._temperature_scale(logits)
+            # topk_scores, topk_idx = torch.topk(logits, 5)
+            # print(topk_scores)
+            # logits = F.softmax(logits, dim=-1)
+            # return logits if d_results is None else logits / d_results
+            return F.sigmoid(logits)
+        else:
+            return logits

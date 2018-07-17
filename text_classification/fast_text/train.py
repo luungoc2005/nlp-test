@@ -2,9 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.multiprocessing as mp
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
-
 from tqdm import tqdm, trange
 # from config import SENTENCE_DIM
 # import numpy as np
@@ -13,7 +11,7 @@ from tensorboardX import SummaryWriter
 from os import path
 
 from common.utils import argmax, get_datetime_hostname, timeSince
-from text_classification.fast_text.model import FastText, process_sentences
+from text_classification.fast_text.model import FastText, FastTextDataset
 
 import time
 
@@ -22,15 +20,21 @@ SAVE_PATH = path.join(BASE_PATH, 'model/model.bin')
 LOG_DIR = path.join(BASE_PATH, 'logs/')
 
 
-def _train(input_variable, output_variable, model, criterion, optimizer):
+def _train(input_variable, output_variable, model, criterion, optimizer, adam_decay=0):
     optimizer.zero_grad()
 
     # Run the forward pass
-    logits = model(*input_variable)
+    logits = model(input_variable)
 
     loss = criterion(logits, output_variable)
 
     loss.backward()
+
+    if adam_decay > 0:
+        for group in optimizer.param_groups():
+            for param in group['params']:
+                param.data = param.data.add(-adam_decay * group['lr'], param.data)
+
     optimizer.step()
 
     return loss.item()
@@ -56,24 +60,27 @@ def trainIters(data,
     # Set class weights - this is kinda rough...
     weights = torch.zeros(num_classes)
     for _, class_idx in data:
-        weights[class_idx] += 1
+        weights[int(class_idx)] += 1
     for class_idx in range(num_classes):
-        weights[class_idx] = 1 / weights[class_idx]
+        weights[int(class_idx)] = 1 / weights[int(class_idx)]
 
     print('Training started')
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    # criterion = nn.CrossEntropyLoss(weight=weights)
     # criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss(weight=weights)
     model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
     if optimizer == 'adam':
-        weight_decay = weight_decay or 0
+        weight_decay = 0
+        adam_decay = weight_decay
         model_optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay)
+            betas=(0.7, 0.99),
+            lr=learning_rate)
     else:
         weight_decay = weight_decay or 1e-4
+        adam_decay = 0
         model_optimizer = optim.SGD(
             filter(lambda p: p.requires_grad, model.parameters()),
             lr=learning_rate,
@@ -89,6 +96,8 @@ def trainIters(data,
     print_loss_total = 0
     print_accuracy_total = 0
     real_batch = 0
+    best_loss = 1e15
+    wait = 0
 
     if verbose == 2:
         iterator = trange(1, n_iters + 1, desc='Epochs', leave=False)
@@ -96,26 +105,23 @@ def trainIters(data,
         iterator = range(1, n_iters + 1)
 
     # For timing with verbose=1
-    start = time.time()
-    data_loader = DataLoader(data, batch_size=batch_size, num_workers=cpu_count)
+    dataset = FastTextDataset(data, num_classes)
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=cpu_count)
 
+    start = time.time()
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
-            sentences, labels = data_batch
+            sentences = data_batch['sentence']
+            labels = data_batch['label']
 
-            real_batch += len(sentences)  # real batch size
-
-            # Prepare training data
-            sentence_in, target_variable = \
-                process_sentences(sentences), \
-                Variable(labels.long())
+            real_batch += len(labels)  # real batch size
 
             # Run the training epoch
-            loss = _train(sentence_in, target_variable, model, criterion, model_optimizer)
+            loss = _train(sentences, labels, model, criterion, model_optimizer, adam_decay)
 
             loss_total += loss
 
-            accuracy_total += evaluate(model, sentence_in, labels)
+            accuracy_total += evaluate(model, sentences, labels)
 
             if verbose == 2:
                 iterator.set_description('Minibatch: %s' % real_batch)
@@ -128,6 +134,15 @@ def trainIters(data,
 
         writer.add_scalar(LOSS_LOG_FILE, loss_total, epoch)
         all_losses.append(loss_total)
+
+        if loss_total < best_loss:
+            best_loss = loss_total
+            wait = 1
+        else:
+            if wait >= patience:
+                print('Early stopping')
+                break
+            wait += 1
 
         real_batch = 0
         accuracy_total = 0
@@ -148,14 +163,13 @@ def trainIters(data,
             print_loss_total = 0
             print_accuracy_total = 0
 
-
-        if len(all_losses) > patience > 0 and all_losses[-1] > all_losses[-patience]:
-            print('Early stopping')
-            break
+    print('Calibrating model')
+    model._calibrate(data_loader, weights)
+    print('Training completed')
 
     torch.save({
         'classes': classes,
-        'state_dict': model.state_dict()
+        'state_dict': model.state_dict(),
     }, save_path)
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')
@@ -168,11 +182,10 @@ def trainIters(data,
 def evaluate(model, input, output):
     with torch.no_grad():
         correct = 0
-
-        result = model(*input)
-
+        result = model(input)
         for idx, gt_class in enumerate(output):
             pred_class = argmax(result[idx])
+            gt_class = argmax(gt_class)
             if gt_class == pred_class:
                 correct += 1
     return float(correct)
@@ -184,8 +197,8 @@ def evaluate_all(model, data):
         correct = 0
         total = len(data)
         for sentence, gt_class in data:
-            precheck_sent = process_sentences([sentence])
-            pred_class = argmax(model(*precheck_sent))
+            pred_class = argmax(model([sentence]))
+            gt_class = argmax(gt_class)
             if gt_class == pred_class:
                 correct += 1
 
