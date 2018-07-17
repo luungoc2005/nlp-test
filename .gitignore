@@ -88,3 +88,5 @@ fastText/
 
 \.idea/
 data/MSRParaphraseCorpus/
+
+data/vn_treebank/
