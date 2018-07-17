@@ -265,10 +265,9 @@ class BiLSTM_CRF(nn.Module):
 
     def _get_lstm_features(self, sentence):
         self.hidden = self.init_hidden()
-        seq_len = len(sentence)
-
-        embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
-        lstm_out, self.hidden = self.lstm(embeds, self.hidden)
+        # seq_len = sentence.size(0)
+        # embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
+        lstm_out, self.hidden = self.lstm(sentence, self.hidden)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
 
@@ -339,9 +338,9 @@ class BiLSTM_CRF(nn.Module):
         if self.is_cuda:
             word_embeds = word_embeds.cuda()
 
-        char_embeds = self.word_encoder(sentence)
+        char_embeds = self.word_encoder(sentence).unsqueeze(1)
 
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
@@ -355,9 +354,9 @@ class BiLSTM_CRF(nn.Module):
         if self.is_cuda:
             word_embeds = word_embeds.cuda()
 
-        char_embeds = self.word_encoder(sentence)
+        char_embeds = self.word_encoder(sentence).unsqueeze(1)
 
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)

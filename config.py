@@ -5,9 +5,13 @@ CACHE_DATA = False
 BASE_PATH = path.dirname(__file__)
 
 GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
-MAGNITUDE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
+MAGNITUDE_PATH = {
+    'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
+}
+
+VN_TREEBANK_PATH = path.join(BASE_PATH, 'vn_treebank')
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')
 # SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
 

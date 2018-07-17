@@ -1,14 +1,19 @@
 from pymagnitude import *
-from config import MAGNITUDE_PATH, MAX_NUM_WORDS
+from config import MAGNITUDE_PATH, MAX_NUM_WORDS, BASE_PATH
+from os import path
 
-vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=-1, case_insensitive=True)
+lazy_loading = 1 if path.isfile(path.join(BASE_PATH, 'DEBUG')) else -1
+
+vectors = {
+    'en': Magnitude(MAGNITUDE_PATH['en'], lazy_loading=lazy_loading, case_insensitive=True)
+}
 # vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=1, case_insensitive=True)
 
-def get_emb_matrix():
-    return vectors.get_vectors_mmap()[:MAX_NUM_WORDS]
+def get_emb_matrix(lang='en'):
+    return vectors[lang].get_vectors_mmap()[:MAX_NUM_WORDS]
 
-def get_word_vector(word):
-    return vectors.query(word)
+def get_word_vector(word, lang='en'):
+    return vectors[lang].query(word)
 
-def get_dim():
-    return vectors.dim
+def get_dim(lang='en'):
+    return vectors[lang].dim
