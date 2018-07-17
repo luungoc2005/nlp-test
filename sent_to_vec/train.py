@@ -229,8 +229,9 @@ def trainIters(n_iters=10,
             train_best_acc = train_acc
         else:
             optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] / lr_shrink
-            print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s', (lr_shrink, optimizer.param_groups[0]['lr']))
+            print('Accuracy deteriorated. Shrinking lr by %s - new lr: %s' % (lr_shrink, optimizer.param_groups[0]['lr']))
         if optimizer.param_groups[0]['lr'] < min_lr:
+            print('Early stopping')
             # Early stopping
             break
 
