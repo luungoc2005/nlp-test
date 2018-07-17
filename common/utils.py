@@ -30,9 +30,10 @@ def unicodeToAscii(s):
 
 def letterToIndex(letter):
     """
-    Find letter index from all_letters, e.g. "a" = 0
+    Find letter index from all_letters, e.g. "a" = 1
+    0 will be the OOV index
     """
-    return all_letters.find(letter)
+    return all_letters.find(letter) + 1
 
 
 def letterToTensor(letter):

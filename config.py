@@ -11,7 +11,7 @@ MAGNITUDE_PATH = {
     'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
 }
 
-VN_TREEBANK_PATH = path.join(BASE_PATH, 'vn_treebank')
+VN_TREEBANK_PATH = path.join(BASE_PATH, 'data/vn_treebank')
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')
 # SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
 

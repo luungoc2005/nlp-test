@@ -1,4 +1,5 @@
 import unicodedata
+import random
 
 normalize_map = [
     ("òa", "oà"),
@@ -28,7 +29,14 @@ def tone_marks_normalize(input_str):
 
 def remove_tone_marks(input_str):
     result_str = ''.join(
-        c for c in unicodedata.normalize('NFD', input_str.replace('đ', 'd').replace('Đ', 'D'))
+        c for c in unicodedata.normalize('NFD', str(input_str).replace('đ', 'd').replace('Đ', 'D'))
         if unicodedata.category(c) != 'Mn'
     )
     return result_str
+
+def random_remove_marks(input_str, ratio=0.7):
+    result_str = input_str.split()
+    for idx, token in enumerate(result_str):
+        if random.random() <= ratio:
+            result_str[idx] = remove_tone_marks(token)
+    return ' '.join(result_str)

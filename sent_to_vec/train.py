@@ -90,7 +90,6 @@ def trainIters(n_iters=10,
     # optimizer = optim.Adam(nli_net.parameters(), lr=lr)
     # optimizer = optim.RMSprop(nli_net.parameters())
     optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
-    epoch_start = 1
 
     # scheduler = optim.lr_scheduler.LambdaLR(
     #     optimizer,

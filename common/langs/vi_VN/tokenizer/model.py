@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
+from common.langs.vi_VN.utils import remove_tone_marks
 from common.torch_utils import set_trainable, children
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
 
@@ -48,7 +49,7 @@ class BGRUWordEncoder(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.is_cuda = is_cuda or torch.cuda.is_available()
 
-        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
+        self.embedding = nn.Embedding(n_letters + 1, self.hidden_dim)
         self.dropout = nn.Dropout(1 - dropout_keep_prob)
         self.rnn = nn.GRU(self.hidden_dim,
                           self.hidden_dim // 2,
@@ -63,6 +64,7 @@ class BGRUWordEncoder(nn.Module):
 
         words_batch = self.dropout(self.embedding(words_batch))
 
+        # print('words_batch: %s' % str(words_batch.size()))
         # Sort by length (keep idx)
         word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
         idx_unsort = np.argsort(idx_sort)
@@ -113,7 +115,6 @@ class BiLSTMTagger(nn.Module):
                  is_cuda=None):
         super(BiLSTMTagger, self).__init__()
         self.max_emb_words = max_emb_words
-        self.tokenizer = tokenizer
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
         self.hidden_dim = hidden_dim or HIDDEN_DIM
@@ -127,7 +128,7 @@ class BiLSTMTagger(nn.Module):
             self.word_encoder = self.word_encoder.cuda()
 
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
-        self.embedding = nn.Embedding(self.max_emb_words, self.embedding_dim)
+        self.embedding = nn.Embedding(self.max_emb_words + 1, self.embedding_dim)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
                             self.hidden_dim // 2,
                             num_layers=self.num_layers,
@@ -136,6 +137,9 @@ class BiLSTMTagger(nn.Module):
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(self.hidden_dim, 1)
         self.hidden = self.init_hidden()
+
+        # Set tokenizer
+        self.tokenizer = tokenizer
 
     def init_hidden(self):
         hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
@@ -179,12 +183,19 @@ class BiLSTMTagger(nn.Module):
 
     def forward(self, sentence):
         tokens = self.tokenizer.texts_to_sequences([sentence])
-        word_embeds = self.embedding(tokens)
-        
-        if self.is_cuda:
-            word_embeds = word_embeds.cuda()
 
-        char_embeds = self.word_encoder(sentence).unsqueeze(1)
+        tokens = torch.LongTensor(tokens)
+        # print('tokens: %s' % str(tokens.size()))
+        if self.is_cuda:
+            tokens = tokens.cuda()
+
+        word_embeds = self.embedding(tokens).permute(1, 0, 2)
+        # print('word_embeds: %s' % str(word_embeds.size()))
+
+        char_embeds = self.word_encoder([
+            remove_tone_marks(token) for token in sentence
+        ]).unsqueeze(1)
+        # print('char_embeds: %s' % str(char_embeds.size()))
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
 
@@ -195,6 +206,6 @@ class BiLSTMTagger(nn.Module):
         # embeds = sentence_in.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
         lstm_out, self.hidden = self.lstm(sentence_in, self.hidden)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
-        tags = self.hidden2tag(lstm_out)
+        tags = self.hidden2tag(lstm_out).squeeze(1)
 
         return tags

@@ -7,6 +7,15 @@ import string
 VN_TREEBANK_FILES = [path.join(VN_TREEBANK_PATH, file) for file in listdir(VN_TREEBANK_PATH)]
 # print('%s files' % len(TREEBANK_FILES))
 
+def load_treebank_dataset():
+    sents = []
+    tags = []
+    for item in VN_TREEBANK_FILES:
+        item_sents, item_tags = process_treebank_file(item)
+        sents.extend(item_sents)
+        tags.extend(item_tags)
+    return sents, tags
+
 def random_remove_marks(input_str, ratio=0.7):
     result_str = input_str.split()
     for idx, token in enumerate(result_str):
@@ -14,7 +23,7 @@ def random_remove_marks(input_str, ratio=0.7):
             result_str[idx] = remove_tone_marks(token)
     return ' '.join(result_str)
 
-def process_treebank_file(filename):
+def process_treebank_file(filename, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'):
     print('Reading %s' % filename)
     with open(filename, 'r') as input_file:
         sents = input_file.read().strip().split("\n\n")
