@@ -25,7 +25,7 @@ def random_remove_marks(input_str, ratio=0.7):
 
 def process_treebank_file(filename, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'):
     print('Reading %s' % filename)
-    with open(filename, 'r') as input_file:
+    with open(filename, 'r', encoding='utf-8') as input_file:
         sents = input_file.read().strip().split("\n\n")
     sents = [
         [line.strip().split('\t')[0] for line in sent.strip().split('\n')]
