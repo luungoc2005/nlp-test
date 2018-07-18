@@ -131,7 +131,10 @@ class BiLSTMTagger(nn.Module):
             self.word_encoder = self.word_encoder.cuda()
 
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
-        self.embedding = nn.Embedding(self.max_emb_words + 1, self.embedding_dim)
+
+        # 0: reserved index by Keras tokenizer
+        # num_words + 1: index for oov token
+        self.embedding = nn.Embedding(self.max_emb_words + 2, self.embedding_dim)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
                             self.hidden_dim // 2,
                             num_layers=self.num_layers,
@@ -188,6 +191,7 @@ class BiLSTMTagger(nn.Module):
         tokens = self.tokenizer.texts_to_sequences([sentence])
 
         tokens = torch.LongTensor(tokens)
+        # print(tokens)
         # print('tokens: %s' % str(tokens.size()))
         if self.is_cuda:
             tokens = tokens.cuda()

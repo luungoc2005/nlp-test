@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 from os import path
-from config import BASE_PATH
+from config import BASE_PATH, UNK_TAG
 from common.langs.vi_VN.tokenizer.model import BiLSTMTagger
 from common.langs.vi_VN.tokenizer import data_utils
 from common.langs.vi_VN.utils import remove_tone_marks, random_remove_marks
@@ -78,7 +78,7 @@ def trainIters(n_iters=10,
             [remove_tone_marks(token) for token in sent]
             for sent in data_sents
         ]
-        tokenizer = Tokenizer(oov_token=1, num_words=10000)
+        tokenizer = Tokenizer(oov_token=UNK_TAG, num_words=10000)
         tokenizer.fit_on_texts(data_sents + data_sents_no_marks)
         print('Preprocessing completed')
 
