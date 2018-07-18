@@ -44,7 +44,8 @@ def trainIters(n_iters=10,
                lr_decay=1e-5,
                lr_shrink=5,
                min_lr=1e-5,
-               checkpoint=None):
+               checkpoint=None,
+               cuda=None):
     # Loading data
     print('Loading VN Treebank dataset')
     data_sents, data_tags = data_utils.load_treebank_dataset()
@@ -84,7 +85,7 @@ def trainIters(n_iters=10,
         model = BiLSTMTagger(max_emb_words=10000, tokenizer=tokenizer)
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    is_cuda = torch.cuda.is_available()
+    is_cuda = cuda or torch.cuda.is_available()
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'bce_loss')
     ACC_LOG_FILE = path.join(LOG_DIR, 'train_accuracy')
@@ -123,9 +124,9 @@ def trainIters(n_iters=10,
 
             loss, output = _train(sentence, target, model, criterion, optimizer)
 
-            pred = F.sigmoid(output).data.long()
-            correct += pred.long().eq(target.data.long()).cpu().sum().item()
-            total += output.size(0)
+            pred = F.sigmoid(output).data >= 0.5
+            correct += pred.eq(target.data >= 0.5).cpu().sum().item()
+            total += output.numel()
 
             losses.append(loss)
 
@@ -166,14 +167,25 @@ def trainIters(n_iters=10,
         checkpoint_start = 0
 
         with torch.no_grad():
-            test_str = ['học', 'sinh', 'học', 'sinh', 'học']
-            test = model(test_str)
+            test_examples = [
+                'Học sinh học sinh học'.split(' '),
+                'Hoc sinh hoc sinh hoc'.split(' '),
+                'Đoi tuyen U23 Việt Nam vo địch.'.split(' '),
+                'Đội tuyển U23 Việt Nam vô địch.'.split(' '),
+                'Hà Nội mùa này vắng những cơn mưa'.split(' '),
+                'Trump - Putin trả lời câu hỏi hóc búa trong họp báo thế nào?'.split(' '),
+                'Thợ lặn từng lo sợ 5 thiếu niên sẽ chết khi được cứu khỏi hang Thái Lan'.split(' ')
+            ]
+            log_text = ''
+            for test_str in test_examples:
+                test = model(test_str)
+                log_text += 'Sanity test result: \nlogits: {}, sentence: {}\n\n'.format(
+                    str(test),
+                    str(tokenize(test_str, F.sigmoid(test).data >= 0.5))
+                )
             writer.add_text(
                 'Epoch ' + str(epoch),
-                'Sanity test result: \nTags: {}, Sent: {}'.format((
-                    str(test),
-                    str(tokenize(test_str, F.sigmoid(test).data.long()))
-                ))
+                log_text
             )
 
     LOG_JSON = path.join(LOG_DIR, 'all_scalars.json')

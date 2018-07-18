@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
+from config import EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, UNK_TAG
 from common.langs.vi_VN.utils import remove_tone_marks
 from common.torch_utils import set_trainable, children
 from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
@@ -57,7 +57,10 @@ class BGRUWordEncoder(nn.Module):
                           bidirectional=True)
 
     def forward(self, sentence):
-        words_batch, word_lengths = _process_sentence(sentence)
+        words_batch, word_lengths = _process_sentence([
+            token if len(token) > 0 else UNK_TAG
+            for token in sentence
+        ])
 
         if self.is_cuda:
             words_batch = words_batch.cuda()
