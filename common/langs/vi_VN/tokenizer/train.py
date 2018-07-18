@@ -85,7 +85,7 @@ def trainIters(n_iters=10,
         model = BiLSTMTagger(max_emb_words=10000, tokenizer=tokenizer)
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    is_cuda = cuda or torch.cuda.is_available()
+    is_cuda = cuda if cuda is not None else torch.cuda.is_available()
 
     LOSS_LOG_FILE = path.join(LOG_DIR, 'bce_loss')
     ACC_LOG_FILE = path.join(LOG_DIR, 'train_accuracy')

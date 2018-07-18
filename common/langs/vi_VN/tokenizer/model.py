@@ -47,7 +47,7 @@ class BGRUWordEncoder(nn.Module):
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
         self.dropout_keep_prob = dropout_keep_prob
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.embedding = nn.Embedding(n_letters + 1, self.hidden_dim)
         self.dropout = nn.Dropout(1 - dropout_keep_prob)
@@ -123,7 +123,7 @@ class BiLSTMTagger(nn.Module):
         self.hidden_dim = hidden_dim or HIDDEN_DIM
         self.num_layers = num_layers or NUM_LAYERS
         self.dropout_keep_prob = dropout_keep_prob
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.word_encoder = BGRUWordEncoder(self.char_embedding_dim)
 

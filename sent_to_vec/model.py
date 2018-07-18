@@ -122,7 +122,7 @@ class ConvNetEncoder(nn.Module):
         self.vocab_size = vocab_size or MAX_NUM_WORDS
         self.dropout_keep_prob = dropout_keep_prob
         self.hidden_dim = hidden_dim
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.convs = StackedConv(self.embedding_dim, self.hidden_dim)
@@ -156,7 +156,7 @@ class BiLSTMEncoder(nn.Module):
         self.vocab_size = vocab_size or MAX_NUM_WORDS
         self.dropout_keep_prob = dropout_keep_prob
         self.hidden_dim = hidden_dim
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.lstm = nn.LSTM(self.embedding_dim, self.hidden_dim, 1,
                             bidirectional=True,
@@ -221,7 +221,7 @@ class QRNNEncoder(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, self.num_layers,
                          dropout=1-self.dropout_keep_prob) # Outputs: output, h_n
@@ -274,7 +274,7 @@ class QRNNEncoderConcat(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
         self.num_layers = num_layers
         self.hidden_dim = int(hidden_dim / self.num_layers)
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.qrnn = QRNN(self.embedding_dim, self.hidden_dim, 
                          self.num_layers, dropout=1-self.dropout_keep_prob) # Outputs: output, h_n

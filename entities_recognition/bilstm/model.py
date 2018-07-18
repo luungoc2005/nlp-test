@@ -46,7 +46,7 @@ class BLSTMWordEncoder(nn.Module):
         self.hidden_dim = hidden_dim or EMBEDDING_DIM
         self.letters_dim = letters_dim or n_letters
         self.dropout_keep_prob = dropout_keep_prob
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.embedding = nn.Embedding(n_letters, self.hidden_dim)
         self.dropout = nn.Dropout(1 - dropout_keep_prob)
@@ -117,7 +117,7 @@ class ConvNetWordEncoder(nn.Module):
         self.num_filters = num_filters or 30
         self.dropout_keep_prob = dropout_keep_prob
         self.embedding = nn.Embedding(n_letters, self.hidden_dim)
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.convs = []
         for _ in range(self.num_filters):
@@ -170,7 +170,7 @@ class BiLSTM_CRF(nn.Module):
         self.num_layers = num_layers or NUM_LAYERS
         self.dropout_keep_prob = dropout_keep_prob
         self.tagset_size = len(tag_to_ix)
-        self.is_cuda = is_cuda or torch.cuda.is_available()
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
 
