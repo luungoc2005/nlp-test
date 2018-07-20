@@ -114,14 +114,14 @@ class BiLSTMTagger(nn.Module):
                  tokenizer=None,
                  hidden_dim=None,
                  num_layers=None,
-                 dropout_keep_prob=0.8,
+                 dropout_keep_prob=0.6,
                  is_cuda=None):
         super(BiLSTMTagger, self).__init__()
         self.max_emb_words = max_emb_words
         self.embedding_dim = embedding_dim or EMBEDDING_DIM
         self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
-        self.hidden_dim = hidden_dim or HIDDEN_DIM
-        self.num_layers = num_layers or NUM_LAYERS
+        self.hidden_dim = hidden_dim or 600
+        self.num_layers = num_layers or 3
         self.dropout_keep_prob = dropout_keep_prob
         self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 

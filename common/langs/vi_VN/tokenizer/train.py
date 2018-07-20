@@ -199,7 +199,7 @@ def tokenize(sent, tags):
     running_word = []
     for idx, token in enumerate(sent):
         running_word.append(token)
-        if tags[idx] == 0:
+        if tags[idx] == 0 or idx == len(sent) - 1:
             tokens_arr.append('_'.join(running_word))
             running_word = []
     return tokens_arr
