@@ -142,20 +142,9 @@ class BiLSTMTagger(nn.Module):
 
         # Maps the output of the LSTM into tag space.
         self.hidden2tag = nn.Linear(self.hidden_dim, 1)
-        self.hidden = self.init_hidden()
 
         # Set tokenizer
         self.tokenizer = tokenizer
-
-    def init_hidden(self):
-        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
-        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
-
-        if self.is_cuda:
-            hidden_0 = hidden_0.cuda()
-            hidden_1 = hidden_1.cuda()
-
-        return hidden_0, hidden_1
 
     def freeze_to(self, n):
         c = self.get_layer_groups()
@@ -206,12 +195,10 @@ class BiLSTMTagger(nn.Module):
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
 
-        # Get the emission scores from the BiLSTM
-        self.hidden = self.init_hidden()
         seq_len = len(sentence_in)
 
         # embeds = sentence_in.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
-        lstm_out, self.hidden = self.lstm(sentence_in, self.hidden)
+        lstm_out, _ = self.lstm(sentence_in)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
         tags = self.hidden2tag(lstm_out).squeeze(1)
 
