@@ -92,3 +92,5 @@ data/MSRParaphraseCorpus/
 data/vn_treebank/
 
 DEBUG
+
+third_party/
