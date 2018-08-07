@@ -6,151 +6,8 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
 from common.torch_utils import set_trainable, children
-from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
-
-def _letter_to_array(letter):
-    ret_val = np.zeros(1, n_letters)
-    ret_val[0][letterToIndex(letter)] = 1
-    return ret_val
-
-
-def _word_to_array(word):
-    ret_val = np.zeros(len(word), 1, n_letters)
-    for li, letter in enumerate(word):
-        ret_val[li][0][letterToIndex(letter)] = 1
-    return ret_val
-
-
-def _process_sentence(sentence):
-    word_lengths = np.array([len(word) for word in sentence])
-    max_len = np.max(word_lengths)
-    words_batch = np.zeros((max_len, len(sentence)))
-
-    for i in range(len(sentence)):
-        for li, letter in enumerate(sentence[i]):
-            words_batch[li][i] = letterToIndex(letter)
-
-    words_batch = Variable(torch.from_numpy(words_batch).long())
-    return words_batch, word_lengths
-
-
-class BLSTMWordEncoder(nn.Module):
-
-    def __init__(self,
-                 hidden_dim=None,
-                 letters_dim=None,
-                 dropout_keep_prob=0.5,
-                 is_cuda=None):
-        super(BLSTMWordEncoder, self).__init__()
-
-        self.hidden_dim = hidden_dim or EMBEDDING_DIM
-        self.letters_dim = letters_dim or n_letters
-        self.dropout_keep_prob = dropout_keep_prob
-        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
-
-        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
-        self.dropout = nn.Dropout(1 - dropout_keep_prob)
-        self.rnn = nn.LSTM(self.hidden_dim,
-                           self.hidden_dim // 2,
-                           num_layers=1,
-                           bidirectional=True)
-
-    def forward(self, sentence):
-        words_batch, word_lengths = _process_sentence(sentence)
-
-        if self.is_cuda:
-            words_batch = words_batch.cuda()
-
-        words_batch = self.dropout(self.embedding(words_batch))
-
-        # Sort by length (keep idx)
-        word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
-        idx_unsort = np.argsort(idx_sort)
-
-        if self.is_cuda:
-            idx_sort = torch.from_numpy(idx_sort).cuda()
-        else:
-            idx_sort = torch.from_numpy(idx_sort)
-
-        words_batch = words_batch.index_select(1, idx_sort)
-
-        # Handling padding in Recurrent Networks
-        words_packed = pack_padded_sequence(words_batch, word_lengths)
-        words_output = self.rnn(words_packed)[0]
-        words_output = pad_packed_sequence(words_output)[0]
-
-        # Un-sort by length
-        if self.is_cuda:
-            idx_unsort = torch.from_numpy(idx_unsort).cuda()
-        else:
-            idx_unsort = torch.from_numpy(idx_unsort)
-
-        words_output = words_output.index_select(1, idx_unsort)
-
-        # Max Pooling
-        embeds = torch.max(words_output, 0)[0]
-        if embeds.ndimension() == 3:
-            embeds = embeds.squeeze(0)
-            assert embeds.ndimension() == 2
-
-        # print(embeds)
-
-        return embeds
-
-    def get_layer_groups(self):
-        return [(self.embedding, self.dropout), self.rnn]
-
-
-class ConvNetWordEncoder(nn.Module):
-
-    def __init__(self,
-                 hidden_dim=None,
-                 letters_dim=None,
-                 num_filters=None,
-                 dropout_keep_prob=0.5,
-                 is_cuda=None):
-        super(ConvNetWordEncoder, self).__init__()
-
-        # https://arxiv.org/pdf/1603.01354.pdf
-        self.hidden_dim = hidden_dim or EMBEDDING_DIM
-        self.letters_dim = letters_dim or n_letters
-        self.num_filters = num_filters or 30
-        self.dropout_keep_prob = dropout_keep_prob
-        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
-        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
-
-        self.convs = []
-        for _ in range(self.num_filters):
-            self.convs.append(
-                nn.Sequential(
-                    nn.Conv1d(self.hidden_dim, self.hidden_dim // self.num_filters,
-                              kernel_size=3, stride=1, padding=1),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(1 - self.dropout_keep_prob)
-                )
-            )
-
-    def forward(self, sentence):
-        words_batch, _ = _process_sentence(sentence)
-
-        if self.is_cuda:
-            words_batch = words_batch.cuda()
-
-        words_batch = self.embedding(words_batch)
-        words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
-
-        convs_batch = []
-        for conv in self.convs:
-            conv_batch = conv(words_batch)
-            convs_batch.append(torch.max(conv_batch, 2)[0])
-
-        embeds = torch.cat(convs_batch, 1)
-
-        return embeds
-
-    def get_layer_groups(self):
-        return [(self.embedding, self.dropout), *zip(self.convs)]
-
+from common.utils import prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
+from common.modules import BRNNWordEncoder
 
 class BiLSTM_CRF(nn.Module):
 
@@ -172,7 +29,7 @@ class BiLSTM_CRF(nn.Module):
         self.tagset_size = len(tag_to_ix)
         self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
-        self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
+        self.word_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
 
         if self.is_cuda:
             self.word_encoder = self.word_encoder.cuda()
@@ -189,6 +46,7 @@ class BiLSTM_CRF(nn.Module):
         # Matrix of transition parameters.  Entry i,j is the score of
         # transitioning *to* i *from* j.
         self.transitions = torch.randn(self.tagset_size, self.tagset_size)
+        torch.nn.init.xavier_normal_(self.transitions)
 
         # These two statements enforce the constraint that we never transfer
         # to the start tag and we never transfer from the stop tag
@@ -265,7 +123,7 @@ class BiLSTM_CRF(nn.Module):
 
     def _get_lstm_features(self, sentence):
         self.hidden = self.init_hidden()
-        # seq_len = sentence.size(0)
+        seq_len = sentence.size(0)
         # embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
         lstm_out, self.hidden = self.lstm(sentence, self.hidden)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
