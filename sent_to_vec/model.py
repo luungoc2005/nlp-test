@@ -10,39 +10,6 @@ from common.torch_utils import set_trainable, children
 from common.modules import Highway
 from torchqrnn import QRNN
 
-def process_batch(batch):
-    lengths = np.array([len(sent) for sent in batch])
-    max_len = np.max(lengths)
-    # embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
-
-    # for i in range(len(batch)):
-    #     for j in range(len(batch[i])):
-    #         vec = get_word_vector(batch[i][j])
-    #         if vec is not None:
-    #             embeds[j, i, :] = vec
-    embeds = get_word_vector(batch)
-
-    return torch.from_numpy(embeds).float().permute(1,0,2), lengths
-
-
-def process_input(sentences):
-    # Filter out words without word vectors
-    # glove_data = get_glove_data()
-    
-    sentences = [
-        [START_TAG] + [word for word in word_tokenize(sent)] + [STOP_TAG]
-        for sent in sentences
-    ]
-    sentences = [sent if len(sent) > 2 else [STOP_TAG] for sent in sentences]
-
-    # Sort sentences by lengths
-    # lengths = np.array([len(sent) for sent in sentences])
-    # lengths, idx_sort = np.sort(lengths)[::-1], np.argsort(-lengths)
-    # sentences = np.array(sentences)[idx_sort]
-
-    return sentences #, lengths, idx_sort
-
-
 class MaskedConv1d(nn.Conv1d):
 
     def __init__(self, in_channels, out_channels, kernel_size, dilation=1,
@@ -361,3 +328,35 @@ class NLINet(nn.Module):
 
     def encode(self, sentence):
         return self.encoder(sentence)
+    
+    def process_batch(self, batch):
+        lengths = np.array([len(sent) for sent in batch])
+        max_len = np.max(lengths)
+        # embeds = np.zeros((max_len, len(batch), EMBEDDING_DIM))
+
+        # for i in range(len(batch)):
+        #     for j in range(len(batch[i])):
+        #         vec = get_word_vector(batch[i][j])
+        #         if vec is not None:
+        #             embeds[j, i, :] = vec
+        embeds = get_word_vector(batch)
+
+        return torch.from_numpy(embeds).float().permute(1,0,2), lengths
+
+    def process_input(self, sentences):
+        # Filter out words without word vectors
+        # glove_data = get_glove_data()
+        
+        sentences = [
+            [START_TAG] + [word for word in word_tokenize(sent)] + [STOP_TAG]
+            for sent in sentences
+        ]
+        sentences = [sent if len(sent) > 2 else [STOP_TAG] for sent in sentences]
+
+        # Sort sentences by lengths
+        # lengths = np.array([len(sent) for sent in sentences])
+        # lengths, idx_sort = np.sort(lengths)[::-1], np.argsort(-lengths)
+        # sentences = np.array(sentences)[idx_sort]
+
+        return sentences #, lengths, idx_sort
+

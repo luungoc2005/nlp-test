@@ -49,7 +49,7 @@ def trainIters(data,
                learning_rate=1e-2,
                weight_decay=None,
                verbose=2,
-               patience=4,
+               patience=10,
                save_path=None):
 
     save_path = save_path or SAVE_PATH
@@ -67,7 +67,7 @@ def trainIters(data,
     print('Training started')
     # criterion = nn.CrossEntropyLoss(weight=weights)
     # criterion = nn.CrossEntropyLoss()
-    criterion = nn.BCEWithLogitsLoss(weight=weights)
+    criterion = nn.BCEWithLogitsLoss(weight=weights, size_average=False)
     model = FastText(classes=num_classes)
 
     # weight_decay = 1e-4 by default for SGD
@@ -76,7 +76,6 @@ def trainIters(data,
         adam_decay = weight_decay
         model_optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, model.parameters()),
-            betas=(0.7, 0.99),
             lr=learning_rate)
     else:
         weight_decay = weight_decay or 1e-4
@@ -111,6 +110,7 @@ def trainIters(data,
     start = time.time()
     for epoch in iterator:
         for _, data_batch in enumerate(data_loader, 0):
+            model.train()
             sentences = data_batch['sentence']
             labels = data_batch['label']
 
@@ -180,6 +180,7 @@ def trainIters(data,
 
 
 def evaluate(model, input, output):
+    model.eval()
     with torch.no_grad():
         correct = 0
         result = model(input)
@@ -192,6 +193,7 @@ def evaluate(model, input, output):
 
 
 def evaluate_all(model, data):
+    model.eval()
     with torch.no_grad():
         # Slowly evaluates sample-by-sample
         correct = 0

@@ -23,8 +23,8 @@ WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 50
 # NGRAM_BINS = 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py
-NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m
-# 2097152
+# NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m == 2097152
+NGRAM_BINS = 2 ** 16 # == 65536
 
 BATCH_SIZE = 32
 
