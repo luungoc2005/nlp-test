@@ -8,7 +8,7 @@ from config import MAX_SEQUENCE_LENGTH
 from paraphrase_vae.tokenizer import SOS_token, EOS_token
 from common.utils import argmax
 
-NLL = nn.NLLLoss(size_average=False)
+NLL = nn.NLLLoss(reduction='sum')
 
 if torch.cuda.is_available():
     NLL = NLL.cuda()

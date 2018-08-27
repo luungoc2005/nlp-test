@@ -1,33 +1,40 @@
-import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
-import warnings
-from common.wrappers import IModel
-from common.utils import pad_sequences, prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec
-from common.torch_utils import to_gpu
-from common.keras_preprocessing import Tokenizer
-from config import MAX_NUM_WORDS, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, START_TAG, STOP_TAG
+import numpy as np
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
+from common.torch_utils import set_trainable, children
+from common.utils import prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
 from common.modules import BRNNWordEncoder
 
-class SequenceTagger(nn.Module):
+class BiLSTM_CRF(nn.Module):
 
-    def __init__(self, config):
-        super(SequenceTagger, self).__init__()
-        self.config = config
-
-        self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
-        self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
-        self.emb_dropout_prob = config.get('emb_dropout_prob', .2)
-        self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
-        self.num_layers = config.get('num_layers', NUM_LAYERS)
-        self.h_dropout_prob = config.get('h_dropout_prob', 0.)
-
-        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
-        self.tagset_size = len(self.tag_to_ix)
+    def __init__(self,
+                 tag_to_ix,
+                 embedding_dim=None,
+                 char_embedding_dim=None,
+                 hidden_dim=None,
+                 num_layers=None,
+                 dropout_keep_prob=0.8,
+                 is_cuda=None):
+        super(BiLSTM_CRF, self).__init__()
+        self.embedding_dim = embedding_dim or EMBEDDING_DIM
+        self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
+        self.hidden_dim = hidden_dim or HIDDEN_DIM
+        self.tag_to_ix = tag_to_ix
+        self.num_layers = num_layers or NUM_LAYERS
+        self.dropout_keep_prob = dropout_keep_prob
+        self.tagset_size = len(tag_to_ix)
+        self.is_cuda = is_cuda if is_cuda is not None else torch.cuda.is_available()
 
         self.word_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
-        self.emb_dropout = nn.Dropout(emb_dropout_prob)
+
+        if self.is_cuda:
+            self.word_encoder = self.word_encoder.cuda()
+
+        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
                             self.hidden_dim // 2,
                             num_layers=self.num_layers,
@@ -46,7 +53,8 @@ class SequenceTagger(nn.Module):
         self.transitions[tag_to_ix[START_TAG], :] = -10000
         self.transitions[:, tag_to_ix[STOP_TAG]] = -10000
 
-        self.transitions = to_gpu(self.transitions)
+        if self.is_cuda:
+            self.transitions = self.transitions.cuda()
 
         self.transitions = nn.Parameter(self.transitions)
 
@@ -56,7 +64,41 @@ class SequenceTagger(nn.Module):
         hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
         hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
 
-        return to_gpu(hidden_0), to_gpu(hidden_1)
+        if self.is_cuda:
+            hidden_0 = hidden_0.cuda()
+            hidden_1 = hidden_1.cuda()
+
+        return hidden_0, hidden_1
+
+    def freeze_to(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        for l in c[n:]:
+            set_trainable(l, True)
+
+    def freeze_all_but(self, n):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+        set_trainable(c[n], True)
+
+    def unfreeze(self): self.freeze_to(0)
+
+    def freeze(self):
+        c = self.get_layer_groups()
+        for l in c:
+            set_trainable(l, False)
+
+    def layers_count(self):
+        return len(self.get_layer_groups())
+
+    def get_layer_groups(self):
+        return [
+            *zip(self.word_encoder.get_layer_groups()),
+            self.lstm,
+            self.hidden2tag
+        ]
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function
@@ -65,7 +107,7 @@ class SequenceTagger(nn.Module):
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
 
         # Wrap in a variable so that we will get automatic backprop
-        forward_var = to_gpu(init_alphas)
+        forward_var = init_alphas.cuda() if self.is_cuda else init_alphas
 
         # Iterate through the sentence
         for feat in feats:
@@ -83,7 +125,6 @@ class SequenceTagger(nn.Module):
         self.hidden = self.init_hidden()
         seq_len = sentence.size(0)
         # embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
-        sentence = self.emb_dropout(sentence)
         lstm_out, self.hidden = self.lstm(sentence, self.hidden)
         lstm_out = lstm_out.view(seq_len, self.hidden_dim)
         lstm_feats = self.hidden2tag(lstm_out)
@@ -92,8 +133,12 @@ class SequenceTagger(nn.Module):
 
     def _score_sentence(self, feats, tags):
         # Gives the score of a provided tag sequence
-        score = to_gpu(torch.Tensor([0]))
-        tags = to_gpu(torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags]))
+        score = torch.Tensor([0])
+        tags = torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags])
+
+        if self.is_cuda:
+            score = score.cuda()
+            tags = tags.cuda()
 
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
@@ -110,7 +155,7 @@ class SequenceTagger(nn.Module):
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1
-        forward_var = to_gpu(init_vvars)
+        forward_var = init_vvars.cuda() if self.is_cuda else init_vvars
 
         for feat in feats:
             next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
@@ -120,7 +165,8 @@ class SequenceTagger(nn.Module):
             viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
             viterbivars_t = torch.FloatTensor(viterbivars_t)
 
-            viterbivars_t = to_gpu(viterbivars_t)
+            if self.is_cuda:
+                viterbivars_t = viterbivars_t.cuda()
 
             forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
@@ -143,9 +189,12 @@ class SequenceTagger(nn.Module):
         assert start == self.tag_to_ix[START_TAG]  # Sanity check
         best_path.reverse()
         return path_score, best_path
-    
+
     def neg_log_likelihood(self, sentence, tags):
-        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+
+        if self.is_cuda:
+            word_embeds = word_embeds.cuda()
 
         char_embeds = self.word_encoder(sentence).unsqueeze(1)
 
@@ -155,10 +204,13 @@ class SequenceTagger(nn.Module):
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
         gold_score = self._score_sentence(feats, tags)
-        return feats, forward_score - gold_score
+        return forward_score - gold_score
 
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
-        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
+
+        if self.is_cuda:
+            word_embeds = word_embeds.cuda()
 
         char_embeds = self.word_encoder(sentence).unsqueeze(1)
 
@@ -170,42 +222,3 @@ class SequenceTagger(nn.Module):
         # Find the best path, given the features.
         score, tag_seq = self._viterbi_decode(lstm_feats)
         return score, tag_seq
-
-
-class SequenceTaggerWrapper(IModel):
-
-    def __init__(self, config):
-        super(SequenceTaggerWrapper, self).__init__(
-            model_class=SequenceTagger,
-            config=config
-        )
-        self.tokenizer = wordpunct_space_tokenize
-        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
-
-    def get_state_dict(self):
-        return {
-            'config': self.model.config,
-            'state_dict': self.model.state_dict(),
-        }
-
-    def load_state_dict(self, state_dict):
-        config = state_dict['config']
-
-        # re-initialize model with loaded config
-        self.model = self._model_class(config)
-        self.model.load_state_dict(state_dict['state_dict'])
-        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
-
-    def preprocess_input(self, X):
-        return self.tokenizer(X[0])
-    
-    def preprocess_output(self, y):
-        return torch.LongTensor([self.tag_to_ix[tag] for tag in y[0].split()])
-
-    def get_layer_groups(self):
-        model = self.model
-        return [
-            (*zip(model.word_encoder.get_layer_groups()), model.emb_dropout),
-            model.lstm,
-            model.hidden2tag
-        ]

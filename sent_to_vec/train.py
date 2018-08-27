@@ -84,8 +84,7 @@ def trainIters(n_iters=10,
     # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder, bidirectional_encoder=False)
 
-    criterion = nn.CrossEntropyLoss()
-    criterion.size_average = False
+    criterion = nn.CrossEntropyLoss(reduction='sum')
 
     # optimizer = optim.Adam(nli_net.parameters(), lr=lr)
     # optimizer = optim.RMSprop(nli_net.parameters())
