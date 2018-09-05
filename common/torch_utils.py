@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -31,3 +32,8 @@ def lr_schedule_slanted_triangular(step, n_epochs, max_lr=0.01, cut_frac=0.1, ra
     else:
         p = 1 - (step - cut) / (cut * (1 / cut_frac - 1))
     return max_lr * (1 + p * (ratio - 1)) / ratio
+
+USE_GPU = torch.cuda.is_available()
+def to_gpu(x, *args, **kwargs):
+    '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
+    return x.cuda(*args, **kwargs) if USE_GPU else x

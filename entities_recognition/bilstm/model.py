@@ -1,246 +1,63 @@
-import torch
-import torch.nn as nn
 import numpy as np
+import torch
 import torch.nn.functional as F
-from torch.autograd import Variable
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config import START_TAG, STOP_TAG, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS
-from common.torch_utils import set_trainable, children
-from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
+import torch.nn as nn
+import warnings
+from common.wrappers import IModel
+from common.utils import prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, log_sum_exp, argmax
+from common.torch_utils import to_gpu
+from common.keras_preprocessing import Tokenizer
+from config import MAX_NUM_WORDS, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, START_TAG, STOP_TAG
+from common.modules import BRNNWordEncoder
 
-def _letter_to_array(letter):
-    ret_val = np.zeros(1, n_letters)
-    ret_val[0][letterToIndex(letter)] = 1
-    return ret_val
+class SequenceTagger(nn.Module):
 
+    def __init__(self, config):
+        super(SequenceTagger, self).__init__()
+        self.config = config
 
-def _word_to_array(word):
-    ret_val = np.zeros(len(word), 1, n_letters)
-    for li, letter in enumerate(word):
-        ret_val[li][0][letterToIndex(letter)] = 1
-    return ret_val
+        self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
+        self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
+        self.emb_dropout_prob = config.get('emb_dropout_prob', 0)
+        self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
+        self.num_layers = config.get('num_layers', NUM_LAYERS)
+        self.h_dropout_prob = config.get('h_dropout_prob', 0)
 
+        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+        self.tagset_size = len(self.tag_to_ix)
 
-def _process_sentence(sentence):
-    word_lengths = np.array([len(word) for word in sentence])
-    max_len = np.max(word_lengths)
-    words_batch = np.zeros((max_len, len(sentence)))
-
-    for i in range(len(sentence)):
-        for li, letter in enumerate(sentence[i]):
-            words_batch[li][i] = letterToIndex(letter)
-
-    words_batch = Variable(torch.from_numpy(words_batch).long())
-    return words_batch, word_lengths
-
-
-class BLSTMWordEncoder(nn.Module):
-
-    def __init__(self,
-                 hidden_dim=None,
-                 letters_dim=None,
-                 dropout_keep_prob=0.5,
-                 is_cuda=None):
-        super(BLSTMWordEncoder, self).__init__()
-
-        self.hidden_dim = hidden_dim or EMBEDDING_DIM
-        self.letters_dim = letters_dim or n_letters
-        self.dropout_keep_prob = dropout_keep_prob
-        self.is_cuda = is_cuda or torch.cuda.is_available()
-
-        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
-        self.dropout = nn.Dropout(1 - dropout_keep_prob)
-        self.rnn = nn.LSTM(self.hidden_dim,
-                           self.hidden_dim // 2,
-                           num_layers=1,
-                           bidirectional=True)
-
-    def forward(self, sentence):
-        words_batch, word_lengths = _process_sentence(sentence)
-
-        if self.is_cuda:
-            words_batch = words_batch.cuda()
-
-        words_batch = self.dropout(self.embedding(words_batch))
-
-        # Sort by length (keep idx)
-        word_lengths, idx_sort = np.sort(word_lengths)[::-1], np.argsort(-word_lengths)
-        idx_unsort = np.argsort(idx_sort)
-
-        if self.is_cuda:
-            idx_sort = torch.from_numpy(idx_sort).cuda()
-        else:
-            idx_sort = torch.from_numpy(idx_sort)
-
-        words_batch = words_batch.index_select(1, idx_sort)
-
-        # Handling padding in Recurrent Networks
-        words_packed = pack_padded_sequence(words_batch, word_lengths)
-        words_output = self.rnn(words_packed)[0]
-        words_output = pad_packed_sequence(words_output)[0]
-
-        # Un-sort by length
-        if self.is_cuda:
-            idx_unsort = torch.from_numpy(idx_unsort).cuda()
-        else:
-            idx_unsort = torch.from_numpy(idx_unsort)
-
-        words_output = words_output.index_select(1, idx_unsort)
-
-        # Max Pooling
-        embeds = torch.max(words_output, 0)[0]
-        if embeds.ndimension() == 3:
-            embeds = embeds.squeeze(0)
-            assert embeds.ndimension() == 2
-
-        # print(embeds)
-
-        return embeds
-
-    def get_layer_groups(self):
-        return [(self.embedding, self.dropout), self.rnn]
-
-
-class ConvNetWordEncoder(nn.Module):
-
-    def __init__(self,
-                 hidden_dim=None,
-                 letters_dim=None,
-                 num_filters=None,
-                 dropout_keep_prob=0.5,
-                 is_cuda=None):
-        super(ConvNetWordEncoder, self).__init__()
-
-        # https://arxiv.org/pdf/1603.01354.pdf
-        self.hidden_dim = hidden_dim or EMBEDDING_DIM
-        self.letters_dim = letters_dim or n_letters
-        self.num_filters = num_filters or 30
-        self.dropout_keep_prob = dropout_keep_prob
-        self.embedding = nn.Embedding(n_letters, self.hidden_dim)
-        self.is_cuda = is_cuda or torch.cuda.is_available()
-
-        self.convs = []
-        for _ in range(self.num_filters):
-            self.convs.append(
-                nn.Sequential(
-                    nn.Conv1d(self.hidden_dim, self.hidden_dim // self.num_filters,
-                              kernel_size=3, stride=1, padding=1),
-                    nn.ReLU(inplace=True),
-                    nn.Dropout(1 - self.dropout_keep_prob)
-                )
-            )
-
-    def forward(self, sentence):
-        words_batch, _ = _process_sentence(sentence)
-
-        if self.is_cuda:
-            words_batch = words_batch.cuda()
-
-        words_batch = self.embedding(words_batch)
-        words_batch = words_batch.transpose(0, 1).transpose(1, 2).contiguous()
-
-        convs_batch = []
-        for conv in self.convs:
-            conv_batch = conv(words_batch)
-            convs_batch.append(torch.max(conv_batch, 2)[0])
-
-        embeds = torch.cat(convs_batch, 1)
-
-        return embeds
-
-    def get_layer_groups(self):
-        return [(self.embedding, self.dropout), *zip(self.convs)]
-
-
-class BiLSTM_CRF(nn.Module):
-
-    def __init__(self,
-                 tag_to_ix,
-                 embedding_dim=None,
-                 char_embedding_dim=None,
-                 hidden_dim=None,
-                 num_layers=None,
-                 dropout_keep_prob=0.8,
-                 is_cuda=None):
-        super(BiLSTM_CRF, self).__init__()
-        self.embedding_dim = embedding_dim or EMBEDDING_DIM
-        self.char_embedding_dim = char_embedding_dim or CHAR_EMBEDDING_DIM
-        self.hidden_dim = hidden_dim or HIDDEN_DIM
-        self.tag_to_ix = tag_to_ix
-        self.num_layers = num_layers or NUM_LAYERS
-        self.dropout_keep_prob = dropout_keep_prob
-        self.tagset_size = len(tag_to_ix)
-        self.is_cuda = is_cuda or torch.cuda.is_available()
-
-        self.word_encoder = BLSTMWordEncoder(self.char_embedding_dim)
-
-        if self.is_cuda:
-            self.word_encoder = self.word_encoder.cuda()
-
-        self.dropout = nn.Dropout(1 - self.dropout_keep_prob)
+        self.word_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
+        self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
-                            self.hidden_dim // 2,
+                            self.hidden_size // 2,
                             num_layers=self.num_layers,
                             bidirectional=True)
+        self.dropout = nn.Dropout(self.h_dropout_prob)
 
         # Maps the output of the LSTM into tag space.
-        self.hidden2tag = nn.Linear(self.hidden_dim, self.tagset_size)
+        self.hidden2tag = nn.Linear(self.hidden_size, self.tagset_size)
 
         # Matrix of transition parameters.  Entry i,j is the score of
         # transitioning *to* i *from* j.
         self.transitions = torch.randn(self.tagset_size, self.tagset_size)
+        torch.nn.init.xavier_normal_(self.transitions)
 
         # These two statements enforce the constraint that we never transfer
         # to the start tag and we never transfer from the stop tag
-        self.transitions[tag_to_ix[START_TAG], :] = -10000
-        self.transitions[:, tag_to_ix[STOP_TAG]] = -10000
+        self.transitions[self.tag_to_ix[START_TAG], :] = -10000
+        self.transitions[:, self.tag_to_ix[STOP_TAG]] = -10000
 
-        if self.is_cuda:
-            self.transitions = self.transitions.cuda()
+        self.transitions = to_gpu(self.transitions)
 
         self.transitions = nn.Parameter(self.transitions)
 
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
-        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
+        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
+        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
 
-        if self.is_cuda:
-            hidden_0 = hidden_0.cuda()
-            hidden_1 = hidden_1.cuda()
-
-        return hidden_0, hidden_1
-
-    def freeze_to(self, n):
-        c = self.get_layer_groups()
-        for l in c:
-            set_trainable(l, False)
-        for l in c[n:]:
-            set_trainable(l, True)
-
-    def freeze_all_but(self, n):
-        c = self.get_layer_groups()
-        for l in c:
-            set_trainable(l, False)
-        set_trainable(c[n], True)
-
-    def unfreeze(self): self.freeze_to(0)
-
-    def freeze(self):
-        c = self.get_layer_groups()
-        for l in c:
-            set_trainable(l, False)
-
-    def layers_count(self):
-        return len(self.get_layer_groups())
-
-    def get_layer_groups(self):
-        return [
-            *zip(self.word_encoder.get_layer_groups()),
-            self.lstm,
-            self.hidden2tag
-        ]
+        return to_gpu(hidden_0), to_gpu(hidden_1)
 
     def _forward_alg(self, feats):
         # Do the forward algorithm to compute the partition function
@@ -249,7 +66,7 @@ class BiLSTM_CRF(nn.Module):
         init_alphas[0][self.tag_to_ix[START_TAG]] = 0.
 
         # Wrap in a variable so that we will get automatic backprop
-        forward_var = init_alphas.cuda() if self.is_cuda else init_alphas
+        forward_var = to_gpu(init_alphas)
 
         # Iterate through the sentence
         for feat in feats:
@@ -265,23 +82,18 @@ class BiLSTM_CRF(nn.Module):
 
     def _get_lstm_features(self, sentence):
         self.hidden = self.init_hidden()
-        seq_len = len(sentence)
-
-        embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
-        lstm_out, self.hidden = self.lstm(embeds, self.hidden)
-        lstm_out = lstm_out.view(seq_len, self.hidden_dim)
+        seq_len = sentence.size(0)
+        # embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
+        lstm_out, self.hidden = self.lstm(sentence, self.hidden)
+        lstm_out = lstm_out.view(seq_len, self.hidden_size)
         lstm_feats = self.hidden2tag(lstm_out)
 
         return lstm_feats
 
     def _score_sentence(self, feats, tags):
         # Gives the score of a provided tag sequence
-        score = torch.Tensor([0])
-        tags = torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags])
-
-        if self.is_cuda:
-            score = score.cuda()
-            tags = tags.cuda()
+        score = to_gpu(torch.Tensor([0]))
+        tags = to_gpu(torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags]))
 
         for i, feat in enumerate(feats):
             # print((len(feats), len(self.transitions), len(tags)))
@@ -298,7 +110,7 @@ class BiLSTM_CRF(nn.Module):
         init_vvars[0][self.tag_to_ix[START_TAG]] = 0
 
         # forward_var at step i holds the viterbi variables for step i-1
-        forward_var = init_vvars.cuda() if self.is_cuda else init_vvars
+        forward_var = to_gpu(init_vvars)
 
         for feat in feats:
             next_tag_var = forward_var.view(1, -1).expand(self.tagset_size, self.tagset_size) + self.transitions
@@ -308,8 +120,7 @@ class BiLSTM_CRF(nn.Module):
             viterbivars_t = next_tag_var[range(len(bptrs_t)), bptrs_t]
             viterbivars_t = torch.FloatTensor(viterbivars_t)
 
-            if self.is_cuda:
-                viterbivars_t = viterbivars_t.cuda()
+            viterbivars_t = to_gpu(viterbivars_t)
 
             forward_var = viterbivars_t + feat
             backpointers.append(bptrs_t)
@@ -332,32 +143,28 @@ class BiLSTM_CRF(nn.Module):
         assert start == self.tag_to_ix[START_TAG]  # Sanity check
         best_path.reverse()
         return path_score, best_path
-
+    
     def neg_log_likelihood(self, sentence, tags):
-        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
-
-        if self.is_cuda:
-            word_embeds = word_embeds.cuda()
+        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = self.emb_dropout(word_embeds)
 
         char_embeds = self.word_encoder(sentence)
 
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
         gold_score = self._score_sentence(feats, tags)
-        return forward_score - gold_score
+        return feats, forward_score - gold_score
 
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
-        word_embeds = prepare_vec_sequence(sentence, word_to_vec, output='variable')
-
-        if self.is_cuda:
-            word_embeds = word_embeds.cuda()
-
+        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = self.emb_dropout(word_embeds)
+        
         char_embeds = self.word_encoder(sentence)
 
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)
@@ -365,3 +172,48 @@ class BiLSTM_CRF(nn.Module):
         # Find the best path, given the features.
         score, tag_seq = self._viterbi_decode(lstm_feats)
         return score, tag_seq
+
+
+class SequenceTaggerWrapper(IModel):
+
+    def __init__(self, config):
+        super(SequenceTaggerWrapper, self).__init__(
+            model_class=SequenceTagger,
+            config=config
+        )
+        self.tokenizer = wordpunct_space_tokenize
+        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+
+    def get_state_dict(self):
+        return {
+            'config': self.model.config,
+            'state_dict': self.model.state_dict(),
+        }
+
+    def load_state_dict(self, state_dict):
+        config = state_dict['config']
+
+        # re-initialize model with loaded config
+        self.model = self._model_class(config)
+        self.model.load_state_dict(state_dict['state_dict'])
+        self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+
+    def preprocess_dataset_X(self, X):
+        return [self.tokenizer(sent) for sent in X]
+
+    def preprocess_dataset_y(self, y):
+        return [
+            torch.LongTensor([self.tag_to_ix[tag] for tag in sent.split()])
+            for sent in y
+        ]
+
+    def get_layer_groups(self):
+        model = self.model
+        return [
+            (*zip(model.word_encoder.get_layer_groups()), model.emb_dropout),
+            model.lstm,
+            model.hidden2tag
+        ]
+
+    def infer_predict(self):
+        

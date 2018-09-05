@@ -5,9 +5,13 @@ CACHE_DATA = False
 BASE_PATH = path.dirname(__file__)
 
 GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
-MAGNITUDE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
+MAGNITUDE_PATH = {
+    'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
+}
+
+VN_TREEBANK_PATH = path.join(BASE_PATH, 'data/vn_treebank')
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')
 # SKIP_FIRST_LINE = False # FastText format has n_words, n_dims as first line
 
@@ -19,8 +23,8 @@ WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
 SENTENCE_DIM = 50
 # NGRAM_BINS = 2000000 # https://github.com/facebookresearch/fastText/blob/master/python/fastText/FastText.py
-NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m
-# 2097152
+# NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m == 2097152
+NGRAM_BINS = 2 ** 16 # == 65536
 
 BATCH_SIZE = 32
 
@@ -31,6 +35,7 @@ FILTER_SIZES = [7, 8, 9]
 # BiLSTM-CRF configs
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
+UNK_TAG = "<UNK>"
 EMBEDDING_DIM = 300
 CHAR_EMBEDDING_DIM = 50
 HIDDEN_DIM = 200

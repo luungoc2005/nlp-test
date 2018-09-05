@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from os import path
 from config import SNLI_PATH, MultiNLI_PATH, BASE_PATH
-from sent_to_vec.model import NLINet, BiLSTMEncoder, ConvNetEncoder, QRNNEncoder, QRNNEncoderConcat, process_batch, process_input
+from sent_to_vec.model import NLINet, BiLSTMEncoder, ConvNetEncoder, QRNNEncoder, QRNNEncoderConcat
 from common.utils import get_datetime_hostname, asMinutes
 from common.torch_utils import lr_schedule_slanted_triangular
 
@@ -84,13 +84,11 @@ def trainIters(n_iters=10,
     # encoder = ConvNetEncoder()
     nli_net = NLINet(encoder=encoder, bidirectional_encoder=False)
 
-    criterion = nn.CrossEntropyLoss()
-    criterion.size_average = False
+    criterion = nn.CrossEntropyLoss(reduction='sum')
 
     # optimizer = optim.Adam(nli_net.parameters(), lr=lr)
     # optimizer = optim.RMSprop(nli_net.parameters())
     optimizer = optim.SGD(nli_net.parameters(), lr=lr, weight_decay=lr_decay)
-    epoch_start = 1
 
     # scheduler = optim.lr_scheduler.LambdaLR(
     #     optimizer,
@@ -116,8 +114,8 @@ def trainIters(n_iters=10,
     target = np.array(target + m_target)
 
     print('Preprocessing inputs (%s sentence pairs)' % len(s1))
-    s1 = process_input(s1)
-    s2 = process_input(s2)
+    s1 = nli_net.process_input(s1)
+    s2 = nli_net.process_input(s2)
     print('Preprocessing completed')
     # permutation = np.random.permutation(len(s1))
     # s1 = s1[permutation]
@@ -146,6 +144,7 @@ def trainIters(n_iters=10,
     train_best_acc = 0
 
     for epoch in range(epoch_start, n_iters + 1):
+        nli_net.train()
 
         correct = 0.
         losses = []
@@ -153,8 +152,8 @@ def trainIters(n_iters=10,
         total_steps = len(s1) / batch_size
 
         for start_idx in range(checkpoint_start, len(s1), batch_size):
-            s1_batch, s1_len = process_batch(s1[start_idx:start_idx + batch_size])
-            s2_batch, s2_len = process_batch(s2[start_idx:start_idx + batch_size])
+            s1_batch, s1_len = nli_net.process_batch(s1[start_idx:start_idx + batch_size])
+            s2_batch, s2_len = nli_net.process_batch(s2[start_idx:start_idx + batch_size])
             target_batch = torch.LongTensor(target[start_idx:start_idx + batch_size])
 
             s1_batch, s2_batch, target_batch = Variable(s1_batch), Variable(s2_batch), Variable(target_batch)
