@@ -3,10 +3,11 @@ import numpy as np
 
 
 def to_long_tensor(tensor):
-    if tensor.dtype == torch.float32 or tensor.dtype == torch.float64:
+    if tensor.ndimension() == 2 and \
+        (tensor.dtype == torch.float32 or tensor.dtype == torch.float64):
         return torch.max(tensor, dim=1)[1]
     else:
-        return tensor
+        return tensor.long()
 
 def to_long_np(np_array):
     if np_array.dtype == np.float32 or np_array.dtype == np.float64:

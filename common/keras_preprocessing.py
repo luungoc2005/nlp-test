@@ -209,6 +209,7 @@ class Tokenizer(object):
         sorted_voc = [wc[0] for wc in wcounts]
         # note that index 0 is reserved, never assigned to an existing word
         self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
+        self.ix_to_word = {v: k for k, v in self.word_index.items()}
 
         if self.oov_token is not None:
             i = self.word_index.get(self.oov_token)
@@ -299,6 +300,15 @@ class Tokenizer(object):
         """
         sequences = self.texts_to_sequences(texts)
         return self.sequences_to_matrix(sequences, mode=mode)
+
+    def sequences_to_texts(self, sequences):
+        ret_val = []
+        for i, seq in enumerate(sequences):
+            if not seq:
+                continue
+            texts = [self.ix_to_word[token] for token in seq if token < self.num_words]
+            ret_val.append(texts)
+        return ret_val
 
     def sequences_to_matrix(self, sequences, mode='binary'):
         """Converts a list of sequences into a Numpy matrix.

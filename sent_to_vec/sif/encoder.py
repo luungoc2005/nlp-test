@@ -4,17 +4,16 @@ import numpy as np
 from sklearn.decomposition import TruncatedSVD
 from config import EMBEDDING_DIM
 
-def get_weighted_average(We, x, w):
+def get_weighted_average(We, w):
     """
     Compute the weighted average vectors
     :param We: We[i,:] is the vectors for sequence i
-    :param x: x[i, :] are the indices of the words in sentence i
     :param w: w[i, :] are the weights for the words in sentence i
     :return: emb[i, :] are the weighted average vector for sentence i
     """
-    n_samples = x.shape[0]
+    n_samples = len(We)
     emb = np.zeros((n_samples, EMBEDDING_DIM))
-    for i in xrange(n_samples):
+    for i in range(n_samples):
         emb[i,:] = w[i,:].dot(We[i]) / np.count_nonzero(w[i,:])
     return emb
 
@@ -44,16 +43,15 @@ def remove_pc(X, npc=1):
     return XX
 
 
-def SIF_embedding(We, x, w, rmpc=1):
+def SIF_embedding(We, w, rmpc=1):
     """
     Compute the scores between pairs of sentences using weighted average + removing the projection on the first principal component
-    :param We: We[i,:] is the vector for word i
-    :param x: x[i, :] are the indices of the words in the i-th sentence
+    :param We: We[i,:] is the vectors for sequence i
     :param w: w[i, :] are the weights for the words in the i-th sentence
     :param params.rmpc: if >0, remove the projections of the sentence embeddings to their first principal component
     :return: emb, emb[i, :] is the embedding for sentence i
     """
-    emb = get_weighted_average(We, x, w)
+    emb = get_weighted_average(We, w)
     if rmpc > 0:
         emb = remove_pc(emb, rmpc)
     return emb

@@ -50,7 +50,8 @@ class FastTextLearner(ILearner):
 
         # self.criterion = nn.MultiLabelSoftMarginLoss(weight=class_weights, reduction='sum')
         # self.criterion = nn.NLLLoss(weight=class_weights, reduction='sum')
-        self.criterion = nn.CrossEntropyLoss(weight=self.class_weights, reduction='sum')
+        # self.criterion = nn.NLLLoss(weight=self.class_weights, reduction='sum')
+        self.criterion = nn.CrossEntropyLoss(weight=self.class_weights)
 
     def on_epoch(self, X, y):
         logits = self.model_wrapper.model(X)

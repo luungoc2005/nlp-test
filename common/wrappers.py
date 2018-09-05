@@ -1,18 +1,20 @@
 import torch
 import torch.optim as optim
 import torch.multiprocessing as mp
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu
 
 class IModel(object):
 
-    def __init__(self, model_class=None, from_fp=None, *args, **kwargs):
+    def __init__(self, model_class=None, from_fp=None, predict_fn=None, *args, **kwargs):
         self._model_class = model_class
         self._from_fp = from_fp
         self._args = args
         self._kwargs = kwargs
         self._criterion = None
         self._model = None
+        self._predict_fn = predict_fn
 
     def init_model(self):
         if self._from_fp is None:
@@ -44,14 +46,24 @@ class IModel(object):
 
     def infer_predict(self, logits): return logits
 
+    def is_pytorch_module(self): return self._model is not None and isinstance(self._model, nn.Module)
+
     def predict(self, X):
-        self._model.eval()
+        if self._model is None: return
+        is_pytorch = self.is_pytorch_module()
+
+        if is_pytorch:
+            self._model.eval()
 
         with torch.no_grad():
             X = self.preprocess_input(X)
-            logits = self._model(X)
+            if self._predict_fn is None:
+                logits = self._model(X)
+            else:
+                logits = self._predict_fn(X)
         
-        self._model.train()
+        if is_pytorch:
+            self._model.train()
         
         return self.infer_predict(logits)
     
@@ -125,7 +137,9 @@ class ILearner(object):
         val_data=None, 
         optimizer_fn='adam', 
         optimizer_kwargs={},
-        auto_optimize=True):
+        auto_optimize=True,
+        preprocess_batch=False,
+        uneven_batch_size=False):
         """
         data: Dataset or tuple (X_train, y_train)
         """
@@ -138,23 +152,30 @@ class ILearner(object):
         self._current_epoch = 0
         self._batch_idx = 0
         self._auto_optimize = auto_optimize
+        self._preprocess_batch = preprocess_batch
+        self._uneven_batch_size = uneven_batch_size
+        self._halt = False # prematurely halt training
 
         if data is not None:
             self.set_training_data(data)
     
-        if callable(optimizer_fn):
-            self._optimizer_fn = optimizer_fn
-        elif isinstance(optimizer_fn, str):
-            if optimizer_fn == 'adam':
-                self._optimizer_fn = optim.Adam
-            elif optimizer_fn == 'rmsprop':
-                self._optimizer_fn = optim.RMSprop
-            elif optimizer_fn == 'sgd':
-                self._optimizer_fn = optim.SGD
+        if optimizer_fn is not None:
+            if callable(optimizer_fn):
+                self._optimizer_fn = optimizer_fn
+            elif isinstance(optimizer_fn, str):
+                if optimizer_fn == 'adam':
+                    self._optimizer_fn = optim.Adam
+                elif optimizer_fn == 'rmsprop':
+                    self._optimizer_fn = optim.RMSprop
+                elif optimizer_fn == 'sgd':
+                    self._optimizer_fn = optim.SGD
+                else:
+                    raise ValueError('Unsupported optimizer name')
             else:
-                raise ValueError('Unsupported optimizer name')
+                raise ValueError('Unsupported optimizer type')
         else:
-            raise ValueError('Unsupported optimizer type')
+            assert self._auto_optimize == False, 'Cannot auto-optimize with None type optimizer function'
+            self._optimizer_fn = None
 
     def init_on_dataset(self, dataset): pass
 
@@ -165,6 +186,11 @@ class ILearner(object):
     """
     
     def on_training_start(self): pass
+
+    """
+    Triggered after model is initialized
+    """
+    def on_model_init(self): pass
     
     def on_training_end(self): pass
 
@@ -187,7 +213,16 @@ class ILearner(object):
     @optimizer.setter
     def optimizer(self, value): self._optimizer = value
 
+    def _convert_to_tuple(self, data):
+        assert isinstance(data, list) and len(data) > 0 and isinstance(data[0], tuple)
+        X = [item_X for item_X, _ in data]
+        y = [item_y for _, item_y in data]
+        return X, y
+
     def set_training_data(self, data):
+        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], tuple):
+            data = self._convert_to_tuple(data)
+
         assert isinstance(data, tuple) or isinstance(data, Dataset), \
             'data must be either in DataLoader or List format'
 
@@ -204,12 +239,13 @@ class ILearner(object):
     def fit(self,
         training_data=None,
         validation_data=None,
-        epochs=50, 
+        epochs=1, 
         epoch_start=0, 
-        batch_size=64, shuffle=True,
+        batch_size=64, 
+        shuffle=True,
         callbacks=[]):
 
-        if self.model_wrapper.model is None: self.model_wrapper.init_model()
+        if self._uneven_batch_size: batch_size = 1
 
         if training_data is not None: self.set_training_data(training_data)
         if validation_data is not None: self.set_validation_data(validation_data)
@@ -233,10 +269,17 @@ class ILearner(object):
             # Preprocess all batches of data (adding n-grams etc.)
             # If data should be lazily processed, use the Dataset class instead.
 
-            X = self.model_wrapper.preprocess_input(X)
-            y = self.model_wrapper.preprocess_output(y)
+            if self._preprocess_batch:
+                dataset = BatchPreprocessedDataset(X, y,
+                    input_process_fn=self.model_wrapper.preprocess_input,
+                    output_process_fn=self.model_wrapper.preprocess_output,
+                    batch_size=batch_size)
+            else:
+                X = self.model_wrapper.preprocess_input(X)
+                y = self.model_wrapper.preprocess_output(y)
 
-            dataset = GenericDataset(X, y)
+                if not self._uneven_batch_size:
+                    dataset = GenericDataset(X, y)
         else:
             dataset = self._data
 
@@ -248,45 +291,63 @@ class ILearner(object):
 
         if self._verbose == 2:
             from tqdm import trange
-            iterator = trange(epoch_start, self._n_epochs + 1, desc='Epochs', leave=False)
+            iterator = trange(epoch_start, self._n_epochs, desc='Epochs', leave=False)
         else:
-            iterator = range(epoch_start, self._n_epochs + 1)
+            iterator = range(epoch_start, self._n_epochs)
         
         cpu_count = max(mp.cpu_count() - 1, 1)
 
-        data_loader = DataLoader(dataset, 
-            batch_size=batch_size, 
-            num_workers=cpu_count,
-            shuffle=shuffle
-        )
+        if batch_size is None:
+            batch_size = len(dataset)
 
-        if self.optimizer is None:
+        if not self._uneven_batch_size:
+            data_loader = DataLoader(dataset, 
+                batch_size=batch_size, 
+                num_workers=cpu_count,
+                shuffle=shuffle
+            )
+        else:
+            data_loader = [(X[idx], y[idx]) for idx in range(len(X))]
+
+        if self.model_wrapper.model is None: self.model_wrapper.init_model()
+        self.on_model_init()
+
+        # optimizer must be initialized after the model
+        if self.optimizer is None and self._auto_optimize:
             self.optimizer = self._optimizer_fn(
                 filter(lambda p: p.requires_grad, self._model_wrapper._model.parameters()),
                 **self._optimizer_kwargs
             )
 
-        if self.criterion is None:
+        if not hasattr(self, 'criterion'):
             raise ValueError('Criterion must be set for the Learner class before training')
 
         # Main training loop
         for epoch in iterator:
+            if self._halt: # For early stopping
+                self._halt = False
+                break
+            
             self._current_epoch = epoch
 
             for callback in self._callbacks: callback.on_epoch_start()
-
+            
             for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
+                if self._halt: # For early stopping / skipping batches
+                    self._halt = False
+                    break
+
                 self._metrics = None
                 self._batch_idx = batch_idx
 
                 for callback in self.callbacks: callback.on_batch_start()
-                
+
                 # auto_optimize: auto handling the optimizer
                 if self._auto_optimize: self.optimizer.zero_grad()
 
                 epoch_ret = self.on_epoch(X_batch, y_batch)
 
-                if 'logits' in epoch_ret:
+                if epoch_ret is not None and 'logits' in epoch_ret:
                     batch_metrics = self.calculate_metrics(epoch_ret['logits'], y_batch) or {}
                     
                     if 'loss' in epoch_ret:
@@ -306,6 +367,8 @@ class ILearner(object):
             for callback in self.callbacks: callback.on_epoch_end()
 
         for callback in self.callbacks: callback.on_training_end()
+
+        self.on_training_end()
 
     def set_verbosity_level(self, level):
         self._verbose = level
@@ -332,9 +395,6 @@ class GenericDataset(Dataset):
 
     def __init__(self, X, y):
         self.n_samples = len(X)
-
-        assert self.n_samples == len(y)
-
         self.samples = X
         self.labels = y
 
@@ -343,3 +403,47 @@ class GenericDataset(Dataset):
 
     def __getitem__(self, index):
         return self.samples[index], self.labels[index]
+
+class BatchPreprocessedDataset(Dataset):
+
+    def __init__(self, X, y, 
+        input_process_fn, 
+        output_process_fn, 
+        batch_size=64):
+        self.n_samples = len(X)
+
+        # preprocess batch
+        self._buffer_X = None
+        self._buffer_y = None
+
+        for start_idx in range(0, self.n_samples, batch_size):
+            batch_X = X[start_idx:start_idx + batch_size]
+            batch_y = y[start_idx:start_idx + batch_size]
+
+            batch_X = input_process_fn(batch_X)
+            batch_y = output_process_fn(batch_y)
+
+            if self._buffer_X is None:
+                # Create new buffers
+                if batch_X.ndimension() == 1:
+                    self._buffer_X = torch.zeros(self.n_samples)
+                else:
+                    self._buffer_X = torch.zeros(self.n_samples, *batch_X.size()[1:])
+                
+                if batch_y.ndimension() == 1:
+                    self._buffer_y = torch.zeros(self.n_samples)
+                else:
+                    self._buffer_y = torch.zeros(self.n_samples, *batch_y.size()[1:])
+
+                # Cast buffer dtype to the same as the first batch
+                self._buffer_X.type(batch_X.dtype)
+                self._buffer_y.type(batch_y.dtype)
+
+            self._buffer_X[start_idx:start_idx + batch_size] = batch_X
+            self._buffer_y[start_idx:start_idx + batch_size] = batch_y
+
+    def __len__(self):
+        return self.n_samples
+
+    def __getitem__(self, index):
+        return self._buffer_X[index], self._buffer_y[index]

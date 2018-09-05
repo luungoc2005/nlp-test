@@ -12,8 +12,8 @@ vectors = {
 def get_emb_matrix(lang='en'):
     return vectors[lang].get_vectors_mmap()[:MAX_NUM_WORDS]
 
-def get_word_vector(word, lang='en'):
-    return vectors[lang].query(word)
+def get_word_vector(word, lang='en', *args, **kwargs):
+    return vectors[lang].query(word, *args, **kwargs)
 
 def get_dim(lang='en'):
     return vectors[lang].dim

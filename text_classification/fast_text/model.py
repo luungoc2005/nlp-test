@@ -97,6 +97,12 @@ class FastTextWrapper(IModel):
 
         self.token_indice = state_dict['token_indice']
         self.indice_token = state_dict['indice_token']
+        
+        self._ngrams = config.get('ngrams', 2)
+        self._max_features = config.get('num_words', MAX_NUM_WORDS)
+        self.num_words = config.get('num_words', MAX_NUM_WORDS)
+        self.num_classes = config.get('num_classes', 10)
+        self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
 
     def add_ngram(self, sequences, token_indice, ngram_range=2):
         """

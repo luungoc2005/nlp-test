@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import warnings
 from common.wrappers import IModel
-from common.utils import pad_sequences, prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec
+from common.utils import prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, log_sum_exp, argmax
 from common.torch_utils import to_gpu
 from common.keras_preprocessing import Tokenizer
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, START_TAG, STOP_TAG
@@ -18,23 +18,24 @@ class SequenceTagger(nn.Module):
 
         self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
-        self.emb_dropout_prob = config.get('emb_dropout_prob', .2)
+        self.emb_dropout_prob = config.get('emb_dropout_prob', 0)
         self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
         self.num_layers = config.get('num_layers', NUM_LAYERS)
-        self.h_dropout_prob = config.get('h_dropout_prob', 0.)
+        self.h_dropout_prob = config.get('h_dropout_prob', 0)
 
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
         self.tagset_size = len(self.tag_to_ix)
 
         self.word_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
-        self.emb_dropout = nn.Dropout(emb_dropout_prob)
+        self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
         self.lstm = nn.LSTM(self.embedding_dim + self.char_embedding_dim,
-                            self.hidden_dim // 2,
+                            self.hidden_size // 2,
                             num_layers=self.num_layers,
                             bidirectional=True)
+        self.dropout = nn.Dropout(self.h_dropout_prob)
 
         # Maps the output of the LSTM into tag space.
-        self.hidden2tag = nn.Linear(self.hidden_dim, self.tagset_size)
+        self.hidden2tag = nn.Linear(self.hidden_size, self.tagset_size)
 
         # Matrix of transition parameters.  Entry i,j is the score of
         # transitioning *to* i *from* j.
@@ -43,8 +44,8 @@ class SequenceTagger(nn.Module):
 
         # These two statements enforce the constraint that we never transfer
         # to the start tag and we never transfer from the stop tag
-        self.transitions[tag_to_ix[START_TAG], :] = -10000
-        self.transitions[:, tag_to_ix[STOP_TAG]] = -10000
+        self.transitions[self.tag_to_ix[START_TAG], :] = -10000
+        self.transitions[:, self.tag_to_ix[STOP_TAG]] = -10000
 
         self.transitions = to_gpu(self.transitions)
 
@@ -53,8 +54,8 @@ class SequenceTagger(nn.Module):
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
-        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_dim // 2)
+        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
+        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
 
         return to_gpu(hidden_0), to_gpu(hidden_1)
 
@@ -83,9 +84,8 @@ class SequenceTagger(nn.Module):
         self.hidden = self.init_hidden()
         seq_len = sentence.size(0)
         # embeds = sentence.view(seq_len, 1, -1)  # [seq_len, batch_size, features]
-        sentence = self.emb_dropout(sentence)
         lstm_out, self.hidden = self.lstm(sentence, self.hidden)
-        lstm_out = lstm_out.view(seq_len, self.hidden_dim)
+        lstm_out = lstm_out.view(seq_len, self.hidden_size)
         lstm_feats = self.hidden2tag(lstm_out)
 
         return lstm_feats
@@ -146,10 +146,11 @@ class SequenceTagger(nn.Module):
     
     def neg_log_likelihood(self, sentence, tags):
         word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = self.emb_dropout(word_embeds)
 
-        char_embeds = self.word_encoder(sentence).unsqueeze(1)
+        char_embeds = self.word_encoder(sentence)
 
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
@@ -159,10 +160,11 @@ class SequenceTagger(nn.Module):
 
     def forward(self, sentence):  # dont confuse this with _forward_alg above.
         word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+        word_embeds = self.emb_dropout(word_embeds)
+        
+        char_embeds = self.word_encoder(sentence)
 
-        char_embeds = self.word_encoder(sentence).unsqueeze(1)
-
-        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1)
+        sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
 
         # Get the emission scores from the BiLSTM
         lstm_feats = self._get_lstm_features(sentence_in)
@@ -196,11 +198,14 @@ class SequenceTaggerWrapper(IModel):
         self.model.load_state_dict(state_dict['state_dict'])
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
 
-    def preprocess_input(self, X):
-        return self.tokenizer(X[0])
-    
-    def preprocess_output(self, y):
-        return torch.LongTensor([self.tag_to_ix[tag] for tag in y[0].split()])
+    def preprocess_dataset_X(self, X):
+        return [self.tokenizer(sent) for sent in X]
+
+    def preprocess_dataset_y(self, y):
+        return [
+            torch.LongTensor([self.tag_to_ix[tag] for tag in sent.split()])
+            for sent in y
+        ]
 
     def get_layer_groups(self):
         model = self.model
@@ -209,3 +214,6 @@ class SequenceTaggerWrapper(IModel):
             model.lstm,
             model.hidden2tag
         ]
+
+    def infer_predict(self):
+        

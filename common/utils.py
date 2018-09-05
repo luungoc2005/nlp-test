@@ -125,9 +125,9 @@ def log_sum_exp(vec):
 # fastText_model = None
 
 
-def word_to_vec(word):
+def word_to_vec(word, *args, **kwargs):
     # global fastText_model
-    word_vector = get_word_vector(word)
+    word_vector = get_word_vector(word, *args, **kwargs)
     if word_vector is None:
         return np.zeros(EMBEDDING_DIM)  # return all <UNK> as zeros
 
