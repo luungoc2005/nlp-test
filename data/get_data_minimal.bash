@@ -9,7 +9,7 @@ if [ "$OSTYPE" == "darwin"* ]; then
    ZIPTOOL="7za x"
 fi
 
-if [ ! -f ./fasttext/crawl-300d-2M.vec ] || [ ! -f ./fasttext/crawl-300d-2M.magnitude ]; then
+if [ ! -f ./fasttext/crawl-300d-2M.vec ] && [ ! -f ./fasttext/crawl-300d-2M.magnitude ]; then
     echo ${fasttext}
     mkdir fasttext
     curl -LO ${fasttext}
