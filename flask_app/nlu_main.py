@@ -1,4 +1,5 @@
 import json
+import torch
 from os import path
 from text_classification.ensemble.model import EnsembleWrapper
 from text_classification.ensemble.train import EnsembleLearner
@@ -12,39 +13,28 @@ ENT_MODEL = dict()
 
 def nlu_init_model(model_id, filename, ent_file_name):
     global CLF_MODEL, ENT_MODEL
-
+    print('Loading models for id %s' % model_id)
     if model_id not in CLF_MODEL:
         if filename is not None and filename != '' and path.exists(filename):
             CLF_MODEL[model_id] = EnsembleWrapper(from_fp=filename)
+        
         if ent_file_name is not None and ent_file_name != '' and path.exists(ent_file_name):
             ENT_MODEL[model_id] = SequenceTaggerWrapper(from_fp=ent_file_name)
 
 def nlu_predict(model_id, query):
-    cls_probs, cls_idxs = clf_predict(CLF_MODEL[model_id], [query], k=5)[0]
-    cls_probs = cls_probs.squeeze(0)
-    cls_idxs = cls_idxs.squeeze(0)
     intents_result = {
-        "intents": [
-            {
-                "intent": CLF_CLASSES[cls.item()],
-                "confidence": cls_probs[idx].item()
-            }
-            for idx, cls in enumerate(cls_idxs)
-        ]
+        "intents": CLF_MODEL[model_id]([query])[0]
     }
 
     entities_result = {}
     if ENT_MODEL.get(model_id, None) is not None and ENT_TAG_TO_IX.get(model_id, None) is not None:
-        entities = ent_predict(ENT_MODEL[model_id], [query], ENT_TAG_TO_IX)
-        entities_result = {"entities": entities[0]}
+        entities_result = {"entities": ENT_MODEL[model_id]([query])[0]}
 
     result = {**intents_result, **entities_result}
     return result
 
 
 def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
-    global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
-
     data = json.load(open(save_path, 'r'))
     print('Loaded %s intents' % len(data))
 
@@ -61,13 +51,12 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     for intent in data:
         examples = intent['examples']
         if intent['name'] in classes:
-            cls = classes.index(intent['name'])
             if len(examples) > 0:
                 for example in examples:
                     if example['entities']:
                         text = ''.join([entity['text'] for entity in example['entities']])
                         example_tags = []
-                        training_data.append((text, cls))
+                        training_data.append((text, intent['name']))
 
                         entities = [
                             entity for entity in example['entities']
@@ -95,15 +84,14 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     ent_model_path = ent_model_path or ''
 
     print('Training classification model')
-    CLF_MODEL[model_id] = clf_trainIters(training_data,
-                                         classes,
-                                         n_iters=50,
-                                         log_every=10,
-                                         verbose=1,
-                                         learning_rate=1e-3,
-                                         batch_size=64,
-                                         save_path=clf_model_path)
-    CLF_CLASSES[model_id] = classes
+
+    CLF_MODEL[model_id] = EnsembleWrapper()
+    clf_learner = EnsembleLearner(CLF_MODEL[model_id])
+    clf_learner.fit(
+        training_data=training_data,
+        batch_size=64
+    )
+    torch.save(CLF_MODEL[model_id].get_state_dict(), save_path)
 
     if num_entities > 0:
         tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
@@ -112,13 +100,14 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
         ent_model_path = ent_model_path or save_path+'.ent.bin'
 
         print('Training entities recognition model')
-        ENT_MODEL[model_id] = ent_trainIters(entities_data,
-                                             tag_to_ix,
-                                             n_iters=50,
-                                             log_every=10,
-                                             verbose=1,
-                                             save_path=ent_model_path)
-        ENT_TAG_TO_IX[model_id] = tag_to_ix
+        ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
+        ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])
+        learner.fit(
+            training_data=entities_data,
+            epochs=300,
+            callbacks=[EarlyStoppingCallback()]
+        )
+        torch.save(ENT_MODEL[model_id].get_state_dict(), save_path)
 
     return clf_model_path, ent_model_path
 

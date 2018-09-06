@@ -12,7 +12,7 @@ from common.modules import BRNNWordEncoder
 
 class SequenceTagger(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config={}):
         super(SequenceTagger, self).__init__()
         self.config = config
 
@@ -180,10 +180,11 @@ class SequenceTagger(nn.Module):
 
 class SequenceTaggerWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}, *args, **kwargs):
         super(SequenceTaggerWrapper, self).__init__(
             model_class=SequenceTagger,
-            config=config
+            config=config,
+            *args, **kwargs
         )
         self.tokenizer = wordpunct_space_tokenize
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
@@ -263,4 +264,4 @@ class SequenceTaggerWrapper(IModel):
                 else:
                     buffer.append(tokens_in[idx])
 
-        return entities
+        return [entities]

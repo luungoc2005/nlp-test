@@ -19,10 +19,12 @@ class EnsembleLearner(ILearner):
         tokens = [self.model_wrapper.tokenize_fn(sent) for sent in X]
         self.model_wrapper.tokenizer.fit_on_texts(tokens)
         self.n_samples = len(tokens)
-        self.n_classes = len(np.unique(y))
         self.train_X_buffer = np.zeros((self.n_samples, EMBEDDING_DIM))
         self.train_y_buffer = np.zeros((self.n_samples,))
         self.buffer_pointer = 0
+
+        self.model_wrapper.label_encoder.fit(y)
+        self.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
 
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
         # self.model_wrapper._kwargs['class_weight'] = self.class_weights

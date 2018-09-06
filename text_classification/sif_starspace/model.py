@@ -77,8 +77,8 @@ class CosineSimilarity(nn.Module):
 
 class StarSpaceClassifier(nn.Module):
 
-    def __init__(self, config):
-        super(StarSpaceClassifier, self).__init__()
+    def __init__(self, config={}, *args, **kwargs):
+        super(StarSpaceClassifier, self).__init__(*args, **kwargs)
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
         self.input_hidden_sizes = config.get('input_hidden_sizes', [256, 128])
@@ -155,7 +155,7 @@ class StarSpaceClassifier(nn.Module):
 
 class StarspaceClassifierWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}):
         super(StarspaceClassifierWrapper, self).__init__(
             model_class=StarSpaceClassifier, 
             config=config
