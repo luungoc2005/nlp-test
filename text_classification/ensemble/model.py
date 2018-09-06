@@ -4,9 +4,9 @@ from sent_to_vec.sif.encoder import SIF_embedding
 from common.utils import word_to_vec
 from config import MAX_NUM_WORDS
 from nltk.tokenize import wordpunct_tokenize
-from sklearn.svm import SVC
+# from sklearn.svm import SVC
 # from sklearn.linear_model import LogisticRegression
-# from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPClassifier
 # from sklearn.model_selection import GridSearchCV
 # import catboost as cb
 import numpy as np
@@ -24,14 +24,14 @@ class EnsembleWrapper(IModel):
             # verbose=1
             # LightGBM - requires no class
             # object
-            SVC,
-            kernel='linear',
-            class_weight='balanced',
-            probability=True
-            # MLPClassifier,
-            # hidden_layer_sizes=(100,),
-            # activation='identity',
-            # verbose=1
+            # SVC,
+            # kernel='linear',
+            # class_weight='balanced',
+            # probability=True
+            MLPClassifier,
+            hidden_layer_sizes=(100,),
+            activation='identity',
+            verbose=1
             # CatBoost
             # model_class=cb.CatBoostClassifier,
             # iterations=100,
@@ -58,16 +58,15 @@ class EnsembleWrapper(IModel):
     def get_state_dict(self):
         return {
             'tokenizer': self.tokenizer,
-            'config': self.model.config,
-            'state_dict': self.model.get_params(),
+            'state_dict': self.model,
         }
 
     def load_state_dict(self, state_dict):
         config = state_dict['config']
 
         # re-initialize model with loaded config
-        self.model = self.init_model()
-        self.model.set_params(state_dict['state_dict'])
+        # self.model = self.init_model()
+        self.model = state_dict['state_dict']
 
         # load tokenizer
         self.tokenizer = state_dict['tokenizer']

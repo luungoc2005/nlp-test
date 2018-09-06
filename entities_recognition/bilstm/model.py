@@ -18,10 +18,10 @@ class SequenceTagger(nn.Module):
 
         self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
-        self.emb_dropout_prob = config.get('emb_dropout_prob', 0)
+        self.emb_dropout_prob = config.get('emb_dropout_prob', .2)
         self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
         self.num_layers = config.get('num_layers', NUM_LAYERS)
-        self.h_dropout_prob = config.get('h_dropout_prob', 0)
+        self.h_dropout_prob = config.get('h_dropout_prob', .2)
 
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
         self.tagset_size = len(self.tag_to_ix)
@@ -144,25 +144,29 @@ class SequenceTagger(nn.Module):
         best_path.reverse()
         return path_score, best_path
     
-    def neg_log_likelihood(self, sentence, tags):
-        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+    def neg_log_likelihood(self, sent_batch, tags):
+        word_embeds = to_gpu(torch.FloatTensor(
+            [word_to_vec(w) for w in sent_batch[0]]
+        ))
         word_embeds = self.emb_dropout(word_embeds)
 
-        char_embeds = self.word_encoder(sentence)
+        char_embeds = self.word_encoder(sent_batch[0])
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
         sentence_in = self.dropout(sentence_in)
 
         feats = self._get_lstm_features(sentence_in)
         forward_score = self._forward_alg(feats)
-        gold_score = self._score_sentence(feats, tags)
+        gold_score = self._score_sentence(feats, tags[0])
         return feats, forward_score - gold_score
 
-    def forward(self, sentence):  # dont confuse this with _forward_alg above.
-        word_embeds = to_gpu(prepare_vec_sequence(sentence, word_to_vec, output='tensor'))
+    def forward(self, sent_batch):  # dont confuse this with _forward_alg above.
+        word_embeds = to_gpu(torch.FloatTensor(
+            [word_to_vec(w) for w in sent_batch[0]]
+        ))
         word_embeds = self.emb_dropout(word_embeds)
         
-        char_embeds = self.word_encoder(sentence)
+        char_embeds = self.word_encoder(sent_batch[0])
 
         sentence_in = torch.cat((word_embeds, char_embeds), dim=-1).unsqueeze(1)
 
@@ -171,7 +175,7 @@ class SequenceTagger(nn.Module):
 
         # Find the best path, given the features.
         score, tag_seq = self._viterbi_decode(lstm_feats)
-        return score, tag_seq
+        return score, tag_seq, sent_batch[0]
 
 
 class SequenceTaggerWrapper(IModel):
@@ -183,6 +187,9 @@ class SequenceTaggerWrapper(IModel):
         )
         self.tokenizer = wordpunct_space_tokenize
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+        
+        # Invert the tag dictionary
+        self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
 
     def get_state_dict(self):
         return {
@@ -197,15 +204,16 @@ class SequenceTaggerWrapper(IModel):
         self.model = self._model_class(config)
         self.model.load_state_dict(state_dict['state_dict'])
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
-
-    def preprocess_dataset_X(self, X):
-        return [self.tokenizer(sent) for sent in X]
+        self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
 
     def preprocess_dataset_y(self, y):
         return [
             torch.LongTensor([self.tag_to_ix[tag] for tag in sent.split()])
             for sent in y
         ]
+
+    def preprocess_input(self, X):
+        return [self.tokenizer(sent) for sent in X]
 
     def get_layer_groups(self):
         model = self.model
@@ -215,5 +223,44 @@ class SequenceTaggerWrapper(IModel):
             model.hidden2tag
         ]
 
-    def infer_predict(self):
-        
+    def infer_predict(self, logits, delimiter=''):
+        _, tag_seq, tokens_in = logits
+        tag_seq = [self.ix_to_tag[tag] for tag in tag_seq]
+
+        entities = {}
+        entity_name = ''
+        buffer = []
+
+        for idx, tag_name in enumerate(tag_seq):
+            if len(tag_name) > 2 and tag_name[:2] in ['B-', 'I-']:
+                new_entity_name = tag_name[2:]
+                if entity_name != '' and \
+                        (tag_name[:2] == 'B-' or entity_name != new_entity_name):
+                    # Flush the previous entity
+                    if entity_name not in entities:
+                        entities[entity_name] = []
+                        entities[entity_name].append(delimiter.join(buffer))
+                        buffer = []
+
+                entity_name = new_entity_name
+
+            # If idx is currently inside a tag
+            if entity_name != '':
+                # Going outside the tag
+                if idx == len(tag_seq) - 1 or \
+                        tag_name == '-' or \
+                        tag_name == 'O':
+
+                    # if end of tag sequence then append the final token
+                    if idx == len(tag_seq) - 1 and tag_name != '-':
+                        buffer.append(tokens_in[idx])
+
+                    if entity_name not in entities:
+                        entities[entity_name] = []
+                    entities[entity_name].append(delimiter.join(buffer))
+                    buffer = []
+                    entity_name = ''
+                else:
+                    buffer.append(tokens_in[idx])
+
+        return entities

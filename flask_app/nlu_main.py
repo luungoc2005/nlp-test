@@ -1,30 +1,23 @@
 import json
-from config import START_TAG, STOP_TAG
-from common.utils import wordpunct_space_tokenize
-# from glove_utils import init_glove
-from text_classification.fast_text.train import trainIters as clf_trainIters
-from text_classification.fast_text.predict import predict as clf_predict, load_model as clf_load_model
-from entities_recognition.bilstm.train import trainIters as ent_trainIters
-from entities_recognition.bilstm.predict import predict as ent_predict, load_model as ent_load_model
+from os import path
+from text_classification.ensemble.model import EnsembleWrapper
+from text_classification.ensemble.train import EnsembleLearner
+from entities_recognition.bilstm.model import SequenceTaggerWrapper
+from entities_recognition.bilstm.train import SequenceTaggerLearner
+from common.callbacks import EarlyStoppingCallback
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
-
-CLF_MODEL = {}
-CLF_CLASSES = {}
-ENT_MODEL = {}
-ENT_TAG_TO_IX = {}
-
-# init_glove()
-
+CLF_MODEL = dict()
+ENT_MODEL = dict()
 
 def nlu_init_model(model_id, filename, ent_file_name):
-    global CLF_MODEL, CLF_CLASSES, ENT_MODEL, ENT_TAG_TO_IX
+    global CLF_MODEL, ENT_MODEL
 
     if model_id not in CLF_MODEL:
-        CLF_MODEL[model_id], CLF_CLASSES[model_id] = clf_load_model(filename)
-        if ent_file_name is not None and ent_file_name != '':
-            ENT_MODEL[model_id], ENT_TAG_TO_IX[model_id] = ent_load_model(ent_file_name)
-
+        if filename is not None and filename != '' and path.exists(filename):
+            CLF_MODEL[model_id] = EnsembleWrapper(from_fp=filename)
+        if ent_file_name is not None and ent_file_name != '' and path.exists(ent_file_name):
+            ENT_MODEL[model_id] = SequenceTaggerWrapper(from_fp=ent_file_name)
 
 def nlu_predict(model_id, query):
     cls_probs, cls_idxs = clf_predict(CLF_MODEL[model_id], [query], k=5)[0]

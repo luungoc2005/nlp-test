@@ -8,7 +8,7 @@ RUN apt-get update
 RUN apt-get install -y build-essential curl unzip python3.6
 
 # Can put these inside requirements.txt but... for a minimal version
-RUN pip install nltk pytorch-cpu Flask pymagnitude
+RUN pip install nltk pytorch-cpu Flask pymagnitude scikit-learn
 
 COPY . /botbot_nlu
 WORKDIR /botbot_nlu

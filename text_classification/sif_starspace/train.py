@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import torch.nn as nn
-from text_classification.sif_starspace.model import MarginRankingLoss
 from common.torch_utils import to_gpu
 from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
@@ -24,10 +23,6 @@ class StarspaceClassifierLearner(ILearner):
         
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
 
-    def on_model_init(self):
-        self.criterion = MarginRankingLoss(margin=.1)
-        # self.criterion = nn.CosineEmbeddingLoss(margin=.1, reduction='sum')
-
     def on_epoch(self, X, y):
         model = self.model_wrapper.model
 
@@ -47,7 +42,6 @@ class StarspaceClassifierLearner(ILearner):
         similarity = model(X)
 
         loss = self.criterion(positive_similarity, negative_similarity)
-
         loss.backward()
 
         return {
