@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import warnings
+from sklearn.preprocessing import LabelEncoder
 from nltk.tokenize import wordpunct_tokenize
 from common.wrappers import IModel
 from common.utils import pad_sequences
@@ -12,7 +13,7 @@ from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 
 class FastText(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config={}):
         super(FastText, self).__init__()
         self.config = config
 
@@ -57,10 +58,11 @@ class FastText(nn.Module):
 
 class FastTextWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}, *args, **kwargs):
         super(FastTextWrapper, self).__init__(
             model_class=FastText, 
-            config=config
+            config=config, 
+            *args, **kwargs
         )
 
         self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
@@ -69,16 +71,19 @@ class FastTextWrapper(IModel):
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
         self.num_classes = config.get('num_classes', 10)
         self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
+        self.topk = config.get('top_k', 5)
         
         token_indice = config.get('token_indice', {})
         self.token_indice = token_indice
         self.indice_token = {token_indice[k]: k for k in token_indice}
 
         self.tokenize_fn = wordpunct_tokenize
+        self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
         return {
             'tokenizer': self.tokenizer,
+            'label_encoder': self.label_encoder,
             'config': self.model.config,
             'state_dict': self.model.state_dict(),
             'token_indice': self.token_indice,
@@ -91,9 +96,13 @@ class FastTextWrapper(IModel):
         # re-initialize model with loaded config
         self.model = self._model_class(config)
         self.model.load_state_dict(state_dict['state_dict'])
+        self.topk = config.get('top_k', 5)
 
         # load tokenizer
         self.tokenizer = state_dict['tokenizer']
+
+        # load label encoder
+        self.label_encoder = state_dict['label_encoder']
 
         self.token_indice = state_dict['token_indice']
         self.indice_token = state_dict['indice_token']
@@ -153,7 +162,8 @@ class FastTextWrapper(IModel):
         # lookup = np.eye(self.num_classes)
         # outputs = np.array([lookup[label] for label in y])
         # return to_gpu(torch.from_numpy(outputs).float())
-        return to_gpu(torch.from_numpy(y).long())
+
+        return torch.from_numpy(self.label_encoder.transform(y)).long()
 
     def get_layer_groups(self):
         model = self.model
@@ -162,3 +172,20 @@ class FastTextWrapper(IModel):
             (model.i2h, model.h_dropout),
             model.h2o
         ]
+    
+    def infer_predict(self, logits, topk=None):
+        topk = topk or self.topk
+        batch_size = logits.size(0)
+
+        top_probs, top_idxs = torch.topk(logits, topk)
+        top_idxs = top_idxs.numpy()
+        top_classes = [
+            self.label_encoder.inverse_transform(top_idxs[idx])
+            for idx in range(batch_size)
+        ]
+        return [
+            [{
+                'intent': top_classes[sent_idx][idx],
+                'confidence': top_probs[sent_idx][idx].item()
+            } for idx in range(topk)]
+            for sent_idx in range(batch_size)]

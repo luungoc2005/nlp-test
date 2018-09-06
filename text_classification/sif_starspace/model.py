@@ -11,7 +11,7 @@ import torch.nn as nn
 import numpy as np
 
 class MarginRankingLoss(nn.Module):
-    def __init__(self, margin=1., aggregate=torch.mean):
+    def __init__(self, margin=.8, aggregate=torch.sum):
         super(MarginRankingLoss, self).__init__()
         self.margin = margin
         self.aggregate = aggregate
@@ -77,23 +77,49 @@ class CosineSimilarity(nn.Module):
 
 class StarSpaceClassifier(nn.Module):
 
-    def __init__(self, config):
-        super(StarSpaceClassifier, self).__init__()
+    def __init__(self, config={}, *args, **kwargs):
+        super(StarSpaceClassifier, self).__init__(*args, **kwargs)
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
-        self.translate_sizes = config.get('translate_sizes', [256, 128])
-        self.hidden_size = config.get('hidden_size', 128)
+        self.input_hidden_sizes = config.get('input_hidden_sizes', [256, 128])
+        self.input_dropout_prob = config.get('input_dropout_prob', .2)
+        self.output_hidden_sizes = config.get('output_hidden_sizes', [])
+        self.output_dropout_prob = config.get('output_dropout_prob', .2)
         self.num_classes = config.get('num_classes', 10)
         self.max_norm = config.get('max_norm', 10)
 
-        input_emb_list = list()
-        input_emb_list.append(nn.Linear(EMBEDDING_DIM, self.translate_sizes[0]))
-        if len(self.translate_sizes) > 1:
-            for idx, layer_size in enumerate(self.translate_sizes[1:]):
-                input_emb_list.append(nn.Linear(self.translate_sizes[idx], layer_size))
+        if len(self.input_hidden_sizes) > 0:
+            input_emb_list = list()
+            input_emb_list.append(nn.Linear(EMBEDDING_DIM, self.input_hidden_sizes[0]))
+            if len(self.input_hidden_sizes) > 1:
+                for idx, layer_size in enumerate(self.input_hidden_sizes[1:]):
+                    input_emb_list.append(nn.Linear(self.input_hidden_sizes[idx], layer_size))
+                    input_emb_list.append(nn.ReLU())
+                    input_emb_list.append(nn.Dropout(self.input_dropout_prob))
 
-        self.input_emb = nn.Sequential(*input_emb_list)
-        self.output_emb = nn.Embedding(self.num_classes, self.hidden_size, max_norm=10.)
+            self.input_emb = nn.Sequential(*input_emb_list)
+        else:
+            self.input_emb = None
+
+        if len(self.output_hidden_sizes) > 0:
+            output_emb_list = list()
+            output_emb_list.append(nn.Embedding(
+                self.num_classes, 
+                self.output_hidden_sizes[0], 
+                max_norm=10.
+            ))
+            if len(self.output_hidden_sizes) > 1:
+                for idx, layer_size in enumerate(self.output_hidden_sizes[1:]):
+                    output_emb_list.append(nn.Linear(self.output_hidden_sizes[idx], layer_size))
+                    output_emb_list.append(nn.ReLU())
+                    output_emb_list.append(nn.Dropout(self.output_dropout_prob))
+            self.output_emb = nn.Sequential(*output_emb_list)
+        else:
+            self.output_emb = nn.Embedding(
+                self.num_classes, 
+                self.input_hidden_sizes[-1] if len(self.input_hidden_sizes) > 0 else self.input_dim, 
+                max_norm=10.
+            )
         # self.similarity = InnerProductSimilarity()
         self.similarity = CosineSimilarity()
     
@@ -102,14 +128,17 @@ class StarSpaceClassifier(nn.Module):
         o_embs = None
 
         if input_embs is not None:
-            i_embs = self.input_emb(input_embs)
+            if self.input_emb is not None:
+                i_embs = self.input_emb(input_embs)
+            else:
+                i_embs = input_embs
 
         if output is not None:
             if output.ndimension() == 1:
                 output = output.unsqueeze(-1)
 
             o_embs = self.output_emb(output)
-            o_embs = torch.sum(o_embs, dim=1)
+            o_embs = torch.mean(o_embs, dim=1)
         
         return i_embs, o_embs
 
@@ -126,7 +155,7 @@ class StarSpaceClassifier(nn.Module):
 
 class StarspaceClassifierWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}):
         super(StarspaceClassifierWrapper, self).__init__(
             model_class=StarSpaceClassifier, 
             config=config
@@ -135,13 +164,16 @@ class StarspaceClassifierWrapper(IModel):
         self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
         self.num_classes = config.get('num_classes', 10)
-        self.n_negative = config.get('n_negative', 5)
+        self.n_negative = config.get('n_negative', 20)
+        self.loss_margin = config.get('loss_margin', .8)
         
         self.tokenize_fn = wordpunct_tokenize
         self.neg_sampling = NegativeSampling(
             n_output=self.num_classes, 
             n_negative=self.n_negative
         )
+        self.criterion = MarginRankingLoss(margin=self.loss_margin)
+        # self.criterion = nn.CosineEmbeddingLoss(margin=.8, reduction='sum')
 
     def get_state_dict(self):
         return {

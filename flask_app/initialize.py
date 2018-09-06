@@ -37,23 +37,23 @@ def initialize(app):
             if 'file' not in request.files:
                 flash('No file included')
                 return redirect(request.url)
-            file = request.files['file']
-            if file.filename == '':
+            u_file = request.files['file']
+            if u_file.filename == '':
                 flash('No selected file')
                 return redirect(request.url)
-            if file and allowed_file(file.filename):
-                model_id = uuid.uuid4()
+            if u_file and allowed_file(u_file.filename):
+                model_id = str(uuid.uuid4())
 
-                filename = model_id + '_' + secure_filename(file.filename)
+                filename = model_id + '_' + secure_filename(u_file.filename)
                 save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(save_path)
+                u_file.save(save_path)
 
                 flash('Upload complete. Beginning training')
 
-                clf_model_path = save_path
-                ent_model_path = save_path
+                clf_model_path = save_path + '.cls.bin'
+                ent_model_path = save_path + '.ent.bin'
 
-                if not app.config['USE_QUEUE']:
+                if not app.config.get('USE_QUEUE', False):
                     clf_model_path, ent_model_path = nlu_train_file(model_id,
                                                                     save_path,
                                                                     clf_model_path,
@@ -89,13 +89,19 @@ def initialize(app):
                 return redirect(request.url)
             else:
                 # Use the first ID for default model id. For easy testing only
-                model_id = content.get('model_id', next(app.config['MODELS'].keys()))
+                model_ids = list(app.config['MODELS'].keys())
+                if len(model_ids) == 0:
+                    return
+                
+                model_id = content.get('model_id', model_ids[0])
 
                 if model_id not in app.config['MODELS']:
                     flash('Model id not found')
                 else:
-                    nlu_init_model(model_id,
-                                   app.config['MODELS'][model_id]['CLF_MODEL_PATH'],
-                                   app.config['MODELS'][model_id]['ENT_MODEL_PATH'])
+                    nlu_init_model(
+                        model_id,
+                        app.config['MODELS'][model_id]['CLF_MODEL_PATH'],
+                        app.config['MODELS'][model_id]['ENT_MODEL_PATH']
+                    )
                     result = nlu_predict(model_id, content['query'])
                     return jsonify(result)

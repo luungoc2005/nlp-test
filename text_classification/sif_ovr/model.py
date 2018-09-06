@@ -12,7 +12,7 @@ import numpy as np
 
 class OvrClassifier(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config={}):
         super(OvrClassifier, self).__init__()
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
@@ -60,10 +60,11 @@ class OvrClassifier(nn.Module):
 
 class OvrClassifierWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}, *args, **kwargs):
         super(OvrClassifierWrapper, self).__init__(
             model_class=OvrClassifier, 
-            config=config
+            config=config,
+            *args, **kwargs
         )
 
         self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)

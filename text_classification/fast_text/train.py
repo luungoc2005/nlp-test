@@ -45,7 +45,11 @@ class FastTextLearner(ILearner):
         self.model_wrapper._max_features = max_features
         self.model_wrapper._kwargs['config']['max_features'] = max_features
 
-        class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
+        self.model_wrapper.label_encoder.fit(y)
+        self.model_wrapper._kwargs['config']['num_classes'] = self.model_wrapper.label_encoder.classes_.shape[0]
+
+        y_labels = self.model_wrapper.label_encoder.transform(y)
+        class_weights = class_weight.compute_class_weight('balanced', np.unique(y_labels), y_labels)
         self.class_weights = to_gpu(torch.from_numpy(class_weights).float())
 
         # self.criterion = nn.MultiLabelSoftMarginLoss(weight=class_weights, reduction='sum')

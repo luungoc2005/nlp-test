@@ -4,9 +4,10 @@ from sent_to_vec.sif.encoder import SIF_embedding
 from common.utils import word_to_vec
 from config import MAX_NUM_WORDS
 from nltk.tokenize import wordpunct_tokenize
-from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+# from sklearn.svm import SVC
 # from sklearn.linear_model import LogisticRegression
-# from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPClassifier
 # from sklearn.model_selection import GridSearchCV
 # import catboost as cb
 import numpy as np
@@ -15,7 +16,7 @@ import torch
 
 class EnsembleWrapper(IModel):
 
-    def __init__(self, config):
+    def __init__(self, config={}, *args, **kwargs):
         super(EnsembleWrapper, self).__init__(
             # LogisticRegression,
             # class_weight='balanced',
@@ -24,25 +25,27 @@ class EnsembleWrapper(IModel):
             # verbose=1
             # LightGBM - requires no class
             # object
-            SVC,
-            kernel='linear',
-            class_weight='balanced',
-            probability=True
-            # MLPClassifier,
-            # hidden_layer_sizes=(100,),
-            # activation='identity',
-            # verbose=1
+            # SVC,
+            # kernel='linear',
+            # class_weight='balanced',
+            # probability=True
+            MLPClassifier,
+            hidden_layer_sizes=(100,),
+            activation='identity',
+            verbose=1,
             # CatBoost
             # model_class=cb.CatBoostClassifier,
             # iterations=100,
             # loss_function='MultiClass',
             # eval_metric='Accuracy',
             # metric_period=10
+            *args, **kwargs
         )
+        self.config = config
 
-        self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.num_classes = config.get('num_classes', 10)
+        self.topk = config.get('top_k', 5)
+        self.tokenizer = Tokenizer(num_words=self.num_words)
 
         # Distribution of params for GridSearchCV
         # self.param_dist = config.get('param_dist', 
@@ -54,23 +57,30 @@ class EnsembleWrapper(IModel):
         # }
         
         self.tokenize_fn = wordpunct_tokenize
+        self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
         return {
+            'config': self.config,
             'tokenizer': self.tokenizer,
-            'config': self.model.config,
-            'state_dict': self.model.get_params(),
+            'label_encoder': self.label_encoder,
+            'state_dict': self.model
         }
 
     def load_state_dict(self, state_dict):
         config = state_dict['config']
+        self.config = config
+        self.topk = config.get('top_k', 5)
 
         # re-initialize model with loaded config
-        self.model = self.init_model()
-        self.model.set_params(state_dict['state_dict'])
+        # self.model = self.init_model()
+        self.model = state_dict['state_dict']
 
         # load tokenizer
         self.tokenizer = state_dict['tokenizer']
+
+        # load label encoder
+        self.label_encoder = state_dict['label_encoder']
 
     def preprocess_input(self, X):
         if self.tokenizer is None:
@@ -98,10 +108,26 @@ class EnsembleWrapper(IModel):
     def preprocess_output(self, y):
         # One-hot encode outputs
         # Can also use torch.eye() but leaving as numpy until torch achieves performance parity
-        # lookup = np.eye(self.num_classes)
+        # lookup = np.eye(self.n_classes)
         # outputs = np.array([lookup[label] for label in y])
         # return torch.from_numpy(outputs).float()
+        
+        return torch.from_numpy(self.label_encoder.transform(y)).long()
 
-        return torch.from_numpy(y).long()
+    def infer_predict(self, logits, topk=None):
+        topk = topk or self.topk
+        logits = torch.from_numpy(logits).float()
+        batch_size = logits.size(0)
 
-    def infer_predict(self, logits): return torch.from_numpy(logits).float()
+        top_probs, top_idxs = torch.topk(logits, topk)
+        top_idxs = top_idxs.numpy()
+        top_classes = [
+            self.label_encoder.inverse_transform(top_idxs[idx])
+            for idx in range(batch_size)
+        ]
+        return [
+            [{
+                'intent': top_classes[sent_idx][idx],
+                'confidence': top_probs[sent_idx][idx].item()
+            } for idx in range(topk)]
+            for sent_idx in range(batch_size)]

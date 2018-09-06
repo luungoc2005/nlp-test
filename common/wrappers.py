@@ -307,7 +307,7 @@ class ILearner(object):
                 shuffle=shuffle
             )
         else:
-            data_loader = [(X[idx], y[idx]) for idx in range(len(X))]
+            data_loader = [([X[idx]], [y[idx]]) for idx in range(len(X))]
 
         if self.model_wrapper.model is None: self.model_wrapper.init_model()
         self.on_model_init()
@@ -329,6 +329,7 @@ class ILearner(object):
                 break
             
             self._current_epoch = epoch
+            self._metrics = None
 
             for callback in self._callbacks: callback.on_epoch_start()
             
@@ -337,7 +338,6 @@ class ILearner(object):
                     self._halt = False
                     break
 
-                self._metrics = None
                 self._batch_idx = batch_idx
 
                 for callback in self.callbacks: callback.on_batch_start()

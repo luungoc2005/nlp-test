@@ -30,7 +30,7 @@ class SequenceTaggerLearner(ILearner):
             preds = torch.LongTensor(preds)
             
         return {
-            'accuracy': accuracy(preds, y)
+            'accuracy': accuracy(preds, y[0])
             # 'f1': f1(logits, y),
             # 'precision': precision(logits, y),
             # 'recall': recall(logits, y)

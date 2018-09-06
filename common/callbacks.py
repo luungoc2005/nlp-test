@@ -45,8 +45,8 @@ class PrintLoggerCallback(ICallback):
                 self._learner._current_epoch + 1,
                 progress * 100
             )
-            # metrics = self.learner.metrics
-            metrics = self.learner._batch_metrics
+            metrics = self.learner.metrics
+            # metrics = self.learner._batch_metrics
             if metrics is not None:
                 for key in self.metrics:
                     if key in metrics:
@@ -80,8 +80,8 @@ class EarlyStoppingCallback(ICallback):
             warnings.warn('The Learner class does not return the specified metrics. Early Stopping cannot work here')
             return
 
-        # metrics = self.learner.metrics
-        metrics = self.learner._batch_metrics
+        metrics = self.learner.metrics
+        # metrics = self.learner._batch_metrics
         monitor_val = metrics[self.monitor] * self.multiplier
 
         if monitor_val < self.best_val - self.tolerance:

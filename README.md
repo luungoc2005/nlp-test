@@ -66,10 +66,10 @@ Arguments:
 - `-b` optionally binds to a different address
 
 After running the server
-1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./francis.json' 127.0.0.1:5000`
+1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./data/botbot/francis.json' 127.0.0.1:5000/upload`
 ```
 curl -X POST 
--F "file=@./francis.json"
+-F "file=@./data/botbot/francis.json"
 127.0.0.1:5000/upload
 ```
 

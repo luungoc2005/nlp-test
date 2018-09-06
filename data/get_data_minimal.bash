@@ -9,7 +9,7 @@ if [ "$OSTYPE" == "darwin"* ]; then
    ZIPTOOL="7za x"
 fi
 
-if [ ! -f ./fasttext/crawl-300d-2M.vec ]; then
+if [ ! -f ./fasttext/crawl-300d-2M.vec ] || [ ! -f ./fasttext/crawl-300d-2M.magnitude ]; then
     echo ${fasttext}
     mkdir fasttext
     curl -LO ${fasttext}
@@ -17,4 +17,9 @@ if [ ! -f ./fasttext/crawl-300d-2M.vec ]; then
     rm crawl-300d-2M.vec.zip
 else
     echo "FastText vector file exists in the current directory"
+fi
+
+if [ ! -f ./fasttext/crawl-300d-2M.magnitude ]; then
+    python -m pymagnitude.converter -i ./fasttext/crawl-300d-2M.vec -o ./fasttext/crawl-300d-2M.magnitude
+    rm ./fasttext/crawl-300d-2M.vec
 fi
