@@ -59,14 +59,15 @@ docs/_build/
 # PyBuilder
 target/
 
-data/glove/
-data/SNLI/
-data/MultiNLI/
-data/amazon/
-data/botbot/
-data/CoNLL-2003/
-data/quora/
+# data/glove/
+# data/SNLI/
+# data/MultiNLI/
+# data/amazon/
+# data/botbot/
+# data/CoNLL-2003/
+# data/quora/
 # data/fasttext/
+data/
 output/
 flask_app/uploads/
 
