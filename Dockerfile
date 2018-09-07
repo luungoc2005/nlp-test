@@ -21,4 +21,8 @@ WORKDIR /botbot-nlp
 # RUN ./data/get_data_minimal.bash
 
 EXPOSE 5000
-ENTRYPOINT gunicorn -w 2 -t 1000 -b 127.0.0.1:5000 start_flask:app
+
+# Flags:
+# -w: number of workers
+# -t: timeout for each request (in seconds)
+ENTRYPOINT gunicorn -w 2 -b 127.0.0.1:5000 start_flask:app

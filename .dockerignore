@@ -91,5 +91,6 @@ fastText/
 \.idea/
 
 *.ipynb
+*.bin
 .gitignore
 Dockerfile
