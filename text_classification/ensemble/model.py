@@ -81,6 +81,9 @@ class EnsembleWrapper(IModel):
 
         # load label encoder
         self.label_encoder = state_dict['label_encoder']
+        
+    def on_model_init(self):
+        self._predict_fn = self.model.predict_proba
 
     def preprocess_input(self, X):
         if self.tokenizer is None:

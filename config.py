@@ -48,5 +48,6 @@ MultiNLI_PATH = path.join(BASE_PATH, 'data/MultiNLI')
 QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
 
 # Flask configs
-UPLOAD_FOLDER = 'flask_app/uploads'
-CONFIG_PATH = 'flask_app/config.cfg'
+UPLOAD_FOLDER = path.join(BASE_PATH, 'flask_app/uploads')
+LOGS_FOLDER = path.join(BASE_PATH, 'flask_app/logs')
+CONFIG_PATH = path.join(BASE_PATH, 'flask_app/config.cfg')

@@ -25,8 +25,11 @@ class IModel(object):
             if torch.cuda.is_available():
                 self.load_state_dict(torch.load(self._from_fp))
             else:
-                self.load_state_dict(torch.load(self._from_fp), map_location=lambda storage, loc: storage)
+                self.load_state_dict(torch.load(self._from_fp, map_location=lambda storage, loc: storage))
+        
+        self.on_model_init()
 
+    def on_model_init(self): pass
 
     def preprocess_dataset_X(self, X):
         return X
