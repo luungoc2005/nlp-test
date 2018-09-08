@@ -110,6 +110,9 @@ class IModel(object):
     @property
     def model(self): return self._model
 
+    @property
+    def training(self): return self._model.training if hasattr(self._model, 'training') else False
+
     @model.setter
     def model(self, value): self._model = value
 
@@ -322,7 +325,7 @@ class ILearner(object):
                 **self._optimizer_kwargs
             )
 
-        if not hasattr(self, 'criterion'):
+        if self.model_wrapper.is_pytorch_module() and not hasattr(self, 'criterion'):
             raise ValueError('Criterion must be set for the Learner class before training')
 
         # Main training loop

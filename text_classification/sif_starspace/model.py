@@ -83,7 +83,7 @@ class StarSpaceClassifier(nn.Module):
         super(StarSpaceClassifier, self).__init__(*args, **kwargs)
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
-        self.input_hidden_sizes = config.get('input_hidden_sizes', [256, 128])
+        self.input_hidden_sizes = config.get('input_hidden_sizes', [300, 300])
         self.input_dropout_prob = config.get('input_dropout_prob', .2)
         self.output_hidden_sizes = config.get('output_hidden_sizes', [])
         self.output_dropout_prob = config.get('output_dropout_prob', .2)
@@ -175,8 +175,6 @@ class StarspaceClassifierWrapper(IModel):
             n_negative=self.n_negative
         )
         self.label_encoder = LabelEncoder()
-        self.criterion = MarginRankingLoss(margin=self.loss_margin)
-        # self.criterion = nn.CosineEmbeddingLoss(margin=.8, reduction='sum')
 
     def get_state_dict(self):
         return {

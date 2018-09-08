@@ -4,6 +4,7 @@ import torch.nn as nn
 from common.torch_utils import to_gpu
 from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
+from text_classification.sif_starspace.model import MarginRankingLoss
 from sklearn.utils import class_weight
 from common.utils import to_categorical
 from config import EMBEDDING_DIM
@@ -24,6 +25,10 @@ class StarspaceClassifierLearner(ILearner):
         self.model_wrapper.label_encoder.fit(y)
         self.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
+
+    def on_model_init(self):
+        self.criterion = MarginRankingLoss(margin=self.model_wrapper.loss_margin)
+        # self.criterion = nn.CosineEmbeddingLoss(margin=.8, reduction='sum')
 
     def on_epoch(self, X, y):
         model = self.model_wrapper.model

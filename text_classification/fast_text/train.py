@@ -71,6 +71,7 @@ class FastTextLearner(ILearner):
     def calculate_metrics(self, logits, y):
         return {
             'accuracy': accuracy(logits, y)
+            # TODO: somehow calculating these causes the ipykernel to die
             # 'f1': f1(logits, y),
             # 'precision': precision(logits, y),
             # 'recall': recall(logits, y)
