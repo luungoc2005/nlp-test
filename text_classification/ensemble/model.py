@@ -10,6 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.neural_network import MLPClassifier
 # from sklearn.model_selection import GridSearchCV
 # import catboost as cb
+from text_classification.utils.inference import infer_classification_output
 import numpy as np
 import torch
 
@@ -118,19 +119,4 @@ class EnsembleWrapper(IModel):
         return torch.from_numpy(self.label_encoder.transform(y)).long()
 
     def infer_predict(self, logits, topk=None):
-        topk = topk or self.topk
-        logits = torch.from_numpy(logits).float()
-        batch_size = logits.size(0)
-
-        top_probs, top_idxs = torch.topk(logits, topk)
-        top_idxs = top_idxs.numpy()
-        top_classes = [
-            self.label_encoder.inverse_transform(top_idxs[idx])
-            for idx in range(batch_size)
-        ]
-        return [
-            [{
-                'intent': top_classes[sent_idx][idx],
-                'confidence': top_probs[sent_idx][idx].item()
-            } for idx in range(topk)]
-            for sent_idx in range(batch_size)]
+        return infer_classification_output(self, logits, topk)

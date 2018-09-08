@@ -5,6 +5,8 @@ from sent_to_vec.sif.encoder import SIF_embedding
 from common.utils import word_to_vec
 from config import MAX_NUM_WORDS, EMBEDDING_DIM
 from nltk.tokenize import wordpunct_tokenize
+from sklearn.preprocessing import LabelEncoder
+from text_classification.utils.inference import infer_classification_output
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -72,11 +74,13 @@ class OvrClassifierWrapper(IModel):
         self.num_classes = config.get('num_classes', 10)
         
         self.tokenize_fn = wordpunct_tokenize
+        self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
         return {
             'tokenizer': self.tokenizer,
             'config': self.model.config,
+            'label_encoder': self.label_encoder,
             'state_dict': self.model.get_params(),
         }
 
@@ -89,6 +93,9 @@ class OvrClassifierWrapper(IModel):
 
         # load tokenizer
         self.tokenizer = state_dict['tokenizer']
+
+        # load label encoder
+        self.label_encoder = state_dict['label_encoder']
 
     def preprocess_input(self, X):
         if self.tokenizer is None:
@@ -120,4 +127,7 @@ class OvrClassifierWrapper(IModel):
         # outputs = np.array([lookup[label] for label in y])
         # return torch.from_numpy(outputs).float()
 
-        return torch.from_numpy(y).long()
+        return torch.from_numpy(self.label_encoder.transform(y)).long()
+
+    def infer_predict(self, logits, topk=None):
+        return infer_classification_output(self, logits, topk)

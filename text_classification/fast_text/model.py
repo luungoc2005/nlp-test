@@ -9,6 +9,7 @@ from common.wrappers import IModel
 from common.utils import pad_sequences
 from common.torch_utils import to_gpu
 from common.keras_preprocessing import Tokenizer
+from text_classification.utils.inference import infer_classification_output
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 
 class FastText(nn.Module):
@@ -174,18 +175,4 @@ class FastTextWrapper(IModel):
         ]
     
     def infer_predict(self, logits, topk=None):
-        topk = topk or self.topk
-        batch_size = logits.size(0)
-
-        top_probs, top_idxs = torch.topk(logits, topk)
-        top_idxs = top_idxs.numpy()
-        top_classes = [
-            self.label_encoder.inverse_transform(top_idxs[idx])
-            for idx in range(batch_size)
-        ]
-        return [
-            [{
-                'intent': top_classes[sent_idx][idx],
-                'confidence': top_probs[sent_idx][idx].item()
-            } for idx in range(topk)]
-            for sent_idx in range(batch_size)]
+        return infer_classification_output(self, logits, topk)

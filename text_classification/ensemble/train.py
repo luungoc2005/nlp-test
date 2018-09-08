@@ -31,7 +31,6 @@ class EnsembleLearner(ILearner):
 
     def on_training_end(self):
         self.model_wrapper.model.fit(self.train_X_buffer, self.train_y_buffer)
-        self.model_wrapper._predict_fn = self.model_wrapper.model.predict_proba
 
         print('Model score: %s' % self.model_wrapper.model.score(self.train_X_buffer, self.train_y_buffer))
         
