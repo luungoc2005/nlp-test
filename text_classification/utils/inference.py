@@ -10,7 +10,7 @@ def infer_classification_output(model, logits, topk=None, context=''):
 
     topk = topk or model.topk
     batch_size = logits.size(0)
-    topk = min(topk, batch_size)
+    topk = min(topk, model.n_classes) # Maximum will be the number of classes
 
     if context != '' and hasattr(model, 'contexts') and model.contexts is not None:
         assert len(model.contexts) == logits.size(1), \
