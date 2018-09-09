@@ -48,7 +48,7 @@ def initialize(app):
 
     @app.route("/")
     def index():
-        return "Server is up and running!\n" + ("BASE_PATH: %s" % BASE_PATH)
+        return "Server is up and running! BASE_PATH: %s" % BASE_PATH
 
     @app.route("/upload", methods=['POST'])
     def upload():
