@@ -1,5 +1,6 @@
 import time
 import warnings
+import torch.nn as nn
 from common.utils import timeSince
 from abc import ABCMeta, abstractmethod
 
@@ -92,3 +93,11 @@ class EarlyStoppingCallback(ICallback):
                 print('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
                 self._learner._halt = True
             self.wait += 1
+
+class TemperatureScalingCallback(ICallback):
+
+    def __init__(self):
+        super(TemperatureScalingCallback, self).__init__()
+
+    def on_training_end(self):
+        model = self.learner.model_wrapper.model

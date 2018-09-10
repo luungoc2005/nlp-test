@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+from nltk.tokenize import WhitespaceTokenizer
 from common.wrappers import IModel
 from common.keras_preprocessing import Tokenizer
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
@@ -38,6 +39,8 @@ class VNTokenizer(nn.Module):
 
         # Set tokenizer
         self.tokenizer = tokenizer
+
+        self.tokenize_fn = WhitespaceTokenizer().tokenize
 
     def forward(self, sent_batch):
         sentence = sent_batch[0]
@@ -97,3 +100,10 @@ class VNTokenizerWrapper(IModel):
 
         # load tokenizer
         self.tokenizer = state_dict['tokenizer']
+
+    def preprocess_input(self, X):
+        if self.tokenizer is None:
+            self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
+
+        tokens = [self.tokenize_fn(sent) for sent in X]
+        tokens = self.tokenizer.texts_to_sequences(tokens)
