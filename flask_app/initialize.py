@@ -1,6 +1,6 @@
 from flask_app.nlu_main import nlu_init_model, nlu_predict
 from flask_app.nlu_train import nlu_train_file
-from config import UPLOAD_FOLDER, LOGS_FOLDER, CONFIG_PATH, BASE_PATH
+from config import UPLOAD_FOLDER, LOGS_FOLDER, CONFIG_PATH, BASE_PATH, PYTHON_PATH
 from flask import request, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
 from os import path, makedirs
@@ -80,7 +80,7 @@ def initialize(app):
                     with open(log_file_name, 'w') as log_fp:
                         TRAIN_PROCESSES[model_id] = subprocess.Popen(
                             [
-                                'python', '-m', 'flask_app.nlu_train', 
+                                PYTHON_PATH, '-m', 'flask_app.nlu_train', 
                                 '--model_id', model_id, 
                                 '--save_path', save_path,
                                 '--clf_model_path', clf_model_path,

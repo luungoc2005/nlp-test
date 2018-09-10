@@ -51,3 +51,4 @@ QUORA_PATH = path.join(BASE_PATH, 'data/quora/quora_duplicate_questions.tsv')
 UPLOAD_FOLDER = path.join(BASE_PATH, 'flask_app/uploads')
 LOGS_FOLDER = path.join(BASE_PATH, 'flask_app/logs')
 CONFIG_PATH = path.join(BASE_PATH, 'flask_app/config.cfg')
+PYTHON_PATH = 'python3'
