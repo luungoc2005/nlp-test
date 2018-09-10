@@ -20,17 +20,7 @@ def save_config(app):
             'MODELS': app.config.get('MODELS', None),
         }, cfg_file)
 
-def jsonerror(*args, **kwargs):
-    response = jsonify(*args, **kwargs)
-    response.status_code = 400
-    return response
-
-def initialize(app):
-    # init_glove()
-    app.config["SECRET_KEY"] = "test secret key".encode("utf8")
-    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-    app.config['LOGS_FOLDER'] = LOGS_FOLDER
-
+def get_config(app):
     if path.isfile(CONFIG_PATH):
         try:
             cfg = json.load(open(CONFIG_PATH, 'r'))
@@ -38,6 +28,18 @@ def initialize(app):
         except:
             print('Failed to load configuration. Using defaults')
             pass
+
+def jsonerror(*args, **kwargs):
+    response = jsonify(*args, **kwargs)
+    response.status_code = 400
+    return response
+
+def initialize(app):
+    app.config["SECRET_KEY"] = "test secret key".encode("utf8")
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config['LOGS_FOLDER'] = LOGS_FOLDER
+
+    get_config(app)
 
     # create directories if not exists
     if not path.exists(app.config['UPLOAD_FOLDER']):
@@ -69,6 +71,8 @@ def initialize(app):
 
                 clf_model_path = save_path + '.cls.bin'
                 ent_model_path = save_path + '.ent.bin'
+
+                get_config(app)
 
                 if not app.config.get('USE_QUEUE', True):
                     clf_model_path, ent_model_path = nlu_train_file(model_id,
@@ -109,6 +113,8 @@ def initialize(app):
         if 'model_id' not in content:
             return jsonerror('Model ID must be provided')
         else:
+            get_config(app)
+
             model_id = content['model_id']
 
             if model_id not in app.config['MODELS']:
@@ -147,6 +153,8 @@ def initialize(app):
         elif 'model_id' not in content:
             return jsonerror('Model ID must be provided')
         else:
+            get_config(app)
+            
             model_count = len(list(app.config['MODELS'].keys())) \
                 if 'MODELS' in app.config \
                 else 0
@@ -155,12 +163,9 @@ def initialize(app):
                 return jsonerror('No model trained')
             else:
                 model_id = content['model_id'].strip()
-            
-                if model_id not in app.config['MODELS']:
-                    return jsonerror('Model ID not found')
 
                 if model_id not in app.config['MODELS']:
-                    return jsonerror('Model id not found')
+                    return jsonerror('Model ID not found')
                 else:
                     model_config = app.config['MODELS'][model_id]
                     nlu_init_model(

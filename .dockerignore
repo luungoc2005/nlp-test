@@ -96,3 +96,5 @@ fastText/
 *.bin
 .gitignore
 Dockerfile
+
+config.cfg
