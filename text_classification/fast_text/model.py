@@ -22,7 +22,7 @@ class FastText(nn.Module):
         self.emb_dropout_prob = config.get('emb_dropout_prob', 0.)
         self.hidden_size = config.get('hidden_size', 100)
         self.h_dropout_prob = config.get('h_dropout_prob', 0.)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         self.embedding_matrix = config.get('embedding_matrix', None)
         self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
 
@@ -34,7 +34,7 @@ class FastText(nn.Module):
         self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
         self.i2h = nn.Linear(self.embedding_dim, self.hidden_size)
         self.h_dropout = nn.Dropout(self.h_dropout_prob)
-        self.h2o = nn.Linear(self.hidden_size, self.num_classes)
+        self.h2o = nn.Linear(self.hidden_size, self.n_classes)
 
         self.init_hidden()
 
@@ -70,7 +70,7 @@ class FastTextWrapper(IModel):
         self._ngrams = config.get('ngrams', 2)
         self._max_features = config.get('num_words', MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
         self.topk = config.get('top_k', 5)
         
@@ -111,7 +111,7 @@ class FastTextWrapper(IModel):
         self._ngrams = config.get('ngrams', 2)
         self._max_features = config.get('num_words', MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
 
     def add_ngram(self, sequences, token_indice, ngram_range=2):

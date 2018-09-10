@@ -24,7 +24,8 @@ class EnsembleLearner(ILearner):
         self.buffer_pointer = 0
 
         self.model_wrapper.label_encoder.fit(y)
-        self.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
+        self.model_wrapper.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
+        self.model_wrapper.config['num_classes'] = self.model_wrapper.n_classes
 
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
         # self.model_wrapper._kwargs['class_weight'] = self.class_weights

@@ -46,6 +46,7 @@ class EnsembleWrapper(IModel):
 
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
         self.topk = config.get('top_k', 5)
+        self.n_classes = config.get('num_classes', 10)
         self.tokenizer = Tokenizer(num_words=self.num_words)
 
         # Distribution of params for GridSearchCV
@@ -72,6 +73,7 @@ class EnsembleWrapper(IModel):
         config = state_dict['config']
         self.config = config
         self.topk = config.get('top_k', 5)
+        self.n_classes = config.get('num_classes', 10)
 
         # re-initialize model with loaded config
         # self.model = self.init_model()

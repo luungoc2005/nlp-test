@@ -20,10 +20,10 @@ class OvrClassifier(nn.Module):
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
         self.hidden_size = config.get('hidden_size', 0)
         self.h_dropout_prob = config.get('h_dropout_prob', 0.)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
 
         self.classifiers = list()
-        for ix in range(self.num_classes):
+        for ix in range(self.n_classes):
             if self.hidden_size == 0:
                 clf = to_gpu(nn.Sequential(
                     nn.Dropout(self.h_dropout_prob),
@@ -40,7 +40,7 @@ class OvrClassifier(nn.Module):
     
     def forward(self, embs):
         batch_size = embs.size(0)
-        buffer = torch.zeros(batch_size, self.num_classes).float()
+        buffer = torch.zeros(batch_size, self.n_classes).float()
         for ix, clf in enumerate(self.classifiers):
             logits = clf(embs)
             buffer[:,ix] = logits[:,0]
@@ -48,7 +48,7 @@ class OvrClassifier(nn.Module):
 
     def binary_crossentropy_loss(self, tokens, targets):
         loss = None
-        for idx in range(self.num_classes):
+        for idx in range(self.n_classes):
             cls_target = (targets == idx).float()
             cls_tokens = tokens[:,idx]
             cls_loss = F.binary_cross_entropy_with_logits(cls_tokens, cls_target)
@@ -71,7 +71,7 @@ class OvrClassifierWrapper(IModel):
 
         self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         
         self.tokenize_fn = wordpunct_tokenize
         self.label_encoder = LabelEncoder()

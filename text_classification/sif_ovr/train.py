@@ -18,11 +18,10 @@ class OvrClassifierLearner(ILearner):
         tokens = [self.model_wrapper.tokenize_fn(sent) for sent in X]
         self.model_wrapper.tokenizer.fit_on_texts(tokens)
         self.n_samples = len(tokens)
-        self.n_classes = len(np.unique(y))
         self.buffer_pointer = 0
         
         self.model_wrapper.label_encoder.fit(y)
-        self.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
+        self.model_wrapper.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
 
     def on_model_init(self):

@@ -87,7 +87,7 @@ class StarSpaceClassifier(nn.Module):
         self.input_dropout_prob = config.get('input_dropout_prob', .2)
         self.output_hidden_sizes = config.get('output_hidden_sizes', [])
         self.output_dropout_prob = config.get('output_dropout_prob', .2)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         self.max_norm = config.get('max_norm', 10)
 
         if len(self.input_hidden_sizes) > 0:
@@ -106,7 +106,7 @@ class StarSpaceClassifier(nn.Module):
         if len(self.output_hidden_sizes) > 0:
             output_emb_list = list()
             output_emb_list.append(nn.Embedding(
-                self.num_classes, 
+                self.n_classes, 
                 self.output_hidden_sizes[0], 
                 max_norm=10.
             ))
@@ -118,7 +118,7 @@ class StarSpaceClassifier(nn.Module):
             self.output_emb = nn.Sequential(*output_emb_list)
         else:
             self.output_emb = nn.Embedding(
-                self.num_classes, 
+                self.n_classes, 
                 self.input_hidden_sizes[-1] if len(self.input_hidden_sizes) > 0 else self.input_dim, 
                 max_norm=10.
             )
@@ -146,12 +146,12 @@ class StarSpaceClassifier(nn.Module):
 
     def forward(self, input_embs):
         batch_size = input_embs.size(0)
-        candidate_rhs = to_gpu(torch.arange(0, self.num_classes).long().expand(batch_size, -1))
+        candidate_rhs = to_gpu(torch.arange(0, self.n_classes).long().expand(batch_size, -1))
         input_embs, candidate_rhs_repr = self.get_embs(
             input_embs, 
-            candidate_rhs.contiguous().view(batch_size * self.num_classes)
+            candidate_rhs.contiguous().view(batch_size * self.n_classes)
         )
-        candidate_rhs_repr = candidate_rhs_repr.view(batch_size, self.num_classes, -1)
+        candidate_rhs_repr = candidate_rhs_repr.view(batch_size, self.n_classes, -1)
 
         return self.similarity(input_embs, candidate_rhs_repr).squeeze(1)
 
@@ -165,13 +165,13 @@ class StarspaceClassifierWrapper(IModel):
 
         self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.num_classes = config.get('num_classes', 10)
+        self.n_classes = config.get('num_classes', 10)
         self.n_negative = config.get('n_negative', 20)
         self.loss_margin = config.get('loss_margin', .8)
         
         self.tokenize_fn = wordpunct_tokenize
         self.neg_sampling = NegativeSampling(
-            n_output=self.num_classes, 
+            n_output=self.n_classes, 
             n_negative=self.n_negative
         )
         self.label_encoder = LabelEncoder()
@@ -186,6 +186,11 @@ class StarspaceClassifierWrapper(IModel):
 
     def load_state_dict(self, state_dict):
         config = state_dict['config']
+        
+        self.num_words = config.get('num_words', MAX_NUM_WORDS)
+        self.n_classes = config.get('num_classes', 10)
+        self.n_negative = config.get('n_negative', 20)
+        self.loss_margin = config.get('loss_margin', .8)
 
         # re-initialize model with loaded config
         self.model = self.init_model()

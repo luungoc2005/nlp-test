@@ -1,4 +1,5 @@
 import torch
+import warnings
 
 def infer_classification_output(model, logits, topk=None, context=''):
     # - model: the ModelWrapper class
@@ -8,7 +9,15 @@ def infer_classification_output(model, logits, topk=None, context=''):
     # label_encoder [LabelEncoder]: The Sklearn LabelEncoder object used to transform class labels
     # topk [int]: the number of classes to get. Default is 5
 
-    topk = topk or model.topk
+    # Just in case the user forgot to set topk for the model
+    if not hasattr(model, 'topk') and isinstance(model.topk, int):
+        warnings.warn('The model wrapper class should have a `topk` attribute. Using default value of 5')
+        model_topk = 5
+    else:
+        model_topk = model.topk
+    assert hasattr(model, 'n_classes'), "The attribute `n_classes` is required on the model wrapper class"
+
+    topk = topk or model_topk
     batch_size = logits.size(0)
     topk = min(topk, model.n_classes) # Maximum will be the number of classes
 
