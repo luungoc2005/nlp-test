@@ -119,4 +119,5 @@ class EnsembleWrapper(IModel):
         return torch.from_numpy(self.label_encoder.transform(y)).long()
 
     def infer_predict(self, logits, topk=None):
+        logits = torch.from_numpy(logits).float()
         return infer_classification_output(self, logits, topk)
