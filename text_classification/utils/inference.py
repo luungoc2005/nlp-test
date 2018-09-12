@@ -24,7 +24,7 @@ def infer_classification_output(model, logits, topk=None, context=''):
 
     topk = topk or model_topk
     batch_size = logits.size(0)
-    n_classes = model.model.n_classes if not model.is_pytorch_module() else model.n_classes
+    n_classes = model.model.n_classes if model.is_pytorch_module() else model.n_classes
     topk = min(topk, n_classes) # Maximum will be the number of classes
 
     if context != '' and hasattr(model, 'contexts') and model.contexts is not None:
