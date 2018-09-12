@@ -32,7 +32,7 @@ class FastText(nn.Module):
         self.embedding.requires_grad = False
 
         self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
-        self.i2h = nn.Linear(self.embedding_dim, self.hidden_size)
+        self.i2h = nn.Linear(self.embedding_dim, self.hidden_size, bias=False)
         self.h_dropout = nn.Dropout(self.h_dropout_prob)
         self.h2o = nn.Linear(self.hidden_size, self.n_classes)
 
@@ -66,11 +66,9 @@ class FastTextWrapper(IModel):
             *args, **kwargs
         )
 
-        self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
-        self._ngrams = config.get('ngrams', 2)
         self._max_features = config.get('num_words', MAX_NUM_WORDS)
+        self._ngrams = config.get('ngrams', 2)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.n_classes = config.get('num_classes', 10)
         self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
         self.topk = config.get('top_k', 5)
         
@@ -78,6 +76,7 @@ class FastTextWrapper(IModel):
         self.token_indice = token_indice
         self.indice_token = {token_indice[k]: k for k in token_indice}
 
+        self.tokenizer = Tokenizer(num_words=self._max_features)
         self.tokenize_fn = wordpunct_tokenize
         self.label_encoder = LabelEncoder()
 
@@ -111,7 +110,6 @@ class FastTextWrapper(IModel):
         self._ngrams = config.get('ngrams', 2)
         self._max_features = config.get('num_words', MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.n_classes = config.get('num_classes', 10)
         self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
 
     def add_ngram(self, sequences, token_indice, ngram_range=2):

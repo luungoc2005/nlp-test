@@ -43,11 +43,10 @@ class FastTextLearner(ILearner):
 
         max_features = np.max(list(indice_token.keys())) + 1
         self.model_wrapper._max_features = max_features
-        self.model_wrapper.config['max_features'] = max_features
+        self.model_wrapper._kwargs['config']['max_features'] = max_features
 
         self.model_wrapper.label_encoder.fit(y)
-        self.model_wrapper.n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
-        self.model_wrapper.config['num_classes'] = self.model_wrapper.n_classes
+        self.model_wrapper._kwargs['config']['num_classes'] = self.model_wrapper.label_encoder.classes_.shape[0]
 
         y_labels = self.model_wrapper.label_encoder.transform(y)
         class_weights = class_weight.compute_class_weight('balanced', np.unique(y_labels), y_labels)

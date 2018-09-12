@@ -83,16 +83,17 @@ class StarSpaceClassifier(nn.Module):
         super(StarSpaceClassifier, self).__init__(*args, **kwargs)
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
-        self.input_hidden_sizes = config.get('input_hidden_sizes', [300, 300])
+        self.input_hidden_sizes = config.get('input_hidden_sizes', [300])
         self.input_dropout_prob = config.get('input_dropout_prob', .2)
         self.output_hidden_sizes = config.get('output_hidden_sizes', [])
         self.output_dropout_prob = config.get('output_dropout_prob', .2)
+        self.output_emb_matrix = config.get('output_emb_matrix', None)
         self.n_classes = config.get('num_classes', 10)
         self.max_norm = config.get('max_norm', 10)
 
         if len(self.input_hidden_sizes) > 0:
             input_emb_list = list()
-            input_emb_list.append(nn.Linear(EMBEDDING_DIM, self.input_hidden_sizes[0]))
+            input_emb_list.append(nn.Linear(self.input_dim, self.input_hidden_sizes[0]))
             if len(self.input_hidden_sizes) > 1:
                 for idx, layer_size in enumerate(self.input_hidden_sizes[1:]):
                     input_emb_list.append(nn.Linear(self.input_hidden_sizes[idx], layer_size))
@@ -110,6 +111,8 @@ class StarSpaceClassifier(nn.Module):
                 self.output_hidden_sizes[0], 
                 max_norm=10.
             ))
+            if self.output_emb_matrix is not None:
+                output_emb_list[0].from_pretrained(self.output_emb_matrix)
             if len(self.output_hidden_sizes) > 1:
                 for idx, layer_size in enumerate(self.output_hidden_sizes[1:]):
                     output_emb_list.append(nn.Linear(self.output_hidden_sizes[idx], layer_size))
@@ -122,6 +125,8 @@ class StarSpaceClassifier(nn.Module):
                 self.input_hidden_sizes[-1] if len(self.input_hidden_sizes) > 0 else self.input_dim, 
                 max_norm=10.
             )
+            if self.output_emb_matrix is not None:
+                output_emb_list[0].from_pretrained(self.output_emb_matrix)
         # self.similarity = InnerProductSimilarity()
         self.similarity = CosineSimilarity()
     
@@ -162,18 +167,15 @@ class StarspaceClassifierWrapper(IModel):
             model_class=StarSpaceClassifier, 
             config=config
         )
+        self.config = config
 
-        self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.n_classes = config.get('num_classes', 10)
-        self.n_negative = config.get('n_negative', 20)
+        self.topk = config.get('top_k', 5)
+
+        self.tokenizer = Tokenizer(num_words=self.num_words)
         self.loss_margin = config.get('loss_margin', .8)
         
         self.tokenize_fn = wordpunct_tokenize
-        self.neg_sampling = NegativeSampling(
-            n_output=self.n_classes, 
-            n_negative=self.n_negative
-        )
         self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
@@ -188,8 +190,6 @@ class StarspaceClassifierWrapper(IModel):
         config = state_dict['config']
         
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.n_classes = config.get('num_classes', 10)
-        self.n_negative = config.get('n_negative', 20)
         self.loss_margin = config.get('loss_margin', .8)
 
         # re-initialize model with loaded config

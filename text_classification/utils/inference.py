@@ -15,11 +15,17 @@ def infer_classification_output(model, logits, topk=None, context=''):
         model_topk = 5
     else:
         model_topk = model.topk
-    assert hasattr(model, 'n_classes'), "The attribute `n_classes` is required on the model wrapper class"
+    
+    if model.is_pytorch_module():
+        assert hasattr(model, 'n_classes') or hasattr(model.model, 'n_classes'), \
+            "The attribute `n_classes` is required on the model wrapper class"
+    else:
+        assert hasattr(model, 'n_classes'), "The attribute `n_classes` is required on the model wrapper class"
 
     topk = topk or model_topk
     batch_size = logits.size(0)
-    topk = min(topk, model.n_classes) # Maximum will be the number of classes
+    n_classes = model.model.n_classes if not model.is_pytorch_module() else model.n_classes
+    topk = min(topk, n_classes) # Maximum will be the number of classes
 
     if context != '' and hasattr(model, 'contexts') and model.contexts is not None:
         assert len(model.contexts) == logits.size(1), \
