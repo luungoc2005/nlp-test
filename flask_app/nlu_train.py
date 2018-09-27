@@ -10,13 +10,16 @@ from common.callbacks import EarlyStoppingCallback
 import argparse
 from datetime import datetime
 
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s')
+
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
 ENT_MODEL = dict()
 
 def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
     data = json.load(open(save_path, 'r'))
-    print('Loaded %s intents' % len(data))
+    logging.info('Loaded %s intents' % len(data))
 
     classes = list(set([
         intent['name']
@@ -58,12 +61,12 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                             entities_data.append(text, example_tags.join(' '))
 
     num_entities = len(set(tag_names))
-    print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
+    logging.info('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
 
     clf_model_path = clf_model_path or save_path+'.clf.bin'
     ent_model_path = ent_model_path or ''
 
-    print('Training classification model')
+    logging.info('Training classification model')
 
     CLF_MODEL[model_id] = EnsembleWrapper()
     clf_learner = EnsembleLearner(CLF_MODEL[model_id])
@@ -79,7 +82,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
 
         ent_model_path = ent_model_path or save_path+'.ent.bin'
 
-        print('Training entities recognition model')
+        logging.info('Training entities recognition model')
         ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
         ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])
         learner.fit(
@@ -100,20 +103,20 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    print(args)
+    logging.info(args)
 
     if args.model_id == '':
-        print('Training failed: model_id is null')
+        logging.error('Training failed: model_id is null')
         exit()
 
     if not path.exists(args.save_path):
-        print('Training failed: save_path does not exist')
+        logging.error('Training failed: save_path does not exist')
         exit()
 
     if args.clf_model_path == '' or args.ent_model_path == '':
-        print('Training failed: model path is null')
+        logging.error('Training failed: model path is null')
         exit()
 
-    print('Training started at %s' % str(datetime.now()))
+    logging.info('Training started at %s' % str(datetime.now()))
     nlu_train_file(args.model_id, args.save_path, args.clf_model_path, args.ent_model_path)
-    print('Training finished at %s' % str(datetime.now()))
+    logging.info('Training finished at %s' % str(datetime.now()))

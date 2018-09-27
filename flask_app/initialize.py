@@ -9,6 +9,9 @@ import uuid
 import json
 import subprocess
 
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s')
+
 TRAIN_PROCESSES = dict()
 
 def allowed_file(filename, allowed_exts=['json']):
@@ -26,7 +29,7 @@ def get_config(app):
             cfg = json.load(open(CONFIG_PATH, 'r'))
             app.config.update(cfg)
         except:
-            print('Failed to load configuration. Using defaults')
+            logging.warning('Failed to load configuration. Using defaults')
             pass
 
 def jsonerror(*args, **kwargs):
@@ -98,7 +101,8 @@ def initialize(app):
 
                 app.config['MODELS'][model_id] = {
                     'CLF_MODEL_PATH': clf_model_path,
-                    'ENT_MODEL_PATH': ent_model_path
+                    'ENT_MODEL_PATH': ent_model_path,
+                    'created': time.time()
                 }
                 save_config(app)
 

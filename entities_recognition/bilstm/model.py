@@ -188,6 +188,8 @@ class SequenceTaggerWrapper(IModel):
         )
         self.tokenizer = wordpunct_space_tokenize
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+        self.task = config.get('task', 'ner')
+        assert self.task in ['pos', 'chunking', 'ner']
         
         # Invert the tag dictionary
         self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
@@ -206,6 +208,8 @@ class SequenceTaggerWrapper(IModel):
         self.model.load_state_dict(state_dict['state_dict'])
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
         self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
+
+        self.task = config.get('task', 'ner')
 
     def preprocess_dataset_y(self, y):
         return [
@@ -228,40 +232,46 @@ class SequenceTaggerWrapper(IModel):
         _, tag_seq, tokens_in = logits
         tag_seq = [self.ix_to_tag[tag] for tag in tag_seq]
 
-        entities = {}
-        entity_name = ''
-        buffer = []
+        if self.task == 'ner':
+            entities = {}
+            entity_name = ''
+            buffer = []
 
-        for idx, tag_name in enumerate(tag_seq):
-            if len(tag_name) > 2 and tag_name[:2] in ['B-', 'I-']:
-                new_entity_name = tag_name[2:]
-                if entity_name != '' and \
-                        (tag_name[:2] == 'B-' or entity_name != new_entity_name):
-                    # Flush the previous entity
-                    if entity_name not in entities:
-                        entities[entity_name] = []
+            for idx, tag_name in enumerate(tag_seq):
+                if len(tag_name) > 2 and tag_name[:2] in ['B-', 'I-']:
+                    new_entity_name = tag_name[2:]
+                    if entity_name != '' and \
+                            (tag_name[:2] == 'B-' or entity_name != new_entity_name):
+                        # Flush the previous entity
+                        if entity_name not in entities:
+                            entities[entity_name] = []
+                            entities[entity_name].append(delimiter.join(buffer))
+                            buffer = []
+
+                    entity_name = new_entity_name
+
+                # If idx is currently inside a tag
+                if entity_name != '':
+                    # Going outside the tag
+                    if idx == len(tag_seq) - 1 or \
+                            tag_name == '-' or \
+                            tag_name == 'O':
+
+                        # if end of tag sequence then append the final token
+                        if idx == len(tag_seq) - 1 and tag_name != '-':
+                            buffer.append(tokens_in[idx])
+
+                        if entity_name not in entities:
+                            entities[entity_name] = []
                         entities[entity_name].append(delimiter.join(buffer))
                         buffer = []
-
-                entity_name = new_entity_name
-
-            # If idx is currently inside a tag
-            if entity_name != '':
-                # Going outside the tag
-                if idx == len(tag_seq) - 1 or \
-                        tag_name == '-' or \
-                        tag_name == 'O':
-
-                    # if end of tag sequence then append the final token
-                    if idx == len(tag_seq) - 1 and tag_name != '-':
+                        entity_name = ''
+                    else:
                         buffer.append(tokens_in[idx])
 
-                    if entity_name not in entities:
-                        entities[entity_name] = []
-                    entities[entity_name].append(delimiter.join(buffer))
-                    buffer = []
-                    entity_name = ''
-                else:
-                    buffer.append(tokens_in[idx])
-
-        return [entities]
+            return [entities]
+        elif self.task == 'pos':
+            ret_list = [(token, tag_seq[idx]) for idx, token in tokens_in]
+            return ret_list
+        else:
+            return tag_seq

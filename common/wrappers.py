@@ -51,7 +51,7 @@ class IModel(object):
 
     def is_pytorch_module(self): return self._model is not None and isinstance(self._model, nn.Module)
 
-    def predict(self, X):
+    def predict(self, X, return_logits=False):
         if self._model is None: return
         is_pytorch = self.is_pytorch_module()
 
@@ -68,7 +68,10 @@ class IModel(object):
         if is_pytorch:
             self._model.train()
         
-        return self.infer_predict(logits)
+        if return_logits:
+            return logits
+        else:
+            return self.infer_predict(logits)
     
     def freeze_to(self, n):
         c = self.get_layer_groups()
@@ -354,17 +357,18 @@ class ILearner(object):
                 epoch_ret = self.on_epoch(X_batch, y_batch)
 
                 if epoch_ret is not None and 'logits' in epoch_ret:
-                    batch_metrics = self.calculate_metrics(epoch_ret['logits'], y_batch) or {}
-                    
-                    if 'loss' in epoch_ret:
-                        batch_metrics['loss'] = epoch_ret['loss']
-                    
-                    self._batch_metrics = batch_metrics
+                    with torch.no_grad():
+                        batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
+                        
+                        if 'loss' in epoch_ret:
+                            batch_metrics['loss'] = epoch_ret['loss']
+                        
+                        self._batch_metrics = batch_metrics
 
-                    if self._metrics is None:
-                        self._metrics = batch_metrics
-                    else:
-                        self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
+                        if self._metrics is None:
+                            self._metrics = batch_metrics
+                        else:
+                            self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
                 if self._auto_optimize: self.optimizer.step()
 

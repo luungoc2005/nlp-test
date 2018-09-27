@@ -31,7 +31,7 @@ class StarspaceClassifierLearner(ILearner):
             n_output=n_classes, 
             n_negative=self.n_negative
         ))
-        self.model_wrapper._kwargs['config']['n_classes'] = n_classes
+        self.model_wrapper._kwargs['config']['num_classes'] = n_classes
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
 
     def on_model_init(self):
