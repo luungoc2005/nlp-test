@@ -5,7 +5,7 @@ from os import path
 lazy_loading = -1 if path.isfile(path.join(BASE_PATH, 'DEBUG')) else WORDS_SHORTLIST
 
 vectors = {
-    'en': Magnitude(MAGNITUDE_PATH['en'], lazy_loading=lazy_loading, case_insensitive=True)
+    'en': Magnitude(MAGNITUDE_PATH['en'], lazy_loading=lazy_loading)
 }
 # vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=1, case_insensitive=True)
 
