@@ -1,8 +1,8 @@
 from pymagnitude import *
-from config import MAGNITUDE_PATH, MAX_NUM_WORDS, BASE_PATH
+from config import MAGNITUDE_PATH, MAX_NUM_WORDS, BASE_PATH, WORDS_SHORTLIST
 from os import path
 
-lazy_loading = 1 if path.isfile(path.join(BASE_PATH, 'DEBUG')) else -1
+lazy_loading = -1 if path.isfile(path.join(BASE_PATH, 'DEBUG')) else WORDS_SHORTLIST
 
 vectors = {
     'en': Magnitude(MAGNITUDE_PATH['en'], lazy_loading=lazy_loading, case_insensitive=True)
