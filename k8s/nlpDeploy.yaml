@@ -1,0 +1,38 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: botbotnlp
+  namespace: botbot
+spec:
+  template:
+    metadata:
+      labels:
+        app: botbot
+        component: botbotnlp
+      namespace: botbot
+    spec:
+      containers:
+      - name: botbotnlp
+        image: botbot/botbot.nlp
+        imagePullPolicy: Always
+        env:
+        - name: PATH_BASE
+          value: /botbotnlp
+        ports:
+        - containerPort: 5000
+        # readinessProbe:
+        #   httpGet:
+        #     path: /hc
+        #     port: 5000
+        #     scheme: HTTP
+        #   initialDelaySeconds: 120
+        #   periodSeconds: 80
+        # livenessProbe:
+        #   httpGet:
+        #     path: /liveness
+        #     port: 5000
+        #     scheme: HTTP
+        #   initialDelaySeconds: 80
+        #   periodSeconds: 60
+      imagePullSecrets:
+      - name: registry-key
