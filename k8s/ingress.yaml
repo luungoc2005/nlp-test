@@ -1,0 +1,47 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata: 
+  labels:
+    app: botbot
+    component: frontend
+  name: botbot-ingress
+  namespace: botbot
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /botbot-api 
+        backend:
+          serviceName: botbot
+          servicePort: 80
+      - path: /messenger-api
+        backend:
+          serviceName: messenger
+          servicePort: 80
+      - path: /
+        backend:
+          serviceName: dashboard
+          servicePort: 80
+      - path: /multitenantagent
+        backend:
+          serviceName: multitenantagent
+          servicePort: 80         
+      - path: /rabbitmq
+        backend:
+          serviceName: rabbitmq
+          servicePort: 5672      
+      - path: /rabbitmqmana
+        backend:
+          serviceName: rabbitmq
+          servicePort: 15672   
+      - path: /nlpapi
+        backend:
+          serviceName: nlpapi
+          servicePort: 80     
+      - path: /botbotnlp
+        backend:
+          serviceName: botbotnlp
+          servicePort: 5000         

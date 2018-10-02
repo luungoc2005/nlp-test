@@ -1,0 +1,11 @@
+version: '3.4'
+
+services:
+  botbot.nlp:
+    image: botbot/botbot.nlp:${TAG:-latest}
+    container_name: botbot.nlp
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"

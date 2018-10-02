@@ -1,0 +1,6 @@
+version: '3.4'
+
+services:
+  botbot.nlp:
+    ports:
+      - "5001:5001"
