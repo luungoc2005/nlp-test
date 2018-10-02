@@ -138,6 +138,17 @@ class IModel(object):
         return self._model.__str__()
 
 
+class IFeaturizer(object):
+
+    def __init__(self): pass
+
+    def fit(self): pass
+
+    def fit_transform(self): pass
+
+    def get_output_shape(self): return 0
+
+
 class ILearner(object):
 
     def __init__(self, 
