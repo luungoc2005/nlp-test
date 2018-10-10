@@ -16,9 +16,7 @@ class EnsembleLearner(ILearner):
         self.criterion = None
 
     def init_on_data(self, X, y):
-        tokens = [self.model_wrapper.tokenize_fn(sent) for sent in X]
-        self.model_wrapper.tokenizer.fit_on_texts(tokens)
-        self.n_samples = len(tokens)
+        self.n_samples = len(X)
         self.train_X_buffer = np.zeros((self.n_samples, EMBEDDING_DIM))
         self.train_y_buffer = np.zeros((self.n_samples,))
         self.buffer_pointer = 0

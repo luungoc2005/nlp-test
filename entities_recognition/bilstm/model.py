@@ -16,7 +16,7 @@ class SequenceTagger(nn.Module):
         super(SequenceTagger, self).__init__()
         self.config = config
 
-        self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
+        self.embedding_dim = config.get('input_shape', (EMBEDDING_DIM,))[-1]
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
         self.emb_dropout_prob = config.get('emb_dropout_prob', .2)
         self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
@@ -194,18 +194,10 @@ class SequenceTaggerWrapper(IModel):
         # Invert the tag dictionary
         self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
 
-    def get_state_dict(self):
-        return {
-            'config': self.model.config,
-            'state_dict': self.model.state_dict(),
-        }
-
     def load_state_dict(self, state_dict):
         config = state_dict['config']
 
         # re-initialize model with loaded config
-        self.model = self._model_class(config)
-        self.model.load_state_dict(state_dict['state_dict'])
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
         self.ix_to_tag = {value: key for key, value in self.tag_to_ix.items()}
 

@@ -2,12 +2,21 @@ import torch
 import torch.optim as optim
 import torch.multiprocessing as mp
 import torch.nn as nn
+import warnings
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu
+from typing import Iterable
 
 class IModel(object):
 
-    def __init__(self, model_class=None, from_fp=None, predict_fn=None, *args, **kwargs):
+    def __init__(self, 
+        model_class=None,
+        model_config=None, 
+        from_fp=None, 
+        predict_fn=None, 
+        featurizer=None,
+        *args, **kwargs):
+
         self._model_class = model_class
         self._from_fp = from_fp
         self._args = args
@@ -15,18 +24,37 @@ class IModel(object):
         self._criterion = None
         self._model = None
         self._predict_fn = predict_fn
+        self._model_config = model_config or dict()
+        self._featurizer = featurizer
 
     def init_model(self):
         if self._from_fp is None:
             self._model = to_gpu(self._model_class(*self._args, **self._kwargs))
+            model_state = None
         else:
             self._model = None
 
             if torch.cuda.is_available():
-                self.load_state_dict(torch.load(self._from_fp))
+                model_state = torch.load(self._from_fp)
             else:
-                self.load_state_dict(torch.load(self._from_fp, map_location=lambda storage, loc: storage))
-        
+                model_state = torch.load(self._from_fp, map_location=lambda storage, loc: storage)
+
+        if model_state is None:
+            config = self._model_config or dict()
+        else:
+            config = model_state.get('config', None)
+            self._model_config = config
+
+        # re-initialize model with loaded config
+        self._model = self._model_class(config)
+
+        if model_state is not None:
+            self._featurizer = model_state.get('featurizer', None)
+            state_dict = model_state.get('state_dict', None)
+
+            if state_dict is not None:
+                self._model.load_state_dict(state_dict)
+
         self.on_model_init()
 
     def on_model_init(self): pass
@@ -45,13 +73,29 @@ class IModel(object):
 
     def get_state_dict(self): raise NotImplementedError
 
+    @property
+    def state_dict(self):
+        model_state = None
+        try:
+            model_state = self.get_state_dict()
+        except NotImplementedError:
+            model_state = {}
+            warnings.warn('get_state_dict() is not implemented.')
+        if self.is_pytorch_module:
+            model_state['state_dict'] = self._model.state_dict()
+        if self._model_config is not None:
+            model_state['config'] = self._model_config
+        if self._featurizer is not None:
+            model_state['featurizer'] = self._featurizer
+        return model_state
+
     def load_state_dict(self, state_dict, *args, **kwargs): raise NotImplementedError
 
     def infer_predict(self, logits): return logits
 
-    def is_pytorch_module(self): return self._model is not None and isinstance(self._model, nn.Module)
+    def is_pytorch_module(self) -> bool: return self._model is not None and isinstance(self._model, nn.Module)
 
-    def predict(self, X, return_logits=False):
+    def transform(self, X, return_logits=False):
         if self._model is None: return
         is_pytorch = self.is_pytorch_module()
 
@@ -59,6 +103,9 @@ class IModel(object):
             self._model.eval()
 
         with torch.no_grad():
+            if self._featurizer is not None:
+                X = self._featurizer.transform(X)
+            
             X = self.preprocess_input(X)
             if self._predict_fn is None:
                 logits = self._model(X)
@@ -125,14 +172,20 @@ class IModel(object):
     @criterion.setter
     def criterion(self, value): self._criterion = value
 
+    @property
+    def featurizer(self): return self._featurizer
+
+    @featurizer.setter
+    def featurizer(self, value): self._featurizer = value
+
     def save(self, fp):
-        torch.save(self.get_state_dict(), fp)
+        torch.save(self.model_state, fp)
     
     def summary(self):
         return self.__str__()
 
     def __call__(self, *args, **kwargs):
-        return self.predict(*args, **kwargs)
+        return self.transform(*args, **kwargs)
 
     def __str__(self):
         return self._model.__str__()
@@ -144,10 +197,11 @@ class IFeaturizer(object):
 
     def fit(self): pass
 
+    def transform(self): pass
+
     def fit_transform(self): pass
 
-    def get_output_shape(self): return 0
-
+    def get_output_shape(self): return (0,)
 
 class ILearner(object):
 
@@ -281,6 +335,9 @@ class ILearner(object):
             X, y = self._data
 
             # Process input and output data - if needed (tokenization etc.)
+            if self.model_wrapper._featurizer is not None:
+                self.model_wrapper._featurizer.fit(X)
+            
             X = self.model_wrapper.preprocess_dataset_X(X)
             y = self.model_wrapper.preprocess_dataset_y(y)
 
@@ -290,11 +347,22 @@ class ILearner(object):
             # If data should be lazily processed, use the Dataset class instead.
 
             if self._preprocess_batch:
-                dataset = BatchPreprocessedDataset(X, y,
-                    input_process_fn=self.model_wrapper.preprocess_input,
-                    output_process_fn=self.model_wrapper.preprocess_output,
-                    batch_size=batch_size)
+                if self.model_wrapper._featurizer is not None:
+                    dataset = BatchPreprocessedDataset(X, y,
+                        input_process_fn=lambda _X: self.model_wrapper.preprocess_input(
+                            self.model_wrapper._featurizer.transform(_X)
+                        ),
+                        output_process_fn=self.model_wrapper.preprocess_output,
+                        batch_size=batch_size)
+                else:
+                    dataset = BatchPreprocessedDataset(X, y,
+                        input_process_fn=self.model_wrapper.preprocess_input,
+                        output_process_fn=self.model_wrapper.preprocess_output,
+                        batch_size=batch_size)
             else:
+                if self.model_wrapper._featurizer is not None:
+                    X = self.model_wrapper._featurizer.transform(X)
+            
                 X = self.model_wrapper.preprocess_input(X)
                 y = self.model_wrapper.preprocess_output(y)
 
@@ -328,6 +396,9 @@ class ILearner(object):
             )
         else:
             data_loader = [([X[idx]], [y[idx]]) for idx in range(len(X))]
+
+        if self.model_wrapper._featurizer is not None:
+            self.model_wrapper.config['input_shape'] = self.model_wrapper._featurizer.get_output_shape()
 
         if self.model_wrapper.model is None: self.model_wrapper.init_model()
         self.on_model_init()
@@ -463,8 +534,8 @@ class BatchPreprocessedDataset(Dataset):
             self._buffer_X[start_idx:start_idx + batch_size] = batch_X
             self._buffer_y[start_idx:start_idx + batch_size] = batch_y
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.n_samples
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Iterable:
         return self._buffer_X[index], self._buffer_y[index]

@@ -24,7 +24,7 @@ class FastText(nn.Module):
         self.h_dropout_prob = config.get('h_dropout_prob', 0.)
         self.n_classes = config.get('num_classes', 10)
         self.embedding_matrix = config.get('embedding_matrix', None)
-        self.embedding_dim = config.get('embedding_dim', EMBEDDING_DIM)
+        self.embedding_dim = config.get('input_shape', (EMBEDDING_DIM,))[-1]
 
         self.embedding = nn.EmbeddingBag(self.max_features, self.embedding_dim)
         if self.embedding_matrix is not None:
@@ -84,8 +84,6 @@ class FastTextWrapper(IModel):
         return {
             'tokenizer': self.tokenizer,
             'label_encoder': self.label_encoder,
-            'config': self.model.config,
-            'state_dict': self.model.state_dict(),
             'token_indice': self.token_indice,
             'indice_token': self.indice_token
         }
@@ -94,8 +92,6 @@ class FastTextWrapper(IModel):
         config = state_dict['config']
 
         # re-initialize model with loaded config
-        self.model = self._model_class(config)
-        self.model.load_state_dict(state_dict['state_dict'])
         self.topk = config.get('top_k', 5)
 
         # load tokenizer
