@@ -5,4 +5,4 @@
 # python3 -m nltk.downloader 'punkt'
 
 cd ./botbot-nlp
-gunicorn -w 1 -t 500 -b 0.0.0.0:5000 start_flask:app
+gunicorn -w 1 -t 500 -b 127.0.0.1:5000 start_flask:app

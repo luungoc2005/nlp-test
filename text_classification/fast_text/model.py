@@ -8,7 +8,7 @@ from nltk.tokenize import wordpunct_tokenize
 from common.wrappers import IModel
 from common.utils import pad_sequences
 from common.torch_utils import to_gpu
-from common.keras_preprocessing import Tokenizer
+from featurizers.fasttext_featurizer import FastTextFeaturizer
 from text_classification.utils.inference import infer_classification_output
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 
@@ -63,29 +63,17 @@ class FastTextWrapper(IModel):
         super(FastTextWrapper, self).__init__(
             model_class=FastText, 
             config=config, 
+            featurizer=FastTextFeaturizer(),
             *args, **kwargs
         )
-
-        self._max_features = config.get('num_words', MAX_NUM_WORDS)
-        self._ngrams = config.get('ngrams', 2)
-        self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
+        self.config = config
         self.topk = config.get('top_k', 5)
-        
-        token_indice = config.get('token_indice', {})
-        self.token_indice = token_indice
-        self.indice_token = {token_indice[k]: k for k in token_indice}
-
-        self.tokenizer = Tokenizer(num_words=self._max_features)
-        self.tokenize_fn = wordpunct_tokenize
         self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
         return {
             'tokenizer': self.tokenizer,
             'label_encoder': self.label_encoder,
-            'token_indice': self.token_indice,
-            'indice_token': self.indice_token
         }
 
     def load_state_dict(self, state_dict):
@@ -94,62 +82,8 @@ class FastTextWrapper(IModel):
         # re-initialize model with loaded config
         self.topk = config.get('top_k', 5)
 
-        # load tokenizer
-        self.tokenizer = state_dict['tokenizer']
-
         # load label encoder
         self.label_encoder = state_dict['label_encoder']
-
-        self.token_indice = state_dict['token_indice']
-        self.indice_token = state_dict['indice_token']
-        
-        self._ngrams = config.get('ngrams', 2)
-        self._max_features = config.get('num_words', MAX_NUM_WORDS)
-        self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.max_len = config.get('max_len', MAX_SEQUENCE_LENGTH)
-
-    def add_ngram(self, sequences, token_indice, ngram_range=2):
-        """
-        Augment the input list of list (sequences) by appending n-grams values.
-        Example: adding bi-gram
-        >>> sequences = [[1, 3, 4, 5], [1, 3, 7, 9, 2]]
-        >>> token_indice = {(1, 3): 1337, (9, 2): 42, (4, 5): 2017}
-        >>> add_ngram(sequences, token_indice, ngram_range=2)
-        [[1, 3, 4, 5, 1337, 2017], [1, 3, 7, 9, 2, 1337, 42]]
-        Example: adding tri-gram
-        >>> sequences = [[1, 3, 4, 5], [1, 3, 7, 9, 2]]
-        >>> token_indice = {(1, 3): 1337, (9, 2): 42, (4, 5): 2017, (7, 9, 2): 2018}
-        >>> add_ngram(sequences, token_indice, ngram_range=3)
-        [[1, 3, 4, 5, 1337, 2017], [1, 3, 7, 9, 2, 1337, 42, 2018]]
-        """
-        new_sequences = []
-        for input_list in sequences:
-            new_list = input_list[:]
-            for ngram_value in range(2, ngram_range + 1):
-                for i in range(len(new_list) - ngram_value + 1):
-                    ngram = tuple(new_list[i:i + ngram_value])
-                    if ngram in token_indice:
-                        new_list.append(token_indice[ngram])
-            new_sequences.append(new_list)
-
-        return new_sequences
-
-    def preprocess_input(self, X):
-        if self.tokenizer is None:
-            self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
-
-        tokens = [self.tokenize_fn(sent) for sent in X]
-        tokens = self.tokenizer.texts_to_sequences(tokens)
-        tokens = self.add_ngram(tokens, self.token_indice, self._ngrams)
-
-        max_len = max([len(seq) for seq in tokens])
-        if max_len > self.max_len:
-            warnings.warn('Max training sequence length is %s, which is higher than max length setting %s' % \
-                (max_len, self.max_len), UserWarning)
-
-        tokens = pad_sequences(tokens, maxlen=self.max_len)
-
-        return to_gpu(torch.LongTensor(tokens))
 
     def preprocess_output(self, y):
         # One-hot encode outputs

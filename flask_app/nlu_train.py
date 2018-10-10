@@ -2,8 +2,8 @@
 import json
 import torch
 from os import path
-from text_classification.ensemble.model import EnsembleWrapper
-from text_classification.ensemble.train import EnsembleLearner
+from text_classification.fast_text.model import FastTextWrapper
+from text_classification.fast_text.train import FastTextLearner
 from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
 from common.callbacks import EarlyStoppingCallback
@@ -68,8 +68,8 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
 
     logging.info('Training classification model')
 
-    CLF_MODEL[model_id] = EnsembleWrapper()
-    clf_learner = EnsembleLearner(CLF_MODEL[model_id])
+    CLF_MODEL[model_id] = FastTextWrapper()
+    clf_learner = FastTextLearner(CLF_MODEL[model_id])
     clf_learner.fit(
         training_data=training_data,
         batch_size=64

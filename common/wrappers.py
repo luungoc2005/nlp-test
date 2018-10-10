@@ -26,6 +26,7 @@ class IModel(object):
         self._predict_fn = predict_fn
         self._model_config = model_config or dict()
         self._featurizer = featurizer
+        self.config = dict()
 
     def init_model(self):
         if self._from_fp is None:
