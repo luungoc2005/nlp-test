@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from config import EMBEDDING_DIM, UNK_TAG
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax, log_sum_exp
+from common.utils import letterToIndex, n_letters, prepare_vec_sequence, word_to_vec, argmax
 
 class BRNNWordEncoder(nn.Module):
 
@@ -61,7 +61,8 @@ class BRNNWordEncoder(nn.Module):
         words_batch = words_batch.index_select(1, idx_sort)
 
         # Handling padding in Recurrent Networks
-        words_packed = pack_padded_sequence(words_batch, word_lengths)
+        # copy() call is to fix negative strides support in pytorch
+        words_packed = pack_padded_sequence(words_batch, word_lengths.copy())
         words_output = self.rnn(words_packed)[0]
         words_output = pad_packed_sequence(words_output)[0]
 

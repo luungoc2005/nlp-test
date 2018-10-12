@@ -12,7 +12,7 @@ class IModel(object):
 
     def __init__(self, 
         model_class=None,
-        model_config=None, 
+        config=None, 
         from_fp=None, 
         predict_fn=None, 
         featurizer=None,
@@ -21,17 +21,15 @@ class IModel(object):
         self._model_class = model_class
         self._from_fp = from_fp
         self._args = args
-        self._kwargs = kwargs
+        self._kwargs = kwargs or dict()
         self._criterion = None
         self._model = None
         self._predict_fn = predict_fn
-        self._model_config = model_config or dict()
         self._featurizer = featurizer
-        self.config = dict()
+        self.config = config or dict()
 
     def init_model(self):
         if self._from_fp is None:
-            self._model = to_gpu(self._model_class(*self._args, **self._kwargs))
             model_state = None
         else:
             self._model = None
@@ -42,13 +40,13 @@ class IModel(object):
                 model_state = torch.load(self._from_fp, map_location=lambda storage, loc: storage)
 
         if model_state is None:
-            config = self._model_config or dict()
+            config = self.config or dict()
         else:
             config = model_state.get('config', dict())
-            self._model_config = config
+            self.config = config
 
         # re-initialize model with loaded config
-        self._model = self._model_class(config)
+        self._model = to_gpu(self._model_class(config=config, *self._args, **self._kwargs))
 
         if model_state is not None:
             featurizer = model_state.get('featurizer', None)
@@ -94,8 +92,8 @@ class IModel(object):
         if self.is_pytorch_module():
             model_state['state_dict'] = self._model.state_dict()
         
-        if self._model_config is not None:
-            model_state['config'] = self._model_config
+        if self.config is not None:
+            model_state['config'] = self.config
         else:
             model_state['config'] = dict() # default to empty object
         

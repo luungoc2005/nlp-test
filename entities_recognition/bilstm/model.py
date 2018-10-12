@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import warnings
 from common.wrappers import IModel
-from common.utils import prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, log_sum_exp, argmax
+from common.utils import prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, argmax
 from common.torch_utils import to_gpu
 from common.keras_preprocessing import Tokenizer
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, START_TAG, STOP_TAG
@@ -15,6 +15,8 @@ class SequenceTagger(nn.Module):
     def __init__(self, config={}):
         super(SequenceTagger, self).__init__()
         self.config = config
+
+        print(config)
 
         self.embedding_dim = config.get('input_shape', (EMBEDDING_DIM,))[-1]
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
@@ -74,10 +76,10 @@ class SequenceTagger(nn.Module):
             tag_var = forward_var + self.transitions + emit_score
             max_tag_var, _ = torch.max(tag_var, dim=1)
             tag_var = tag_var - max_tag_var.view(-1, 1)
-            forward_var = max_tag_var + torch.log(torch.sum(torch.exp(tag_var), dim=1)).view(1, -1)
+            forward_var = max_tag_var + torch.logsumexp(tag_var, dim=1).view(1, -1)
 
         terminal_var = forward_var + self.transitions[self.tag_to_ix[STOP_TAG]]
-        alpha = log_sum_exp(terminal_var)
+        alpha = torch.logsumexp(terminal_var, dim=-1)
         return alpha
 
     def _get_lstm_features(self, sentence):

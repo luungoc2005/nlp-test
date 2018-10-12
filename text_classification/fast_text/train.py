@@ -14,7 +14,7 @@ class FastTextLearner(ILearner):
 
     def init_on_data(self, X, y):
         self.model_wrapper.label_encoder.fit(y)
-        self.model_wrapper._model_config['num_classes'] = self.model_wrapper.label_encoder.classes_.shape[0]
+        self.model_wrapper.config['num_classes'] = self.model_wrapper.label_encoder.classes_.shape[0]
 
         y_labels = self.model_wrapper.label_encoder.transform(y)
         class_weights = class_weight.compute_class_weight('balanced', np.unique(y_labels), y_labels)
