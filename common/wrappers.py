@@ -56,7 +56,7 @@ class IModel(object):
             if featurizer is None:
                 warnings.warn('Featurizer is not found in this binary. This is likely to be an error')
             else:
-                print('Featurizer found: ', featurizer)
+                # print('Featurizer found: ', featurizer)
                 self._featurizer = featurizer
             state_dict = model_state.get('state_dict', None)
 

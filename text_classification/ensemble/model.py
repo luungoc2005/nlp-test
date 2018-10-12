@@ -68,7 +68,7 @@ class EnsembleWrapper(IModel):
         }
 
     def load_state_dict(self, state_dict):
-        print(state_dict.keys())
+        # print(state_dict.keys())
         config = state_dict.get('config', dict())
         
         self.topk = config.get('top_k', 5)
