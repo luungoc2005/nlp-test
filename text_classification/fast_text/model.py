@@ -72,13 +72,14 @@ class FastTextWrapper(IModel):
 
     def get_state_dict(self):
         return {
-            'tokenizer': self.tokenizer,
-            'label_encoder': self.label_encoder,
+            'config': self.config,
+            'top_k': self.topk,
+            'label_encoder': self.label_encoder
         }
 
     def load_state_dict(self, state_dict):
-        config = state_dict['config']
-
+        config = state_dict.get('config', dict())
+        
         # re-initialize model with loaded config
         self.topk = config.get('top_k', 5)
 

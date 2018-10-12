@@ -2,20 +2,33 @@
 import json
 import torch
 from os import path
+
 from text_classification.fast_text.model import FastTextWrapper
 from text_classification.fast_text.train import FastTextLearner
+
+from text_classification.ensemble.model import EnsembleWrapper
+from text_classification.ensemble.train import EnsembleLearner
+
 from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
-from common.callbacks import EarlyStoppingCallback
+from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
 import argparse
 from datetime import datetime
 
 import logging
-logging.basicConfig(format='%(asctime)s %(message)s')
+consoleHandler = logging.StreamHandler()
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler())
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
 ENT_MODEL = dict()
+
+# from pympler import muppy, summary
+# all_objects = muppy.get_objects()
+
+# sum1 = summary.summarize(all_objects)
+# summary.print_(sum1)
 
 def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
     data = json.load(open(save_path, 'r'))
@@ -68,13 +81,15 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
 
     logging.info('Training classification model')
 
-    CLF_MODEL[model_id] = FastTextWrapper()
-    clf_learner = FastTextLearner(CLF_MODEL[model_id])
+    CLF_MODEL[model_id] = EnsembleWrapper()
+    clf_learner = EnsembleLearner(CLF_MODEL[model_id])
     clf_learner.fit(
         training_data=training_data,
         batch_size=64
+        # epochs=300
+        # callbacks=[PrintLoggerCallback(), EarlyStoppingCallback()]
     )
-    torch.save(CLF_MODEL[model_id].get_state_dict(), clf_model_path)
+    CLF_MODEL[model_id].save(clf_model_path)
 
     if num_entities > 0:
         tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
@@ -88,9 +103,9 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
         learner.fit(
             training_data=entities_data,
             epochs=300,
-            callbacks=[EarlyStoppingCallback()]
+            callbacks=[PrintLoggerCallback(), EarlyStoppingCallback()]
         )
-        torch.save(ENT_MODEL[model_id].get_state_dict(), ent_model_path)
+        ENT_MODEL[model_id].save(ent_model_path)
 
     return clf_model_path, ent_model_path
 
@@ -120,3 +135,6 @@ if __name__ == '__main__':
     logging.info('Training started at %s' % str(datetime.now()))
     nlu_train_file(args.model_id, args.save_path, args.clf_model_path, args.ent_model_path)
     logging.info('Training finished at %s' % str(datetime.now()))
+
+    # sum1 = summary.summarize(all_objects)
+    # summary.print_(sum1)

@@ -173,6 +173,8 @@ class Tokenizer(object):
         self.char_level = char_level
         self.oov_token = oov_token
         self.index_docs = {}
+        self.word_index = {}
+        self.ix_to_word = {}
 
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.

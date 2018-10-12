@@ -10,7 +10,9 @@ import json
 import subprocess
 
 import logging
-logging.basicConfig(format='%(asctime)s %(message)s')
+consoleHandler = logging.StreamHandler()
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler())
 
 TRAIN_PROCESSES = dict()
 

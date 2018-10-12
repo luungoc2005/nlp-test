@@ -16,6 +16,9 @@ class SIFFeaturizer(IFeaturizer):
         self.tokenize_fn = wordpunct_tokenize
         self.tokenizer = Tokenizer(num_words=self.num_words)
 
+    def get_output_shape(self):
+        return (300,)
+
     def fit(self, data):
         if self.tokenizer is None:
             self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)

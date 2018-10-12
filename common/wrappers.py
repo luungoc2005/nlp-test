@@ -3,6 +3,7 @@ import torch.optim as optim
 import torch.multiprocessing as mp
 import torch.nn as nn
 import warnings
+import pickle
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu
 from typing import Iterable
@@ -43,18 +44,26 @@ class IModel(object):
         if model_state is None:
             config = self._model_config or dict()
         else:
-            config = model_state.get('config', None)
+            config = model_state.get('config', dict())
             self._model_config = config
 
         # re-initialize model with loaded config
         self._model = self._model_class(config)
 
         if model_state is not None:
-            self._featurizer = model_state.get('featurizer', None)
+            featurizer = model_state.get('featurizer', None)
+
+            if featurizer is None:
+                warnings.warn('Featurizer is not found in this binary. This is likely to be an error')
+            else:
+                print('Featurizer found: ', featurizer)
+                self._featurizer = featurizer
             state_dict = model_state.get('state_dict', None)
 
-            if state_dict is not None:
+            if self.is_pytorch_module() and state_dict is not None:
                 self._model.load_state_dict(state_dict)
+
+            self.load_state_dict(model_state)
 
         self.on_model_init()
 
@@ -74,19 +83,24 @@ class IModel(object):
 
     def get_state_dict(self): raise NotImplementedError
 
-    @property
-    def state_dict(self):
+    def __getstate__(self):
         model_state = None
         try:
             model_state = self.get_state_dict()
         except NotImplementedError:
             model_state = {}
             warnings.warn('get_state_dict() is not implemented.')
-        if self.is_pytorch_module:
+
+        if self.is_pytorch_module():
             model_state['state_dict'] = self._model.state_dict()
+        
         if self._model_config is not None:
             model_state['config'] = self._model_config
+        else:
+            model_state['config'] = dict() # default to empty object
+        
         if self._featurizer is not None:
+            print('Featurizer found: ', self._featurizer)
             model_state['featurizer'] = self._featurizer
         return model_state
 
@@ -180,7 +194,7 @@ class IModel(object):
     def featurizer(self, value): self._featurizer = value
 
     def save(self, fp):
-        torch.save(self.model_state, fp)
+        torch.save(self.__getstate__(), fp, pickle_protocol=pickle.HIGHEST_PROTOCOL)
     
     def summary(self):
         return self.__str__()
