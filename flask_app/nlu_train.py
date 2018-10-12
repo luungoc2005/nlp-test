@@ -15,11 +15,6 @@ from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
 import argparse
 from datetime import datetime
 
-import logging
-consoleHandler = logging.StreamHandler()
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler())
-
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
 ENT_MODEL = dict()
@@ -32,7 +27,7 @@ ENT_MODEL = dict()
 
 def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
     data = json.load(open(save_path, 'r'))
-    logging.info('Loaded %s intents' % len(data))
+    print('Loaded %s intents' % len(data))
 
     classes = list(set([
         intent['name']
@@ -74,12 +69,12 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                             entities_data.append(text, example_tags.join(' '))
 
     num_entities = len(set(tag_names))
-    logging.info('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
+    print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
 
     clf_model_path = clf_model_path or save_path+'.clf.bin'
     ent_model_path = ent_model_path or ''
 
-    logging.info('Training classification model')
+    print('Training classification model')
 
     CLF_MODEL[model_id] = EnsembleWrapper()
     clf_learner = EnsembleLearner(CLF_MODEL[model_id])
@@ -97,7 +92,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
 
         ent_model_path = ent_model_path or save_path+'.ent.bin'
 
-        logging.info('Training entities recognition model')
+        print('Training entities recognition model')
         ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
         ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])
         learner.fit(
@@ -118,7 +113,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    logging.info(args)
+    print(args)
 
     if args.model_id == '':
         logging.error('Training failed: model_id is null')
@@ -132,9 +127,9 @@ if __name__ == '__main__':
         logging.error('Training failed: model path is null')
         exit()
 
-    logging.info('Training started at %s' % str(datetime.now()))
+    print('Training started at %s' % str(datetime.now()))
     nlu_train_file(args.model_id, args.save_path, args.clf_model_path, args.ent_model_path)
-    logging.info('Training finished at %s' % str(datetime.now()))
+    print('Training finished at %s' % str(datetime.now()))
 
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)

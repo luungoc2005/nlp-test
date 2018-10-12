@@ -30,10 +30,11 @@ class ICallback(object):
 
 class PrintLoggerCallback(ICallback):
 
-    def __init__(self, log_every=5, metrics=['loss', 'accuracy']):
+    def __init__(self, log_every=5, metrics=['loss', 'accuracy'], logging_fn=print):
         super(PrintLoggerCallback, self).__init__()
         self.log_every = log_every
         self.metrics = metrics
+        self.logging_fn = logging_fn
 
     def on_training_start(self):
         self.start = time.time()
@@ -53,16 +54,17 @@ class PrintLoggerCallback(ICallback):
                     if key in metrics:
                         print_line += ' - %s: %.4f' % (key, metrics[key])
                 
-            print(print_line)
+            self.logging_fn(print_line)
 
 class EarlyStoppingCallback(ICallback):
-    def __init__(self, monitor='loss', tolerance=1e-6, patience=5):
+    def __init__(self, monitor='loss', tolerance=1e-6, patience=5, logging_fn=print):
         super(EarlyStoppingCallback, self).__init__()
         assert monitor in ['loss', 'accuracy'], \
             'Early Stopping only implements loss and accuracy metrics at the moment'
         self.monitor = monitor
         self.tolerance = tolerance
         self.patience = patience
+        self.logging_fn = print
 
         self.multiplier = 1
         if self.monitor == 'accuracy':
@@ -90,7 +92,7 @@ class EarlyStoppingCallback(ICallback):
             self.wait = 1
         else:
             if self.wait >= self.patience:
-                print('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
+                self.logging_fn('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
                 self._learner._halt = True
             self.wait += 1
 
