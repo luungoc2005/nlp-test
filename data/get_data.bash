@@ -7,8 +7,8 @@ MultiNLI='https://www.nyu.edu/projects/bowman/multinli/multinli_0.9.zip'
 glovepath='http://nlp.stanford.edu/data/glove.840B.300d.zip'
 fasttext='https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip'
 quora='http://qim.ec.quoracdn.net/quora_duplicate_questions.tsv'
-wikitext-2='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip'
-wikitext-103='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
+wikitext2='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip'
+wikitext103='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
 ZIPTOOL="unzip"
 
@@ -82,15 +82,15 @@ mkdir quora
 curl -Lo quora/quora_duplicate_questions.tsv ${quora}
 
 # wikitext-2
-echo ${wikitext-2}
-mkdir wikitext-2
-curl -Lo wikitext-2/wikitext-2-v1.zip ${wikitext-2}
-${ZIPTOOL} wikitext-2/wikitext-2-v1.zip -d wikitext-2
-rm wikitext-2/wikitext-2-v1.zip
+echo ${wikitext2}
+mkdir wikitext2
+curl -Lo wikitext2/wikitext-2-v1.zip ${wikitext2}
+${ZIPTOOL} wikitext2/wikitext-2-v1.zip -d wikitext2
+rm wikitext2/wikitext-2-v1.zip
 
-echo ${wikitext-103}
-mkdir wikitext-103
-curl -Lo wikitext-103/wikitext-103-v1.zip ${wikitext-103}
-${ZIPTOOL} wikitext-103/wikitext-103-v1.zip -d wikitext-103
-rm wikitext-103/wikitext-103-v1.zip
+echo ${wikitext103}
+mkdir wikitext103
+curl -Lo wikitext103/wikitext-103-v1.zip ${wikitext103}
+${ZIPTOOL} wikitext103/wikitext-103-v1.zip -d wikitext103
+rm wikitext103/wikitext-103-v1.zip
 

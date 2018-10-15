@@ -65,8 +65,8 @@ data/botbot/
 data/CoNLL-2003/
 data/quora/
 data/fasttext/
-data/wikitext-2/
-data/wikitext-103/
+data/wikitext2/
+data/wikitext103/
 output/
 flask_app/uploads/
 
