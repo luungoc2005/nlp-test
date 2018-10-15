@@ -134,8 +134,8 @@ if __name__ == '__main__':
     print('Training finished at %s' % str(datetime.now()))
 
     if args.callback_url.strip() != '':
-        from urllib import request, urlencode
-        qs = urlencode({'model_id': args.model_id})
+        from urllib import request, parse
+        qs = parse.urlencode({'model_id': args.model_id})
         request.urlopen('{}?{}'.format(args.callback_url, qs), data='')
 
     # sum1 = summary.summarize(all_objects)
