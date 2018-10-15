@@ -15,7 +15,6 @@ from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
 
 import argparse
 from datetime import datetime
-from urllib import request
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
@@ -135,7 +134,9 @@ if __name__ == '__main__':
     print('Training finished at %s' % str(datetime.now()))
 
     if args.callback_url.strip() != '':
-        request.urlopen(args.callback_url, data='')
+        from urllib import request, urlencode
+        qs = urlencode({'model_id': args.model_id})
+        request.urlopen('{}?{}'.format(args.callback_url, qs), data='')
 
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)
