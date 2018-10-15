@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 from sru import SRU
 from torchqrnn import QRNNLayer
-from config import LM_VOCAB_SIZE, LM_EMBEDDING_DIM
+from config import LM_VOCAB_SIZE, LM_EMBEDDING_DIM, LM_HIDDEN_DIM
 from common.modules import LockedDropout
 from common.wrappers import IModel
+from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
 
@@ -20,7 +21,7 @@ class RNNLanguageModel(nn.Module):
         self.dropout_h = config.get('h_dropout', .5)
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.rnn_type = config.get('rnn_type', 'SRU')
-        self.hidden_size = config.get('hidden_size', 1150)
+        self.hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
 
@@ -72,23 +73,23 @@ class RNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             return [
                 (weight.new(
-                    1, 
+                    2, 
                     batch_size, 
-                    self.hidden_size if l != self.n_layers - 1 else self.embedding_dim
+                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ).zero_(),
                 weight.new(
-                    1, 
+                    2, 
                     batch_size, 
-                    self.hidden_size if l != self.n_layers - 1 else self.embedding_dim
+                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ).zero_())
                 for l in range(self.n_layers)
             ]
         elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
             return [
                 weight.new(
-                    1, 
+                    2, 
                     batch_size, 
-                    self.hidden_size if l != self.n_layers - 1 else self.embedding_dim
+                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ).zero_()
                 for l in range(self.n_layers)
             ]

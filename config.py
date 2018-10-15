@@ -28,6 +28,7 @@ NGRAM_BINS = 2 ** 16 # == 65536
 
 LM_VOCAB_SIZE = 500000 # Number of tokens in language model
 LM_EMBEDDING_DIM = 600
+LM_HIDDEN_DIM = 2048
 
 BATCH_SIZE = 32
 

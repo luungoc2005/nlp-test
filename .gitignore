@@ -65,6 +65,8 @@ data/botbot/
 data/CoNLL-2003/
 data/quora/
 data/fasttext/
+data/wikitext-2/
+data/wikitext-103/
 output/
 flask_app/uploads/
 
@@ -94,3 +96,5 @@ data/vn_treebank/
 DEBUG
 
 third_party/
+
+flask_app/config.cfg

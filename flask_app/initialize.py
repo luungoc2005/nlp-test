@@ -1,15 +1,15 @@
-from flask_app.nlu_main import nlu_init_model, nlu_predict
+from flask_app.nlu_main import nlu_init_model, nlu_predict, nlu_release_model
 from flask_app.nlu_train import nlu_train_file
 from config import UPLOAD_FOLDER, LOGS_FOLDER, CONFIG_PATH, BASE_PATH, PYTHON_PATH
 from flask import request, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
-from os import path, makedirs
+from os import path, makedirs, remove
 import time
 import uuid
 import json
 import subprocess
-
 import logging
+
 consoleHandler = logging.StreamHandler()
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
@@ -33,6 +33,30 @@ def get_config(app):
         except:
             logging.warning('Failed to load configuration. Using defaults')
             pass
+
+def delete_model(app, model_id):
+    get_config(app)
+
+    model_id = content['model_id']
+    all_models = app.config['MODELS']
+
+    if model_id not in all_models:
+        return jsonerror('Model ID not found')
+    else:
+        model_config = all_models[model_id]
+
+        if path.exists(model_config['CLF_MODEL_PATH']):
+            remove(model_config['CLF_MODEL_PATH'])
+        
+        if path.exists(model_config['ENT_MODEL_PATH']):
+            remove(model_config['ENT_MODEL_PATH'])
+
+        del all_models[model_id]
+
+        app.config['MODELS'] = all_models
+
+        save_config(app)
+
 
 def jsonerror(*args, **kwargs):
     response = jsonify(*args, **kwargs)
@@ -66,13 +90,28 @@ def initialize(app):
             if u_file.filename == '':
                 return jsonerror('No selected file')
             if u_file and allowed_file(u_file.filename):
+                request_form = request.form
+
+                callback_url = request_form.get('callback_url', '')
+                if 'model_id' in request_form:
+                    prev_model_id = request_form['model_id']
+
+                    if prev_model_id in TRAIN_PROCESSES:
+                        process = TRAIN_PROCESSES[prev_model_id]
+                        return_code = process.poll()
+                        if return_code is None: # process is still running
+                            process.kill() # immediately kill the process
+
+                    print('Deleting previous model', prev_model_id)
+                    delete_model(app, prev_model_id)
+
                 model_id = str(uuid.uuid4())
 
                 filename = model_id + '_' + secure_filename(u_file.filename)
                 save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
                 u_file.save(save_path)
 
-                flash('Upload complete. Beginning training')
+                print('Upload complete. Beginning training model', model_id)
 
                 clf_model_path = save_path + '.cls.bin'
                 ent_model_path = save_path + '.ent.bin'
@@ -93,7 +132,8 @@ def initialize(app):
                                 '--model_id', model_id, 
                                 '--save_path', save_path,
                                 '--clf_model_path', clf_model_path,
-                                '--ent_model_path', ent_model_path
+                                '--ent_model_path', ent_model_path,
+                                '--callback_url', callback_url
                             ],
                             stdout=log_fp
                         )
@@ -129,17 +169,17 @@ def initialize(app):
             model_config = app.config['MODELS'][model_id]
 
             if model_id in TRAIN_PROCESSES:
-                    process = TRAIN_PROCESSES[model_id]
-                    return_code = process.poll()
-                    if return_code is None:
-                        return jsonify({
-                            'status': 'training'
-                        })
-                    elif return_code < 0:
-                        return jsonify({
-                            'status': 'failed',
-                            'error_code': return_code
-                        })
+                process = TRAIN_PROCESSES[model_id]
+                return_code = process.poll()
+                if return_code is None:
+                    return jsonify({
+                        'status': 'training'
+                    })
+                elif return_code < 0:
+                    return jsonify({
+                        'status': 'failed',
+                        'error_code': return_code
+                    })
                     
             if path.exists(model_config['CLF_MODEL_PATH']):
                 return jsonify({

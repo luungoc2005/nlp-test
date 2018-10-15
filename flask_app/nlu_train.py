@@ -3,8 +3,8 @@ import json
 import torch
 from os import path
 
-from text_classification.fast_text.model import FastTextWrapper
-from text_classification.fast_text.train import FastTextLearner
+# from text_classification.fast_text.model import FastTextWrapper
+# from text_classification.fast_text.train import FastTextLearner
 
 from text_classification.ensemble.model import EnsembleWrapper
 from text_classification.ensemble.train import EnsembleLearner
@@ -12,8 +12,10 @@ from text_classification.ensemble.train import EnsembleLearner
 from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
 from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
+
 import argparse
 from datetime import datetime
+from urllib import request
 
 IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
@@ -110,6 +112,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_path", type=str, default='')
     parser.add_argument("--clf_model_path", type=str, default='')
     parser.add_argument("--ent_model_path", type=str, default='')
+    parser.add_argument("--callback_url", type=str, default='')
 
     args = parser.parse_args()
 
@@ -130,6 +133,9 @@ if __name__ == '__main__':
     print('Training started at %s' % str(datetime.now()))
     nlu_train_file(args.model_id, args.save_path, args.clf_model_path, args.ent_model_path)
     print('Training finished at %s' % str(datetime.now()))
+
+    if args.callback_url.strip() != '':
+        request.urlopen(args.callback_url, data='')
 
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)

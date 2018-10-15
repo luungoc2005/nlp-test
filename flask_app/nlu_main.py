@@ -1,7 +1,7 @@
 from os import path
 
-from text_classification.fast_text.model import FastTextWrapper
-from text_classification.fast_text.train import FastTextLearner
+# from text_classification.fast_text.model import FastTextWrapper
+# from text_classification.fast_text.train import FastTextLearner
 
 from text_classification.ensemble.model import EnsembleWrapper
 from text_classification.ensemble.train import EnsembleLearner
@@ -60,3 +60,11 @@ def nlu_predict(model_id, query):
 
     return result
 
+def nlu_release_model(model_id):
+    global CLF_MODEL, ENT_MODEL
+
+    if model_id in CLF_MODEL:
+        del CLF_MODEL[model_id] #.pop() also works but not as direct
+    
+    if model_id in ENT_MODEL:
+        del ENT_MODEL[model_id]
