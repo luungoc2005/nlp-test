@@ -26,6 +26,9 @@ SENTENCE_DIM = 50
 # NGRAM_BINS = 2 ** 21 # power of 2 bins that's close to 2m == 2097152
 NGRAM_BINS = 2 ** 16 # == 65536
 
+LM_VOCAB_SIZE = 500000 # Number of tokens in language model
+LM_EMBEDDING_DIM = 600
+
 BATCH_SIZE = 32
 
 # ConvNet configs (deprecated)
