@@ -136,7 +136,9 @@ if __name__ == '__main__':
     if args.callback_url.strip() != '':
         from urllib import request, parse
         qs = parse.urlencode({'model_id': args.model_id})
-        request.urlopen('{}?{}'.format(args.callback_url, qs), data=b'')
+        full_url = '{}?{}'.format(args.callback_url, qs)
+        print('Sending POST request to', full_url)
+        request.urlopen(full_url, data=b'')
 
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)
