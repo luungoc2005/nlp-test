@@ -37,7 +37,6 @@ def get_config(app):
 def delete_model(app, model_id):
     get_config(app)
 
-    model_id = content['model_id']
     all_models = app.config['MODELS']
 
     if model_id not in all_models:

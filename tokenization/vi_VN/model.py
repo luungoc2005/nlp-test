@@ -7,6 +7,7 @@ from common.wrappers import IModel
 from common.keras_preprocessing import Tokenizer
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, UNK_TAG
+from featurizers.basic_featurizer import BasicFeaturizer
 from common.langs.vi_VN.utils import remove_tone_marks
 from common.modules import BRNNWordEncoder
 from common.torch_utils import to_gpu
@@ -72,7 +73,8 @@ class VNTokenizerWrapper(IModel):
     def __init__(self, config={}, *args, **kwargs):
         super(VNTokenizerWrapper, self).__init__(
             model_class=VNTokenizer, 
-            config=config, 
+            config=config,
+            featurizer=BasicFeaturizer(config),
             *args, **kwargs
         )
 
@@ -83,27 +85,3 @@ class VNTokenizerWrapper(IModel):
             model.lstm,
             model.hidden2tag
         ]
-    
-    def get_state_dict(self):
-        return {
-            'tokenizer': self.tokenizer,
-            'config': self.model.config,
-            'state_dict': self.model.state_dict(),
-        }
-
-    def load_state_dict(self, state_dict):
-        config = state_dict['config']
-
-        # re-initialize model with loaded config
-        self.model = self._model_class(config)
-        self.model.load_state_dict(state_dict['state_dict'])
-
-        # load tokenizer
-        self.tokenizer = state_dict['tokenizer']
-
-    def preprocess_input(self, X):
-        if self.tokenizer is None:
-            self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
-
-        tokens = [self.tokenize_fn(sent) for sent in X]
-        tokens = self.tokenizer.texts_to_sequences(tokens)

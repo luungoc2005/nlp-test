@@ -6,11 +6,13 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM
+from typing import Union, Tuple
 
 class LanguageModelLearner(ILearner):
 
     def __init__(self, model, *args, **kwargs):
-        super(LanguageModelLearner, self).__init__(model, *args, auto_optimize=True, **kwargs)
+        super(LanguageModelLearner, self).__init__(
+            model, *args, auto_optimize=True, **kwargs)
 
     def init_on_data(self, X, y):
         config = self.model_wrapper.config or dict()
@@ -35,11 +37,19 @@ class LanguageModelLearner(ILearner):
         self.hidden = None
         self.clip_grad = config.get('clip_grad', 5)
 
+    def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
+        if isinstance(h, torch.Tensor):
+            return h.detach()
+        else:
+            return tuple(self.repackage_hidden(v) for v in h)
+
     def on_epoch(self, X, y):
         if self.hidden is None:
             batch_size = X.size(0)
             self.hidden = self.model_wrapper.model.init_hidden(batch_size)
-
+        else:
+            self.hidden = self.repackage_hidden(self.hidden)
+        
         logits, self.hidden = self.model_wrapper.model(X)
         loss = self.criterion(logits, y)
 
