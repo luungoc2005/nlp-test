@@ -68,24 +68,20 @@ Arguments:
 After running the server
 1. `/upload (POST)` is used to upload a data file & train the NLU on the data file with the `file` argument - e.g: `curl -X POST -F 'file=@./data/botbot/francis.json' 127.0.0.1:5000/upload`
 ```
-curl -X POST 
--F "file=@./data/botbot/francis.json"
-127.0.0.1:5000/upload
+curl -X POST -F "file=@./data/botbot/francis.json" 127.0.0.1:5000/upload
 ```
+Returns: `model_id`
 
 2. `/predict (POST)` is used to send a query for prediction
 
 e.g
 ```
-curl -X POST
--H "Content-Type: application/json"  
--d '{"query":"Hello world!"}' 
-127.0.0.1:5000/predict | json_pp
+curl -X POST -H "Content-Type: application/json"  -d '{"query":"Hello world!", "model_id": "guid_in_previous_step"}' 127.0.0.1:5000/predict | json_pp
 ```
 
 ## Extras
 
-1. Using GPU (TO BE IMPLEMENTED)
+1. Using GPU
 
 Using GPU will massively speed up training and inference time (brings training from hours of CPU time to about an hour or a few minutes depending on GPU spec)
 

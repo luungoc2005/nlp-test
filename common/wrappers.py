@@ -45,6 +45,13 @@ class IModel(object):
             config = model_state.get('config', dict())
             self.config = config
 
+        if self.is_pytorch_module():
+            # re-initialize model with loaded config
+            self._model = to_gpu(self._model_class(config=config, *self._args, **self._kwargs))
+        else:
+            # initialize model normally
+            self._model = self._model_class(*self._args, **self._kwargs)
+
         if model_state is not None:
             featurizer = model_state.get('featurizer', None)
 
@@ -56,12 +63,8 @@ class IModel(object):
                 self._featurizer = featurizer
             state_dict = model_state.get('state_dict', None)
 
-            if self.is_pytorch_module():
-                # re-initialize model with loaded config
-                self._model = to_gpu(self._model_class(config=config, *self._args, **self._kwargs))
-                
-                if state_dict is not None:
-                    self._model.load_state_dict(state_dict)
+            if self.is_pytorch_module() and state_dict is not None:
+                self._model.load_state_dict(state_dict)
 
             self.load_state_dict(model_state)
 

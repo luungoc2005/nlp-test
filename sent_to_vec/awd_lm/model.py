@@ -20,8 +20,8 @@ class RNNLanguageModel(nn.Module):
         self.dropout_h = config.get('h_dropout', .5)
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.rnn_type = config.get('rnn_type', 'SRU')
-        self.hidden_size = config.get('hidden_size', 2048)
-        self.n_layers = config.get('n_layers', 3)
+        self.hidden_size = config.get('hidden_size', 1150)
+        self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU']
@@ -163,4 +163,3 @@ class LanguageModelWrapper(IModel):
             *args, **kwargs
         )
         self.config = config
-        
