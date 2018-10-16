@@ -138,7 +138,15 @@ if __name__ == '__main__':
         qs = parse.urlencode({'model_id': args.model_id})
         full_url = '{}?{}'.format(args.callback_url, qs)
         print('Sending POST request to', full_url)
-        request.urlopen(full_url, data=b'')
+        request_obj = request.Request(
+            full_url, 
+            data=b'',
+            headers={
+                'Accept': 'text/html',
+                'User-Agent': 'Mozilla/5.0'
+            }
+        )
+        request.urlopen(request_obj)
 
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)
