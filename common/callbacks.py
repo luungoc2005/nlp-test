@@ -1,8 +1,10 @@
 import time
 import warnings
 import torch.nn as nn
-from common.utils import timeSince
+from common.utils import timeSince, asMinutes
 from abc import ABCMeta, abstractmethod
+from os import path, remove
+from collections import deque
 
 
 class ICallback(object):
@@ -53,7 +55,7 @@ class PrintLoggerCallback(ICallback):
                 for key in self.metrics:
                     if key in metrics:
                         print_line += ' - %s: %.4f' % (key, metrics[key])
-                
+
             self.logging_fn(print_line)
 
 class EarlyStoppingCallback(ICallback):
@@ -95,6 +97,66 @@ class EarlyStoppingCallback(ICallback):
                 self.logging_fn('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
                 self._learner._halt = True
             self.wait += 1
+
+class ModelCheckpointCallback(ICallback):
+
+    def __init__(self, 
+        every_batch=10,
+        every_epochs=1,
+        save_last=10,
+        logging_fn=print,
+        metrics=['loss', 'accuracy']):
+
+        super(ModelCheckpointCallback, self).__init__()
+        self.every_epochs = every_epochs
+        self.metrics = metrics
+        self.logging_fn = logging_fn
+        self.save_last = save_last
+        self.file_queue = deque()
+
+    def on_training_start(self):
+        self.start = time.time()
+
+    def get_savefile_name(self):
+        now = time.time()
+        s = now - self.start
+
+        file_name = '{} - epoch {}:{} checkpoint'.format(
+            asMinutes(s),
+            self._learner._current_epoch + 1,
+            self._learner._batch_idx + 1
+        )
+        
+        metrics = self.learner.metrics
+        # metrics = self.learner._batch_metrics
+        if metrics is not None:
+            for key in self.metrics:
+                if key in metrics:
+                    file_name += ' - %s: %.4f' % (key, metrics[key])
+        file_name += '.bin'
+        return file_name
+
+    def save_checkpoint(self):
+        new_file_name = self.get_savefile_name()
+        self.file_queue.append(new_file_name)
+
+        if self.save_last > 0:
+            if len(self.file_queue) > self.save_last:
+                old_file_name = self.file_queue.popleft()
+                if old_file_name != '' and path.exists(old_file_name) and path.isfile(old_file_name):
+                    remove(old_file_name)
+
+        self._learner.save(new_file_name)        
+
+    def on_batch_end(self):
+        if ((self._learner._batch_idx + 1) % self.every_epochs) == 0:
+            self.save_checkpoint()
+
+    def on_epoch_end(self):
+        if ((self._learner._current_epoch + 1) % self.every_epochs) == 0:
+            self.save_checkpoint()
+
+
 
 class TemperatureScalingCallback(ICallback):
 
