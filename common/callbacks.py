@@ -6,7 +6,6 @@ from abc import ABCMeta, abstractmethod
 from os import path, remove
 from collections import deque
 
-
 class ICallback(object):
 
     def __init__(self):
@@ -126,7 +125,7 @@ class ModelCheckpointCallback(ICallback):
             self._learner._current_epoch + 1,
             self._learner._batch_idx + 1
         )
-        
+
         metrics = self.learner.metrics
         # metrics = self.learner._batch_metrics
         if metrics is not None:
@@ -145,8 +144,10 @@ class ModelCheckpointCallback(ICallback):
                 old_file_name = self.file_queue.popleft()
                 if old_file_name != '' and path.exists(old_file_name) and path.isfile(old_file_name):
                     remove(old_file_name)
+                    self.logging_fn('Model Checkpoint: Removing old checkpoint: {}'.format(old_file_name))
 
-        self._learner.save(new_file_name)        
+        self._learner.save(new_file_name)
+        self.logging_fn('Model Checkpoint: Saving checkpoint: {}'.format(new_file_name))
 
     def on_batch_end(self):
         if ((self._learner._batch_idx + 1) % self.every_epochs) == 0:

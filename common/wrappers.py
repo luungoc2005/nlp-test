@@ -380,7 +380,7 @@ class ILearner(object):
             else:
                 if self.model_wrapper._featurizer is not None:
                     X = self.model_wrapper._featurizer.transform(X)
-            
+                    
                 X = self.model_wrapper.preprocess_input(X)
                 y = self.model_wrapper.preprocess_output(y)
 
@@ -454,7 +454,7 @@ class ILearner(object):
                 # auto_optimize: auto handling the optimizer
                 if self._auto_optimize: self.optimizer.zero_grad()
 
-                epoch_ret = self.on_epoch(X_batch, y_batch)
+                epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
 
                 if epoch_ret is not None and 'logits' in epoch_ret:
                     with torch.no_grad():

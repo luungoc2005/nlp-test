@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-from sru import SRU
-from torchqrnn import QRNNLayer
-from config import LM_VOCAB_SIZE, LM_EMBEDDING_DIM, LM_HIDDEN_DIM
+from config import LM_VOCAB_SIZE, LM_EMBEDDING_DIM, LM_HIDDEN_DIM, LM_SEQ_LEN
 from common.modules import LockedDropout
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
@@ -47,10 +45,11 @@ class RNNLanguageModel(nn.Module):
                 bidirectional=True
             ) for layer_ix in range(self.n_layers)]
         else:
+            from sru import SRU
             self.rnns = [SRU(
                 self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
                 self.hidden_size if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-                rnn_dropout=self.dropout_rnn
+                rnn_dropout=self.dropout_rnn,
                 bidirectional=True,
                 v1=True
             ) for layer_ix in range(self.n_layers)]
@@ -157,10 +156,15 @@ class RNNLanguageModel(nn.Module):
 class LanguageModelWrapper(IModel):
 
     def __init__(self, config=dict(), *args, **kwargs):
+        featurizer_config = config
+        featurizer_config['append_sos_eos'] = True
+
         super(LanguageModelWrapper, self).__init__(
             model_class=RNNLanguageModel, 
             config=config, 
-            featurizer=BasicFeaturizer(config),
+            featurizer=BasicFeaturizer(featurizer_config),
             *args, **kwargs
         )
+
+        self.seq_len = config.get('seq_len', LM_SEQ_LEN)
         self.config = config
