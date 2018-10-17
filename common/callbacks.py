@@ -31,31 +31,50 @@ class ICallback(object):
 
 class PrintLoggerCallback(ICallback):
 
-    def __init__(self, log_every=5, metrics=['loss', 'accuracy'], logging_fn=print):
+    def __init__(self, log_every=5, log_every_batch=-1, metrics=['loss', 'accuracy'], logging_fn=print):
         super(PrintLoggerCallback, self).__init__()
         self.log_every = log_every
+        self.log_every_batch = log_every_batch
         self.metrics = metrics
         self.logging_fn = logging_fn
 
     def on_training_start(self):
         self.start = time.time()
 
-    def on_epoch_end(self):
-        if ((self._learner._current_epoch + 1) % self.log_every) == 0:
+    def print_line(self, print_minibatch=False):
+        if print_minibatch == False:
             progress = float(self._learner._current_epoch + 1) / float(self._learner._n_epochs)
             print_line = '%s (%d %d%%)' % (
                 timeSince(self.start, progress), 
                 self._learner._current_epoch + 1,
                 progress * 100
             )
-            metrics = self.learner.metrics
-            # metrics = self.learner._batch_metrics
-            if metrics is not None:
-                for key in self.metrics:
-                    if key in metrics:
-                        print_line += ' - %s: %.4f' % (key, metrics[key])
+        else:
+            progress = float(self._learner._current_epoch + 1) / float(self._learner._n_epochs)
+            print_line = '%s (%d-%d %d%%)' % (
+                timeSince(self.start, progress),
+                self._learner._batch_idx + 1,
+                self._learner._current_epoch + 1,
+                progress * 100
+            )
+        metrics = self.learner.metrics
+        # metrics = self.learner._batch_metrics
+        if metrics is not None:
+            for key in self.metrics:
+                if key in metrics:
+                    print_line += ' - %s: %.4f' % (key, metrics[key])
 
-            self.logging_fn(print_line)
+        self.logging_fn(print_line)
+
+    def on_epoch_end(self):
+        if self.log_every > 0:
+            if ((self._learner._current_epoch + 1) % self.log_every) == 0:
+                self.print_line()
+
+    def on_batch_end(self):
+        if self.log_every_batch > 0:
+            if ((self._learner._batch_idx + 1) % self.log_every_batch) == 0:
+                self.print_line(True)
 
 class EarlyStoppingCallback(ICallback):
     def __init__(self, monitor='loss', tolerance=1e-6, patience=5, logging_fn=print):
@@ -108,6 +127,7 @@ class ModelCheckpointCallback(ICallback):
 
         super(ModelCheckpointCallback, self).__init__()
         self.every_epochs = every_epochs
+        self.every_batch = every_batch
         self.metrics = metrics
         self.logging_fn = logging_fn
         self.save_last = save_last
@@ -150,12 +170,14 @@ class ModelCheckpointCallback(ICallback):
         self.logging_fn('Model Checkpoint: Saving checkpoint: {}'.format(new_file_name))
 
     def on_batch_end(self):
-        if ((self._learner._batch_idx + 1) % self.every_epochs) == 0:
-            self.save_checkpoint()
+        if self.every_batch > 0:
+            if ((self._learner._batch_idx + 1) % self.every_batch) == 0:
+                self.save_checkpoint()
 
     def on_epoch_end(self):
-        if ((self._learner._current_epoch + 1) % self.every_epochs) == 0:
-            self.save_checkpoint()
+        if self.every_epochs > 0:
+            if ((self._learner._current_epoch + 1) % self.every_epochs) == 0:
+                self.save_checkpoint()
 
 
 

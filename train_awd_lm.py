@@ -27,7 +27,7 @@ learner.fit(
     batch_size=1,
     epochs=1000,
     callbacks=[
-        PrintLoggerCallback(), 
+        PrintLoggerCallback(log_every_batch=10, log_every=1), 
         EarlyStoppingCallback(),
         ModelCheckpointCallback()
     ]
