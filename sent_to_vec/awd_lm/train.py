@@ -103,8 +103,8 @@ class LanguageModelLearner(ILearner):
         self.clip_grad = config.get('clip_grad', 5)
 
     def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
-        if isinstance(h, torch.Tensor):
-            return h.detach()
+        if torch.is_tensor(h):
+            return to_gpu(h.detach())
         else:
             return tuple(self.repackage_hidden(v) for v in h)
 
@@ -119,7 +119,7 @@ class LanguageModelLearner(ILearner):
         else:
             self.hidden = self.repackage_hidden(self.hidden)
         
-        logits, self.hidden = self.model_wrapper.model(X, to_gpu(self.hidden))
+        logits, self.hidden = self.model_wrapper.model(X, self.hidden)
         loss = self.criterion(logits, y)
 
         loss.backward()
