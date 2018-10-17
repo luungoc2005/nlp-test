@@ -67,7 +67,7 @@ class WikiTextDataset(Dataset):
 
     def __getitem__(self, index) -> Iterable:
         seq_len = min(self.seq_len, len(self.batch_data) - 1 - index)
-        X = self.batch_data[index:index+seq_len]
+        X = self.batch_data[index:index+seq_len].long()
         y = self.batch_data[index+1:index+1+seq_len].view(-1)
         return X, y
 
