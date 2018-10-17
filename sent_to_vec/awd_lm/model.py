@@ -105,10 +105,10 @@ class RNNLanguageModel(nn.Module):
         if padding_idx is None:
             padding_idx = -1
 
-        X = torch.nn.functional.embedding(words, masked_embed_weight,
+        X = to_gpu(torch.nn.functional.embedding(words, masked_embed_weight,
             padding_idx, embed.max_norm, embed.norm_type,
             embed.scale_grad_by_freq, embed.sparse
-        )
+        ))
         
         return X
 
