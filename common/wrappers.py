@@ -111,7 +111,7 @@ class IModel(object):
 
     def infer_predict(self, logits): return logits
 
-    def is_pytorch_module(self) -> bool: return self._model_class is not None and isinstance(self._model_class, nn.Module)
+    def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
 
     def transform(self, X, return_logits=False):
         if self._model is None: return
