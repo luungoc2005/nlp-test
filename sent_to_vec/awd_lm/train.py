@@ -49,7 +49,8 @@ class WikiTextDataset(Dataset):
     def save(self):
         torch.save({
             'featurizer': self.featurizer,
-            'data': self.batch_data
+            'data': self.batch_data,
+            'raw_sents': self.raw_sents
         }, self.get_save_name())
         print('Finished saving preprocessed dataset')
 
@@ -61,7 +62,7 @@ class WikiTextDataset(Dataset):
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
-        return len(self.raw_sents)
+        return len(self.batch_data)
 
     def __getitem__(self, index) -> Iterable:
         seq_len = min(self.seq_len, len(self.batch_data) - 1 - index)
