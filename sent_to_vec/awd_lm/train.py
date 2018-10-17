@@ -12,8 +12,10 @@ from typing import Union, Tuple, Iterable
 
 class WikiTextDataset(Dataset):
 
-    def __init__(self, model_wrapper, data_path, batch_size=64):
+    def __init__(self):
         super(WikiTextDataset, self).__init__()
+
+    def initialize(self, model_wrapper, data_path, batch_size=64):
         if isinstance(data_path, str):
             self.raw_sents = read_wikitext(data_path)
             print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
@@ -34,10 +36,29 @@ class WikiTextDataset(Dataset):
 
         print('Tokenizing files')
         batch_data = self.featurizer.transform(self.raw_sents)
-        n_batch = len(batch_data) // batch_size
-        batch_data = torch.LongTensor(batch_data).narrow(0, 0, n_batch * batch_size)
-        batch_data = batch_data.view(batch_size, -1).t().contiguous()
+
+        n_batch = batch_data.size(0) // batch_size
+        batch_data = batch_data.narrow(0, 0, n_batch * batch_size)
+    
+        batch_data = batch_data.t().contiguous()
         self.batch_data = batch_data
+
+    def get_save_name(self):
+        return 'wikitext-data.bin'
+
+    def save(self):
+        torch.save({
+            'featurizer': self.featurizer,
+            'data': self.batch_data
+        }, self.get_save_name())
+        print('Finished saving preprocessed dataset')
+
+    def load(self, fp, model_wrapper):
+        state = torch.load(fp)
+        self.featurizer = state['featurizer']
+        model_wrapper.featurizer = state['featurizer']
+        self.batch_data = state['data']
+        print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
         return len(self.raw_sents)

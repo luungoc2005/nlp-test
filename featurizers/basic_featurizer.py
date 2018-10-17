@@ -33,6 +33,11 @@ class BasicFeaturizer(IFeaturizer):
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
     def transform(self, data):
-        tokens = np.array(self.tokenizer.texts_to_sequences(self.tokenize(data)))
+        tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
+        lengths = [len(seq) for seq in tokens]
 
-        return torch.from_numpy(tokens).long()
+        res = torch.zeros(len(tokens), max(lengths))
+        for idx, seq in enumerate(tokens):
+            res[idx, :len(seq)] = torch.LongTensor(seq)
+
+        return res

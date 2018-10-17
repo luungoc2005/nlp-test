@@ -5,10 +5,14 @@ from os import path
 from config import BASE_PATH
 
 model = LanguageModelWrapper()
-dataset = WikiTextDataset(model, data_path=[
+
+dataset = WikiTextDataset()
+dataset.initialize(model, data_path=[
     path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
     path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
 ], batch_size=16)
+dataset.save()
+
 learner = LanguageModelLearner(model)
 
 learner.fit(
