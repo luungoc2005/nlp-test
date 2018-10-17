@@ -16,7 +16,7 @@ else:
     dataset.initialize(model, data_path=[
         path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
         path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
-    ], batch_size=16)
+    ], batch_size=8)
     dataset.save()
 
 learner = LanguageModelLearner(model)
