@@ -59,6 +59,7 @@ class WikiTextDataset(Dataset):
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
         self.batch_data = state['data']
+        self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
