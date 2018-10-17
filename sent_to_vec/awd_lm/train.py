@@ -40,7 +40,7 @@ class WikiTextDataset(Dataset):
         n_batch = batch_data.size(0) // batch_size
         batch_data = batch_data.narrow(0, 0, n_batch * batch_size)
     
-        batch_data = batch_data.t().contiguous()
+        batch_data = batch_data.view(batch_size, -1).t().contiguous()
         self.batch_data = batch_data
 
     def get_save_name(self):
@@ -109,6 +109,10 @@ class LanguageModelLearner(ILearner):
             return tuple(self.repackage_hidden(v) for v in h)
 
     def on_epoch(self, X, y):
+        # temporary fix for dataloader
+        X = X[0]
+        y = y[0]
+
         if self.hidden is None:
             batch_size = X.size(1)
             self.hidden = self.model_wrapper.model.init_hidden(batch_size)

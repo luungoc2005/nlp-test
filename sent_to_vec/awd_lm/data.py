@@ -1,4 +1,4 @@
-from config import BASE_PATH, START_TAG, STOP_TAG
+from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG
 from nltk.tokenize import sent_tokenize
 from os import path
 
@@ -11,6 +11,6 @@ def read_wikitext(file_path):
                 continue
 
             for sent in sent_tokenize(line):
-                sents.append(sent)
+                sents.append(sent.replace('<unk>', UNK_TAG))
 
     return sents
