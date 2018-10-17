@@ -131,7 +131,7 @@ class RNNLanguageModel(nn.Module):
         outputs = []
 
         for idx, rnn in enumerate(self.rnns):
-            raw_output, current_h = rnn(raw_output, hidden[idx])
+            raw_output, current_h = rnn(raw_output, to_gpu(hidden[idx]))
             
             raw_hiddens.append(current_h)
             raw_outputs.append(raw_output)
