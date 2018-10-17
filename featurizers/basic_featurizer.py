@@ -5,7 +5,7 @@ from common.keras_preprocessing import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from nltk.tokenize import wordpunct_tokenize
 from sent_to_vec.sif.encoder import SIF_embedding
-from config import LM_VOCAB_SIZE, START_TAG, STOP_TAG
+from config import LM_VOCAB_SIZE, START_TAG, STOP_TAG, MAX_SEQUENCE_LENGTH
 
 class BasicFeaturizer(IFeaturizer):
 
@@ -14,6 +14,7 @@ class BasicFeaturizer(IFeaturizer):
 
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.append_sos_eos = config.get('append_sos_eos', False)
+        self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
         self.tokenize_fn = wordpunct_tokenize
         self.tokenizer = Tokenizer(num_words=self.num_words)
 
@@ -35,8 +36,11 @@ class BasicFeaturizer(IFeaturizer):
     def transform(self, data):
         tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
         lengths = [len(seq) for seq in tokens]
+        max_seq_len = max(lengths)
+        if self.featurizer_seq_len > 0:
+            max_seq_len = min(max_seq_len, self.featurizer_seq_len)
 
-        res = torch.zeros(len(tokens), max(lengths))
+        res = torch.zeros(len(tokens), max_seq_len)
         for idx, seq in enumerate(tokens):
             res[idx, :len(seq)] = torch.LongTensor(seq)
 
