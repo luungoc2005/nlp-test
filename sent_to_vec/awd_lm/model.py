@@ -28,7 +28,7 @@ class RNNLanguageModel(nn.Module):
         self.encoder = nn.Embedding(
             self.num_words, self.embedding_dim
         )
-        self.lockdrop = LockedDropout()
+        self.lockdrop = to_gpu(LockedDropout())
 
         if self.rnn_type == 'LSTM':
             self.rnns = [nn.LSTM(
