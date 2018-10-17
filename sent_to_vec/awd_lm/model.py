@@ -71,25 +71,25 @@ class RNNLanguageModel(nn.Module):
         weight = next(self.parameters()).data
         if self.rnn_type == 'LSTM':
             return [
-                (weight.new(
+                (to_gpu(weight.new(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_(),
-                weight.new(
+                ).zero_()),
+                to_gpu(weight.new(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_())
+                ).zero_()))
                 for l in range(self.n_layers)
             ]
         elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
             return [
-                weight.new(
+                to_gpu(weight.new(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_()
+                ).zero_())
                 for l in range(self.n_layers)
             ]
 
