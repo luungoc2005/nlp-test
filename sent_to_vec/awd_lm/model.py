@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from config import LM_VOCAB_SIZE, LM_EMBEDDING_DIM, LM_HIDDEN_DIM, LM_SEQ_LEN
-from common.modules import LockedDropout
+from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
+from common.modules import LockedDropout, WeightDrop
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
@@ -13,13 +13,13 @@ class RNNLanguageModel(nn.Module):
         super(RNNLanguageModel, self).__init__()
         self.config = config
 
-        self.embedding_dim = config.get('embedding_dim', LM_EMBEDDING_DIM)
-        self.dropout_emb = config.get('emb_dropout', .1)
+        self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
         self.dropout_h = config.get('h_dropout', .5)
+        self.wdrop = config.get('wdrop', 0)
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
-        self.rnn_type = config.get('rnn_type', 'SRU')
-        self.hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
+        self.rnn_type = config.get('rnn_type', 'GRU')
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
 
@@ -30,29 +30,58 @@ class RNNLanguageModel(nn.Module):
         )
         self.lockdrop = to_gpu(LockedDropout())
 
+        # for the mean time weight drop is broken
         if self.rnn_type == 'LSTM':
-            self.rnns = [nn.LSTM(
-                self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                self.hidden_size if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-                dropout=self.dropout_rnn,
-                bidirectional=True
-            ) for layer_ix in range(self.n_layers)]
+            # self.rnns = nn.ModuleList([
+            #     WeightDrop(
+            #         nn.LSTM(
+            #             self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
+            #             self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+            #             bidirectional=True
+            #         ), 
+            #     ['weight_hh_l0'], dropout=self.wdrop) 
+            #     for layer_ix in range(self.n_layers)
+            # ])
+            self.rnns = nn.ModuleList([
+                nn.LSTM(
+                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
+                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    bidirectional=True
+                )
+                for layer_ix in range(self.n_layers)
+            ])
         elif self.rnn_type == 'GRU':
-            self.rnns = [nn.GRU(
-                self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                self.hidden_size if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-                dropout=self.dropout_rnn,
-                bidirectional=True
-            ) for layer_ix in range(self.n_layers)]
+            # self.rnns = nn.ModuleList([
+            #     WeightDrop(
+            #         nn.GRU(
+            #             self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
+            #             self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+            #             bidirectional=True
+            #         ), 
+            #     ['weight_hh_l0'], dropout=self.wdrop) 
+            #     for layer_ix in range(self.n_layers)
+            # ])
+            self.rnns = nn.ModuleList([
+                nn.GRU(
+                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
+                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    bidirectional=True
+                )
+                for layer_ix in range(self.n_layers)
+        ])
         else:
             from sru import SRU
-            self.rnns = [to_gpu(SRU(
-                self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                self.hidden_size if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-                rnn_dropout=self.dropout_rnn,
-                bidirectional=True,
-                v1=True
-            )) for layer_ix in range(self.n_layers)]
+            self.rnns = nn.ModuleList([
+                to_gpu(SRU(
+                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
+                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    rnn_dropout=self.dropout_rnn,
+                    dropout=self.wdrop,
+                    bidirectional=True,
+                    v1=True
+                )) 
+                for layer_ix in range(self.n_layers)
+            ])
 
         self.decoder = nn.Linear(self.embedding_dim, self.num_words)
 
@@ -73,12 +102,12 @@ class RNNLanguageModel(nn.Module):
                 (to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 )),
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 )))
                 for l in range(self.n_layers)
             ]
@@ -87,7 +116,7 @@ class RNNLanguageModel(nn.Module):
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ))
                 for l in range(self.n_layers)
             ]
@@ -139,8 +168,6 @@ class RNNLanguageModel(nn.Module):
             if idx != self.n_layers - 1:
                 raw_output = self.lockdrop(raw_output, self.dropout_h)
                 outputs.append(raw_output)
-            
-        hidden = current_h
 
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
@@ -148,9 +175,9 @@ class RNNLanguageModel(nn.Module):
         result = output.view(output.size(0) * output.size(1), output.size(2))
 
         if return_raws:
-            return result, hidden, raw_outputs, outputs
+            return result, raw_hiddens, raw_outputs, outputs
         else:
-            return result, hidden
+            return result, raw_hiddens
 
 class LanguageModelWrapper(IModel):
 

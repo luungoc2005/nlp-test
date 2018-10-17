@@ -100,7 +100,11 @@ class LanguageModelLearner(ILearner):
             cutoffs=splits
         )
         self.hidden = None
+
+        # regularization
         self.clip_grad = config.get('clip_grad', 5)
+        self.alpha = config.get('alpha', 2)
+        self.beta = config.get('beta', 1)
 
     def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
         if torch.is_tensor(h):
@@ -119,20 +123,29 @@ class LanguageModelLearner(ILearner):
         else:
             self.hidden = self.repackage_hidden(self.hidden)
         
-        logits, self.hidden = self.model_wrapper.model(X, self.hidden)
-        loss = self.criterion(logits, y)
+        logits, self.hidden, raw_outputs, outputs = \
+            self.model_wrapper.model(X, self.hidden, return_raws=True)
+        asmoutput = self.criterion(logits, y)
 
+        loss = asmoutput.loss
+        log_probs = asmoutput.output
+        
+        # Activiation Regularization
+        if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in outputs[-1:])
+        # Temporal Activation Regularization (slowness)
+        if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in raw_outputs[-1:])
+        
         loss.backward()
 
         if self.clip_grad > 0:
-            torch.nn.utils.clip_grad_norm(
+            torch.nn.utils.clip_grad_norm_(
                 self.model_wrapper.model.parameters(), 
                 self.clip_grad
             )
         
         return {
             'loss': loss.detach().item(), 
-            'logits': logits.detach()
+            'logits': log_probs.detach()
         }
 
     def calculate_metrics(self, logits, y):
