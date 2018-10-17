@@ -42,6 +42,7 @@ class BasicFeaturizer(IFeaturizer):
 
         res = torch.zeros(len(tokens), max_seq_len)
         for idx, seq in enumerate(tokens):
-            res[idx, :len(seq)] = torch.LongTensor(seq)
+            seq_len = min(max_seq_len, len(seq))
+            res[idx, :seq_len] = torch.LongTensor(seq[:seq_len])
 
         return res
