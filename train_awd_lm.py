@@ -3,6 +3,7 @@ from sent_to_vec.awd_lm.train import LanguageModelLearner, WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback
 from os import path
 from config import BASE_PATH
+from torch.optim import RMSprop
 
 model = LanguageModelWrapper()
 
@@ -19,7 +20,7 @@ else:
     ], batch_size=8)
     dataset.save()
 
-learner = LanguageModelLearner(model)
+learner = LanguageModelLearner(model, optimizer_fn='rmsprop')
 
 learner.fit(
     training_data=dataset,
