@@ -77,7 +77,7 @@ class LanguageModelLearner(ILearner):
             preprocess_batch=True, 
             auto_optimize=True, **kwargs)
 
-    def init_on_data(self, X, y):
+    def on_training_start(self):
         config = self.model_wrapper.config or dict()
         num_words = config.get('num_words', LM_VOCAB_SIZE)
         hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
