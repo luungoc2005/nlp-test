@@ -115,7 +115,7 @@ class LanguageModelLearner(ILearner):
         else:
             self.hidden = self.repackage_hidden(self.hidden)
         
-        logits, self.hidden = self.model_wrapper.model(X)
+        logits, self.hidden = self.model_wrapper.model(X, self.hidden)
         loss = self.criterion(logits, y)
 
         loss.backward()
