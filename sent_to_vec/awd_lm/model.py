@@ -46,13 +46,13 @@ class RNNLanguageModel(nn.Module):
             ) for layer_ix in range(self.n_layers)]
         else:
             from sru import SRU
-            self.rnns = [SRU(
+            self.rnns = [to_gpu(SRU(
                 self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
                 self.hidden_size if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
                 rnn_dropout=self.dropout_rnn,
                 bidirectional=True,
                 v1=True
-            ) for layer_ix in range(self.n_layers)]
+            )) for layer_ix in range(self.n_layers)]
 
         self.decoder = nn.Linear(self.embedding_dim, self.num_words)
 
@@ -131,7 +131,7 @@ class RNNLanguageModel(nn.Module):
         outputs = []
 
         for idx, rnn in enumerate(self.rnns):
-            raw_output, current_h = rnn(raw_output, to_gpu(hidden[idx]))
+            raw_output, current_h = rnn(raw_output, hidden[idx])
             
             raw_hiddens.append(current_h)
             raw_outputs.append(raw_output)
