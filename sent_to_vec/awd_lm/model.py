@@ -68,28 +68,27 @@ class RNNLanguageModel(nn.Module):
         self.decoder.weight.data.uniform_(-init_range, init_range)
 
     def init_hidden(self, batch_size) -> Iterable[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]:
-        weight = next(self.parameters()).data
         if self.rnn_type == 'LSTM':
             return [
-                (to_gpu(weight.new(
+                (to_gpu(torch.zeros(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_()),
-                to_gpu(weight.new(
+                )),
+                to_gpu(torch.zeros(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_()))
+                )))
                 for l in range(self.n_layers)
             ]
         elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
             return [
-                to_gpu(weight.new(
+                to_gpu(torch.zeros(
                     2, 
                     batch_size, 
                     self.hidden_size // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
-                ).zero_())
+                ))
                 for l in range(self.n_layers)
             ]
 
