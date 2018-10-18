@@ -76,6 +76,49 @@ class PrintLoggerCallback(ICallback):
             if ((self._learner._batch_idx + 1) % self.log_every_batch) == 0:
                 self.print_line(True)
 
+
+class TensorboardLogger(ICallback):
+
+    def __init__(self, log_every=5, log_every_batch=-1, metrics=['loss', 'accuracy']):
+        super(PrintLoggerCallback, self).__init__()
+        self.log_every = log_every
+        self.log_every_batch = log_every_batch
+        self.metrics = metrics
+        
+        self.counter = 1
+
+    def on_training_start(self):
+        self.start = time.time()
+
+        from tensorboardX import SummaryWriter
+        self.writer = SummaryWriter(comment=self.learner.model_wrapper.__name__)
+
+    def print_line(self, print_minibatch=False):
+        self.counter += 1
+        metrics = self.learner.metrics
+        # metrics = self.learner._batch_metrics
+        if metrics is not None:
+            for key in self.metrics:
+                if key in metrics:
+                    # print_line += ' - %s: %.4f' % (key, metrics[key])
+                    self.writer.add_scalar(
+                        '{}/{}'.format(self.learner.model_wrapper.__name__, key),
+                        metrics[key],
+                        self.counter
+                    )
+
+        self.logging_fn(print_line)
+
+    def on_epoch_end(self):
+        if self.log_every > 0:
+            if ((self._learner._current_epoch + 1) % self.log_every) == 0:
+                self.print_line()
+
+    def on_batch_end(self):
+        if self.log_every_batch > 0:
+            if ((self._learner._batch_idx + 1) % self.log_every_batch) == 0:
+                self.print_line(True)
+
 class EarlyStoppingCallback(ICallback):
     def __init__(self, monitor='loss', tolerance=1e-6, patience=5, logging_fn=print):
         super(EarlyStoppingCallback, self).__init__()
