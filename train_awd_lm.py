@@ -22,6 +22,7 @@ else:
 
 learner = LanguageModelLearner(model, optimizer_fn='rmsprop')
 
+print('Dataset: {} minibatches per epoch'.format(len(dataset)))
 learner.fit(
     training_data=dataset,
     batch_size=1,

@@ -4,7 +4,6 @@ import numpy as np
 from config import EMBEDDING_DIM  # FASTTEXT_BIN
 from nltk.tokenize import RegexpTokenizer
 # from glove_utils import get_word_vector
-from common.word_vectors import get_word_vector
 import unicodedata
 import string
 import time
@@ -126,6 +125,8 @@ def to_variable(array, tensor_type=torch.LongTensor):
 
 
 def word_to_vec(word, *args, **kwargs):
+    from common.word_vectors import get_word_vector # only initialize word vectors on first call
+
     if len(word) == 0: return None
 
     word_vector = get_word_vector(word, *args, **kwargs)
