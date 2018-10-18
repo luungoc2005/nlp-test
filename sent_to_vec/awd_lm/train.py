@@ -68,7 +68,7 @@ class WikiTextDataset(Dataset):
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
-        return n_batch
+        return self.n_batch
 
     def __getitem__(self, index) -> Iterable:
         seq_len = min(self.seq_len, len(self.batch_data) - 1 - index)
