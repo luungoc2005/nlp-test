@@ -1,6 +1,6 @@
 from sent_to_vec.awd_lm.model import LanguageModelWrapper
 from sent_to_vec.awd_lm.train import LanguageModelLearner, WikiTextDataset
-from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback
+from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback
 from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
@@ -28,7 +28,8 @@ learner.fit(
     batch_size=1,
     epochs=1000,
     callbacks=[
-        PrintLoggerCallback(log_every_batch=1000, log_every=1), 
+        PrintLoggerCallback(log_every_batch=1000, log_every=1),
+        TensorboardCallback(log_every_batch=100, log_every=-1),
         EarlyStoppingCallback(),
         ModelCheckpointCallback()
     ]

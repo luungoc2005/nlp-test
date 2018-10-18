@@ -11,6 +11,10 @@ sdist
 var
 *.pyc
 *.swp
+
+runs/
+logs/
+
 .DS_Store
 
 data

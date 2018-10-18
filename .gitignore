@@ -71,6 +71,7 @@ output/
 flask_app/uploads/
 
 logs/
+runs/
 \.ipynb_checkpoints/
 text_classification/convnet/_keras/model/
 text_classification/convnet/logs/

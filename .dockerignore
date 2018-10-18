@@ -73,6 +73,7 @@ output/
 flask_app/uploads/
 
 logs/
+runs/
 text_classification/convnet/_keras/model/
 text_classification/convnet/logs/
 text_classification/convnet/model/

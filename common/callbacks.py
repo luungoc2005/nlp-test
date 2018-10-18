@@ -77,10 +77,10 @@ class PrintLoggerCallback(ICallback):
                 self.print_line(True)
 
 
-class TensorboardLogger(ICallback):
+class TensorboardCallback(ICallback):
 
     def __init__(self, log_every=5, log_every_batch=-1, metrics=['loss', 'accuracy']):
-        super(PrintLoggerCallback, self).__init__()
+        super(TensorboardCallback, self).__init__()
         self.log_every = log_every
         self.log_every_batch = log_every_batch
         self.metrics = metrics
@@ -91,7 +91,8 @@ class TensorboardLogger(ICallback):
         self.start = time.time()
 
         from tensorboardX import SummaryWriter
-        self.writer = SummaryWriter(comment=self.learner.model_wrapper.__name__)
+        self.class_name = self.learner.model_wrapper.__class__.__name__
+        self.writer = SummaryWriter(comment=self.class_name)
 
     def print_line(self, print_minibatch=False):
         self.counter += 1
@@ -102,7 +103,7 @@ class TensorboardLogger(ICallback):
                 if key in metrics:
                     # print_line += ' - %s: %.4f' % (key, metrics[key])
                     self.writer.add_scalar(
-                        '{}/{}'.format(self.learner.model_wrapper.__name__, key),
+                        '{}/{}'.format(self.class_name, key),
                         metrics[key],
                         self.counter
                     )
