@@ -166,7 +166,7 @@ class ModelCheckpointCallback(ICallback):
                     remove(old_file_name)
                     self.logging_fn('Model Checkpoint: Removing old checkpoint: {}'.format(old_file_name))
 
-        self._learner.save(new_file_name)
+        self.learner.model_wrapper.save(new_file_name)
         self.logging_fn('Model Checkpoint: Saving checkpoint: {}'.format(new_file_name))
 
     def on_batch_end(self):
