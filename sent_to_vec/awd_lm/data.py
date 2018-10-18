@@ -11,6 +11,9 @@ def read_wikitext(file_path):
                 continue
 
             for sent in sent_tokenize(line):
-                sents.append(sent.replace('<unk>', UNK_TAG))
+                sents.append(sent \
+                    .replace('<unk>', UNK_TAG) \
+                    .replace('UNK', UNK_TAG)
+                )
 
     return sents
