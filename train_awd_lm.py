@@ -12,7 +12,7 @@ dataset = WikiTextDataset()
 SAVE_PATH = path.join(BASE_PATH, 'wikitext-data.bin')
 if path.exists(SAVE_PATH):
     print('Loading from previously saved file')
-    dataset.load(SAVE_PATH, model)
+    dataset.load(SAVE_PATH, model, batch_size=8)
 else:
     dataset.initialize(model, data_path=[
         path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
@@ -20,7 +20,7 @@ else:
     ], batch_size=8)
     dataset.save()
 
-learner = LanguageModelLearner(model, optimizer_fn='rmsprop', batch_size=8)
+learner = LanguageModelLearner(model, optimizer_fn='rmsprop')
 
 learner.fit(
     training_data=dataset,
