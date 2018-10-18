@@ -86,7 +86,7 @@ class LanguageModelLearner(ILearner):
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
         num_words = config.get('num_words', LM_VOCAB_SIZE)
-        hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
+        hidden_size = config.get('embedding_dim', LM_HIDDEN_DIM)
         splits = []
         if num_words > 500000:
             # One Billion
