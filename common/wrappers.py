@@ -125,15 +125,19 @@ class IModel(object):
                 X = self._featurizer.transform(X)
             
             X = self.preprocess_input(X)
-            if self._predict_fn is None:
-                logits = self._model(X)
+
+            if X is None:
+                logits = None
             else:
-                logits = self._predict_fn(X)
+                if self._predict_fn is None:
+                    logits = self._model(X)
+                else:
+                    logits = self._predict_fn(X)
         
         if is_pytorch:
             self._model.train()
         
-        if return_logits:
+        if return_logits or logits is None:
             return logits
         else:
             return self.infer_predict(logits)

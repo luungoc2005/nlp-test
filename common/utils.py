@@ -126,22 +126,11 @@ def to_variable(array, tensor_type=torch.LongTensor):
 
 
 def word_to_vec(word, *args, **kwargs):
-    # global fastText_model
+    if len(word) == 0: return None
+
     word_vector = get_word_vector(word, *args, **kwargs)
     if word_vector is None:
-        return np.zeros(EMBEDDING_DIM)  # return all <UNK> as zeros
-
-        # return <UNK> as standard normal
-        # if word.strip() == '': # if word is all spaces then return as zeros
-        #     return np.zeros(EMBEDDING_DIM)
-        # else:
-        #     return np.random.randn(EMBEDDING_DIM)
-
-        # if not fastText_model:
-        #     print('Loading fastText model for out-of-vocabulary word %s...' % word, end='', flush=True)
-        #     fastText_model = FastText.load_model(FASTTEXT_BIN)
-        #     print('Done.')
-        # word_vector = fastText_model.get_word_vector(word)
+        return np.zeros((len(word), EMBEDDING_DIM)) # return all <UNK> as zeros
 
     return word_vector
 

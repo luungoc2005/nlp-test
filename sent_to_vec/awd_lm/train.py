@@ -35,10 +35,13 @@ class WikiTextDataset(Dataset):
         print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_counts.keys())))
 
         print('Tokenizing files')
-        batch_data = self.featurizer.transform(self.raw_sents)
+        raw_data = self.featurizer.transform(self.raw_sents)
+        self.raw_data = raw_data
+        self.process_raw(batch_size)
 
+    def process_raw(self, batch_size):
         n_batch = batch_data.size(0) // batch_size
-        batch_data = batch_data.narrow(0, 0, n_batch * batch_size)
+        batch_data = raw_data.narrow(0, 0, n_batch * batch_size)
     
         batch_data = batch_data.view(batch_size, -1).t().contiguous()
         self.batch_data = batch_data
@@ -49,17 +52,18 @@ class WikiTextDataset(Dataset):
     def save(self):
         torch.save({
             'featurizer': self.featurizer,
-            'data': self.batch_data,
+            'data': self.raw_data,
             'raw_sents': self.raw_sents
         }, self.get_save_name())
         print('Finished saving preprocessed dataset')
 
-    def load(self, fp, model_wrapper):
+    def load(self, fp, model_wrapper, batch_size=64):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
-        self.batch_data = state['data']
+        self.raw_data = state['data']
         self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
+        self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
