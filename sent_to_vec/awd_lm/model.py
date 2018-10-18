@@ -195,3 +195,38 @@ class LanguageModelWrapper(IModel):
 
         self.seq_len = config.get('seq_len', LM_SEQ_LEN)
         self.config = config
+
+    def generate(self, n_tokens, temperature=1.):
+        self.model.eval()
+        self.hidden = self.model.init_hidden(1)
+
+        seed = torch.rand(1, 1).mul(n_tokens).long()
+        retstr = []
+        # retidx = []
+
+        with torch.no_grad():
+            for ix in range(n_tokens):
+                output, self.hidden = self.model(seed, self.hidden)
+                word_weights = output.squeeze().data.div(temperature).exp().cpu()
+                
+                # filter out inf and negative probabilities
+                word_weights[word_weights == float("Inf")] = 0
+                word_weights[word_weights < 0] = 0
+
+                word_idx = torch.multinomial(word_weights, 1)[0]
+                seed.data.fill_(word_idx)
+
+                word_idx = int(word_idx)
+                word = self.featurizer.tokenizer.ix_to_word.get(word_idx, '')
+                retstr += [word]
+                # retidx += [word_idx]
+
+        self.model.train()
+
+        return ' '.join(retstr)
+
+    def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
+        if torch.is_tensor(h):
+            return to_gpu(h.detach())
+        else:
+            return tuple(self.repackage_hidden(v) for v in h)

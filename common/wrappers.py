@@ -107,7 +107,7 @@ class IModel(object):
             model_state['featurizer'] = self._featurizer
         return model_state
 
-    def load_state_dict(self, state_dict, *args, **kwargs): raise NotImplementedError
+    def load_state_dict(self, state_dict, *args, **kwargs): pass
 
     def infer_predict(self, logits): return logits
 
