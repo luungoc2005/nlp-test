@@ -40,8 +40,8 @@ class WikiTextDataset(Dataset):
         self.process_raw(batch_size)
 
     def process_raw(self, batch_size):
-        n_batch = batch_data.size(0) // batch_size
-        batch_data = raw_data.narrow(0, 0, n_batch * batch_size)
+        n_batch = self.raw_data.size(0) // batch_size
+        batch_data = self.raw_data.narrow(0, 0, n_batch * batch_size)
     
         batch_data = batch_data.view(batch_size, -1).t().contiguous()
         self.batch_data = batch_data
