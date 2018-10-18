@@ -5,7 +5,7 @@ from os import path
 def read_wikitext(file_path):
     assert path.exists(file_path), '{} does not exist'.format(file_path)
     sents = []
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf8') as f:
         for line in f:
             if line.strip == '' or line.startswith(' = '):
                 continue
