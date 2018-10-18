@@ -45,6 +45,7 @@ class WikiTextDataset(Dataset):
     
         batch_data = batch_data.view(batch_size, -1).t().contiguous()
         self.batch_data = batch_data
+        self.n_batch = n_batch
 
     def get_save_name(self):
         return 'wikitext-data.bin'
@@ -67,7 +68,7 @@ class WikiTextDataset(Dataset):
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
-        return len(self.batch_data)
+        return n_batch
 
     def __getitem__(self, index) -> Iterable:
         seq_len = min(self.seq_len, len(self.batch_data) - 1 - index)

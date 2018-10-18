@@ -5,7 +5,7 @@ from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
 
-model = LanguageModelWrapper({'embedding_dim': 512}) # small model
+model = LanguageModelWrapper({'embedding_dim': 600}) # small model
 
 dataset = WikiTextDataset()
 
