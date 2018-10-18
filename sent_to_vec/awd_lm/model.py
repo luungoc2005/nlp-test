@@ -19,7 +19,7 @@ class RNNLanguageModel(nn.Module):
         self.dropout_h = config.get('h_dropout', .5)
         self.wdrop = config.get('wdrop', 0)
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
-        self.rnn_type = config.get('rnn_type', 'GRU')
+        self.rnn_type = config.get('rnn_type', 'SRU')
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
 
@@ -44,8 +44,8 @@ class RNNLanguageModel(nn.Module):
             # ])
             self.rnns = nn.ModuleList([
                 nn.LSTM(
-                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
-                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
@@ -63,8 +63,8 @@ class RNNLanguageModel(nn.Module):
             # ])
             self.rnns = nn.ModuleList([
                 nn.GRU(
-                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
-                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
@@ -73,8 +73,9 @@ class RNNLanguageModel(nn.Module):
             from sru import SRU
             self.rnns = nn.ModuleList([
                 to_gpu(SRU(
-                    self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
-                    self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
+                    num_layers=1,
                     rnn_dropout=self.dropout_rnn,
                     dropout=self.wdrop,
                     bidirectional=True,
@@ -102,21 +103,21 @@ class RNNLanguageModel(nn.Module):
                 (to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim // 2
                 )),
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim // 2
                 )))
                 for l in range(self.n_layers)
             ]
         elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
             return [
                 to_gpu(torch.zeros(
-                    2, 
+                    1, 
                     batch_size, 
-                    self.embedding_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
+                    self.embedding_dim
                 ))
                 for l in range(self.n_layers)
             ]
