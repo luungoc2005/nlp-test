@@ -103,7 +103,7 @@ class IModel(object):
             model_state['config'] = dict() # default to empty object
         
         if self._featurizer is not None:
-            print('Featurizer found: ', self._featurizer)
+            # print('Featurizer found: ', self._featurizer)
             model_state['featurizer'] = self._featurizer
         return model_state
 

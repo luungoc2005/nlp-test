@@ -119,7 +119,7 @@ class EarlyStoppingCallback(ICallback):
 class ModelCheckpointCallback(ICallback):
 
     def __init__(self, 
-        every_batch=10,
+        every_batch=10000,
         every_epochs=1,
         save_last=10,
         logging_fn=print,

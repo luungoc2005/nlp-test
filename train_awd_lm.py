@@ -5,7 +5,7 @@ from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
 
-model = LanguageModelWrapper()
+model = LanguageModelWrapper({'embedding_dim': 768}) # small model
 
 dataset = WikiTextDataset()
 
@@ -27,7 +27,7 @@ learner.fit(
     batch_size=1,
     epochs=1000,
     callbacks=[
-        PrintLoggerCallback(log_every_batch=10, log_every=1), 
+        PrintLoggerCallback(log_every_batch=1000, log_every=1), 
         EarlyStoppingCallback(),
         ModelCheckpointCallback()
     ]
