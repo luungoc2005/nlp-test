@@ -98,11 +98,11 @@ class LanguageModelLearner(ILearner):
             splits = [2800, 20000, 76000]
         print('Cross Entropy Splits: Using', splits)
 
-        self.criterion = nn.AdaptiveLogSoftmaxWithLoss(
+        self.criterion = to_gpu(nn.AdaptiveLogSoftmaxWithLoss(
             hidden_size, 
             num_words,
             cutoffs=splits
-        )
+        ))
         self.hidden = None
 
         # regularization
@@ -148,8 +148,8 @@ class LanguageModelLearner(ILearner):
             )
         
         return {
-            'loss': loss.detach().item(), 
-            'logits': log_probs.detach()
+            'loss': loss.detach().cpu().item(), 
+            'logits': log_probs.cpu().detach()
         }
 
     def calculate_metrics(self, logits, y):
