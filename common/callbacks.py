@@ -108,8 +108,6 @@ class TensorboardCallback(ICallback):
                         self.counter
                     )
 
-        self.logging_fn(print_line)
-
     def on_epoch_end(self):
         if self.log_every > 0:
             if ((self._learner._current_epoch + 1) % self.log_every) == 0:

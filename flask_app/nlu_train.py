@@ -27,7 +27,7 @@ ENT_MODEL = dict()
 # summary.print_(sum1)
 
 def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None):
-    data = json.load(open(save_path, 'r'))
+    data = json.load(open(save_path, 'r', encoding='utf8'))
     print('Loaded %s intents' % len(data))
 
     classes = list(set([

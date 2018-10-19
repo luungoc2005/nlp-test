@@ -20,7 +20,7 @@ def allowed_file(filename, allowed_exts=['json']):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
 
 def save_config(app):
-    with open(CONFIG_PATH, 'w') as cfg_file:
+    with open(CONFIG_PATH, 'w', encoding='utf8') as cfg_file:
         json.dump({
             'MODELS': app.config.get('MODELS', None),
         }, cfg_file)
@@ -28,7 +28,7 @@ def save_config(app):
 def get_config(app):
     if path.isfile(CONFIG_PATH):
         try:
-            cfg = json.load(open(CONFIG_PATH, 'r'))
+            cfg = json.load(open(CONFIG_PATH, 'r', encoding='utf8'))
             app.config.update(cfg)
         except:
             logging.warning('Failed to load configuration. Using defaults')
@@ -124,7 +124,7 @@ def initialize(app):
                         ent_model_path)
                 else:
                     log_file_name = path.join(app.config['LOGS_FOLDER'], model_id + '.log')
-                    with open(log_file_name, 'w') as log_fp:
+                    with open(log_file_name, 'w', encoding='utf8') as log_fp:
                         TRAIN_PROCESSES[model_id] = subprocess.Popen(
                             [
                                 PYTHON_PATH, '-m', 'flask_app.nlu_train', 
