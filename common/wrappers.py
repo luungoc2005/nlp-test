@@ -293,7 +293,7 @@ class ILearner(object):
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
-    def on_epoch(self, X, y): pass
+    def on_epoch(self, X, y): return None
 
     def calculate_metrics(self, logits, y): pass
 
@@ -460,19 +460,22 @@ class ILearner(object):
 
                 epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
 
-                if epoch_ret is not None and 'logits' in epoch_ret:
-                    with torch.no_grad():
-                        batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
-                        
-                        if 'loss' in epoch_ret:
-                            batch_metrics['loss'] = epoch_ret['loss']
-                        
-                        self._batch_metrics = batch_metrics
+                if epoch_ret is not None:
+                    if 'logits' in epoch_ret:
+                        with torch.no_grad():
+                            batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
+                    else:
+                        batch_metrics = {}
 
-                        if self._metrics is None:
-                            self._metrics = batch_metrics
-                        else:
-                            self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
+                    if 'loss' in epoch_ret:
+                        batch_metrics['loss'] = epoch_ret['loss']
+                    
+                    self._batch_metrics = batch_metrics
+
+                    if self._metrics is None:
+                        self._metrics = batch_metrics
+                    else:
+                        self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
                 if self._auto_optimize: self.optimizer.step()
 
