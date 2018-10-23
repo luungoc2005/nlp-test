@@ -8,6 +8,7 @@ from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
 from torch.utils.data import Dataset
 from sent_to_vec.awd_lm.data import read_wikitext
+from sent_to_vec.awd_lm.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
 class WikiTextDataset(Dataset):
@@ -87,7 +88,7 @@ class LanguageModelLearner(ILearner):
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
         num_words = config.get('num_words', LM_VOCAB_SIZE)
-        hidden_size = config.get('embedding_dim', LM_HIDDEN_DIM)
+        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
         splits = []
         if num_words > 500000:
             # One Billion
@@ -99,10 +100,10 @@ class LanguageModelLearner(ILearner):
             splits = [2800, 20000, 76000]
         print('Cross Entropy Splits: Using', splits)
 
-        self.criterion = to_gpu(nn.AdaptiveLogSoftmaxWithLoss(
-            hidden_size, 
-            num_words,
-            cutoffs=splits
+        self.criterion = to_gpu(SplitCrossEntropyLoss(
+            embedding_dim,
+            splits=splits,
+            verbose=False
         ))
         self.hidden = None
 
@@ -124,10 +125,12 @@ class LanguageModelLearner(ILearner):
         
         logits, self.hidden, raw_outputs, outputs = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)
-        asmoutput = self.criterion(logits, y)
-
-        loss = asmoutput.loss
-        log_probs = asmoutput.output
+        loss = self.criterion(
+            self.model_wrapper.model.decoder.weight, 
+            self.model_wrapper.model.decoder.bias,
+            outputs,
+            y
+        )
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in outputs[-1:])

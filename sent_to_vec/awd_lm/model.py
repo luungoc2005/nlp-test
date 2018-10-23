@@ -94,7 +94,7 @@ class RNNLanguageModel(nn.Module):
     def init_weights(self):
         init_range = 0.1
         self.encoder.weight.data.uniform_(-init_range, init_range)
-        self.decoder.bias.data.fill_(0)
+        self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_range, init_range)
 
     def init_hidden(self, batch_size) -> Iterable[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]:
@@ -173,9 +173,7 @@ class RNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        result = self.decoder(
-            output.view(output.size(0) * output.size(1), output.size(2))
-        )
+        result = output.view(output.size(0) * output.size(1), output.size(2))
 
         if return_raws:
             return result, raw_hiddens, raw_outputs, outputs
