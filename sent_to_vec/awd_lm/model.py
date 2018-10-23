@@ -206,6 +206,8 @@ class LanguageModelWrapper(IModel):
 
         with torch.no_grad():
             for ix in range(n_tokens):
+                seed = to_gpu(seed)
+                
                 output, self.hidden = self.model(seed, self.hidden)
                 word_weights = output.squeeze().data.div(temperature).exp().cpu()
                 
