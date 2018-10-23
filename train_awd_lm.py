@@ -28,9 +28,9 @@ learner.fit(
     batch_size=1,
     epochs=1000,
     callbacks=[
-        PrintLoggerCallback(log_every_batch=1000, log_every=1),
-        TensorboardCallback(log_every_batch=100, log_every=-1),
+        PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
+        TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
         EarlyStoppingCallback(),
-        ModelCheckpointCallback()
+        ModelCheckpointCallback(metrics=['loss'])
     ]
 )
