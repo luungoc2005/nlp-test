@@ -173,7 +173,9 @@ class RNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        result = output.view(output.size(0) * output.size(1), output.size(2))
+        result = self.decoder(
+            output.view(output.size(0) * output.size(1), output.size(2))
+        )
 
         if return_raws:
             return result, raw_hiddens, raw_outputs, outputs
@@ -207,7 +209,7 @@ class LanguageModelWrapper(IModel):
         with torch.no_grad():
             for ix in range(n_tokens):
                 seed = to_gpu(seed)
-                
+
                 output, self.hidden = self.model(seed, self.hidden)
                 word_weights = output.squeeze().data.div(temperature).exp().cpu()
                 

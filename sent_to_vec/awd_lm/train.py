@@ -111,12 +111,6 @@ class LanguageModelLearner(ILearner):
         self.alpha = config.get('alpha', 2)
         self.beta = config.get('beta', 1)
 
-    def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
-        if torch.is_tensor(h):
-            return to_gpu(h.detach())
-        else:
-            return tuple(self.repackage_hidden(v) for v in h)
-
     def on_epoch(self, X, y):
         # temporary fix for dataloader
         X = X[0]
@@ -126,7 +120,7 @@ class LanguageModelLearner(ILearner):
             batch_size = X.size(1)
             self.hidden = self.model_wrapper.model.init_hidden(batch_size)
         else:
-            self.hidden = self.repackage_hidden(self.hidden)
+            self.hidden = self.model_wrapper.repackage_hidden(self.hidden)
         
         logits, self.hidden, raw_outputs, outputs = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)
