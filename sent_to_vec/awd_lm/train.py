@@ -128,7 +128,7 @@ class LanguageModelLearner(ILearner):
         loss = self.criterion(
             self.model_wrapper.model.decoder.weight, 
             self.model_wrapper.model.decoder.bias,
-            outputs,
+            logits,
             y
         )
         
