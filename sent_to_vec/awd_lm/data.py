@@ -90,7 +90,7 @@ class WikiTextDataset(Dataset):
         # return X, y
 
 def collate_seq_fn(data, max_seq_len) -> Iterable:
-    batch_data = torch.stack(data, 0) # (batch_size, seq_len)
+    batch_data = torch.stack(data, 0) \
         .t().contiguous() # (seq_len, batch_size)
     
     seq_len = min(max_seq_len, len(batch_data) - 1)
