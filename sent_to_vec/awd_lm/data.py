@@ -38,7 +38,7 @@ class WikiTextDataset(Dataset):
                 self.raw_sents.extend(file_sents)
                 print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
 
-        self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
+        # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
 
@@ -75,7 +75,7 @@ class WikiTextDataset(Dataset):
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
         self.raw_data = state['data']
-        self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
+        # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
 

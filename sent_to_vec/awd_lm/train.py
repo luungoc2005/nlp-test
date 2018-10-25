@@ -13,11 +13,15 @@ from typing import Union, Tuple, Iterable
 class LanguageModelLearner(ILearner):
 
     def __init__(self, model, *args, **kwargs):
+        config = self.model_wrapper.config or dict()
+        self.seq_len = config.get('seq_len', LM_SEQ_LEN)
+
         super(LanguageModelLearner, self).__init__(
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
-            collate_fn=collate_seq_fn, **kwargs)
+            collate_fn=lambda data: collate_seq_fn(data, self.seq_len),
+            **kwargs)
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
