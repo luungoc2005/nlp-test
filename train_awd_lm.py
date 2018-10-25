@@ -6,7 +6,7 @@ from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
 
-model = LanguageModelWrapper({'embedding_dim': 600}) # small model
+model = LanguageModelWrapper({'embedding_dim': 400}) # small model
 
 dataset = WikiTextDataset()
 
@@ -21,7 +21,7 @@ else:
     ])
     dataset.save()
 
-learner = LanguageModelLearner(model, optimizer_fn='rmsprop')
+learner = LanguageModelLearner(model, optimizer_fn='adam')
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
 learner.fit(

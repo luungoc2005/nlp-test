@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from sent_to_vec.awd_lm.data import read_wikitext
+from sent_to_vec.awd_lm.data import collate_seq_fn
 from sent_to_vec.awd_lm.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
@@ -16,7 +16,8 @@ class LanguageModelLearner(ILearner):
         super(LanguageModelLearner, self).__init__(
             model, *args, 
             preprocess_batch=True, 
-            auto_optimize=True, **kwargs)
+            auto_optimize=True,
+            collate_fn=collate_seq_fn, **kwargs)
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
