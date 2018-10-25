@@ -56,4 +56,21 @@ class DoubleClassificationHead(nn.Module):
             features = torch.cat((u, v, torch.abs(u-v), u*v), 1)
         else:
             features = torch.cat((u, v), 1)
-        output = self.classifier(features)
+        
+        return self.classifier(features)
+
+class DoubleClassificationHeadWrapper(IModel):
+
+    def __init__(self, config=dict(), *args, **kwargs):
+        featurizer_config = config
+        featurizer_config['append_sos_eos'] = True
+
+        super(DoubleClassificationHeadWrapper, self).__init__(
+            model_class=DoubleClassificationHead, 
+            config=config, 
+            featurizer=BasicFeaturizer(featurizer_config),
+            *args, **kwargs
+        )
+
+        self.seq_len = config.get('seq_len', LM_SEQ_LEN)
+        self.config = config

@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from sent_to_vec.awd_lm.data import collate_seq_fn
+from sent_to_vec.awd_lm.data import collate_seq_lm_fn
 from sent_to_vec.awd_lm.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
@@ -46,7 +46,7 @@ class LanguageModelLearner(ILearner):
         self.hidden = None
 
         # regularization
-        self.clip_grad = config.get('clip_grad', 5)
+        self.clip_grad = config.get('clip_grad', .25)
         self.alpha = config.get('alpha', 2)
         self.beta = config.get('beta', 1)
 

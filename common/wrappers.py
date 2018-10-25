@@ -201,8 +201,14 @@ class IModel(object):
     def featurizer(self, value): self._featurizer = value
 
     def save(self, fp):
+        # Exclude functions to avoid pickle failing
+        predict_fn = self._predict_fn
+        self._predict_fn = None
+
         torch.save(self.__getstate__(), fp, pickle_protocol=pickle.HIGHEST_PROTOCOL)
     
+        self._predict_fn = predict_fn
+
     def summary(self):
         return self.__str__()
 
@@ -295,7 +301,7 @@ class ILearner(object):
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
-    def on_epoch(self, X, y): return None
+    def on_epoch(self, X, y): return
 
     def calculate_metrics(self, logits, y): pass
 

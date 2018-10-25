@@ -142,7 +142,7 @@ class RNNLanguageModel(nn.Module):
         
         return X
 
-    def forward(self, x_input, hidden, return_raws=False) -> \
+    def forward(self, x_input, hidden=None, return_raws=False) -> \
         Union[
             Tuple[torch.Tensor, torch.Tensor], 
             Tuple[torch.Tensor, torch.Tensor, Iterable[torch.Tensor], Iterable[torch.Tensor]]
@@ -153,6 +153,11 @@ class RNNLanguageModel(nn.Module):
             self.dropout_emb if self.training else 0
         )
         emb = self.lockdrop(emb, self.dropout_i)
+
+        if hidden is None:
+            # Try to determine batch size and generate hidden from input
+            batch_size = x_input.size(1)
+            hidden = self.init_hidden(batch_size)
 
         raw_output = emb
 

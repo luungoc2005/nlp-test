@@ -27,7 +27,7 @@ class WikiTextDataset(Dataset):
     def __init__(self):
         super(WikiTextDataset, self).__init__()
 
-    def initialize(self, model_wrapper, data_path, batch_size=64):
+    def initialize(self, model_wrapper, data_path):
         if isinstance(data_path, str):
             self.raw_sents = read_wikitext(data_path)
             print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
@@ -90,7 +90,7 @@ class WikiTextDataset(Dataset):
         # y = self.batch_data[index+1:index+1+seq_len].view(-1)
         # return X, y
 
-def collate_seq_fn(data, max_seq_len) -> Iterable:
+def collate_seq_lm_fn(data, max_seq_len) -> Iterable:
     batch_data = torch.stack(data, 0) \
         .t().contiguous() # (seq_len, batch_size)
     
@@ -99,5 +99,3 @@ def collate_seq_fn(data, max_seq_len) -> Iterable:
     y = batch_data[1:1+seq_len].view(-1)
 
     return X, y
-    
-
