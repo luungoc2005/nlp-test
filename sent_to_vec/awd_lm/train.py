@@ -20,7 +20,7 @@ class LanguageModelLearner(ILearner):
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
-            collate_fn=lambda data: collate_seq_fn(data, self.seq_len),
+            collate_fn=lambda data: collate_seq_lm_fn(data, self.seq_len),
             **kwargs)
 
     def on_training_start(self):
