@@ -80,7 +80,8 @@ class WikiTextDataset(Dataset):
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
-        return self.n_batch
+        # return self.n_batch
+        return len(self.raw_data)
 
     def __getitem__(self, index) -> Iterable:
         return self.raw_data[index]
