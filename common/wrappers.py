@@ -225,9 +225,11 @@ class IFeaturizer(object):
 
     def fit(self): pass
 
-    def transform(self): pass
+    def transform(self): return
 
-    def fit_transform(self): pass
+    def fit_transform(self): return
+
+    def inverse_transform(self): return
 
     def get_output_shape(self): return (0,)
 
@@ -452,52 +454,56 @@ class ILearner(object):
             raise ValueError('Criterion must be set for the Learner class before training')
 
         # Main training loop
-        for epoch in iterator:
-            if self._halt: # For early stopping
-                self._halt = False
-                break
-            
-            self._current_epoch = epoch
-            self._metrics = None
-
-            for callback in self._callbacks: callback.on_epoch_start()
-            
-            for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
-                if self._halt: # For early stopping / skipping batches
+        try:
+            for epoch in iterator:
+                if self._halt: # For early stopping
                     self._halt = False
                     break
+                
+                self._current_epoch = epoch
+                self._metrics = None
 
-                self._batch_idx = batch_idx
+                for callback in self._callbacks: callback.on_epoch_start()
+                
+                for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
+                    if self._halt: # For early stopping / skipping batches
+                        self._halt = False
+                        break
 
-                for callback in self.callbacks: callback.on_batch_start()
+                    self._batch_idx = batch_idx
 
-                # auto_optimize: auto handling the optimizer
-                if self._auto_optimize: self.optimizer.zero_grad()
+                    for callback in self.callbacks: callback.on_batch_start()
 
-                epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
+                    # auto_optimize: auto handling the optimizer
+                    if self._auto_optimize: self.optimizer.zero_grad()
 
-                if epoch_ret is not None:
-                    if 'logits' in epoch_ret:
-                        with torch.no_grad():
-                            batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
-                    else:
-                        batch_metrics = {}
+                    epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
 
-                    if 'loss' in epoch_ret:
-                        batch_metrics['loss'] = epoch_ret['loss']
-                    
-                    self._batch_metrics = batch_metrics
+                    if epoch_ret is not None:
+                        if 'logits' in epoch_ret:
+                            with torch.no_grad():
+                                batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
+                        else:
+                            batch_metrics = {}
 
-                    if self._metrics is None:
-                        self._metrics = batch_metrics
-                    else:
-                        self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
+                        if 'loss' in epoch_ret:
+                            batch_metrics['loss'] = epoch_ret['loss']
+                        
+                        self._batch_metrics = batch_metrics
 
-                if self._auto_optimize: self.optimizer.step()
+                        if self._metrics is None:
+                            self._metrics = batch_metrics
+                        else:
+                            self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
-                for callback in self.callbacks: callback.on_batch_end()
+                    if self._auto_optimize: self.optimizer.step()
 
-            for callback in self.callbacks: callback.on_epoch_end()
+                    for callback in self.callbacks: callback.on_batch_end()
+
+                for callback in self.callbacks: callback.on_epoch_end()
+
+        except KeyboardInterrupt:
+            warnings.warn('Training aborted')
 
         for callback in self.callbacks: callback.on_training_end()
 

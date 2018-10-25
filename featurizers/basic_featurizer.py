@@ -12,10 +12,17 @@ class BasicFeaturizer(IFeaturizer):
         super(BasicFeaturizer, self).__init__()
 
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
+        self.lower = config.get('lower', True)
+        self.char_level = config.get('char_level', False)
         self.append_sos_eos = config.get('append_sos_eos', False)
         self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
+        
         self.tokenize_fn = wordpunct_tokenize
-        self.tokenizer = Tokenizer(num_words=self.num_words)
+        self.tokenizer = Tokenizer(
+            num_words=self.num_words, 
+            lower=self.lower, 
+            char_level=self.char_level
+        )
 
     def get_output_shape(self):
         return (None,)
@@ -45,3 +52,16 @@ class BasicFeaturizer(IFeaturizer):
             res[idx, :seq_len] = torch.LongTensor(seq[:seq_len])
 
         return res
+
+    def inverse_transform(self, data):
+        retval = []
+        batch_size = data.size(0)
+        max_len = data.size(1)
+        for ix in range(batch_size):
+            retval.append(
+                ' '.join([
+                    self.tokenizer.ix_to_word.get(int(data[ix, word_ix]), '')
+                    for word_ix in range(max_len)
+                ])
+            )
+        return retval
