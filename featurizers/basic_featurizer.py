@@ -4,7 +4,6 @@ from common.wrappers import IFeaturizer
 from common.keras_preprocessing import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from nltk.tokenize import wordpunct_tokenize
-from sent_to_vec.sif.encoder import SIF_embedding
 from config import LM_VOCAB_SIZE, START_TAG, STOP_TAG, MAX_SEQUENCE_LENGTH
 
 class BasicFeaturizer(IFeaturizer):

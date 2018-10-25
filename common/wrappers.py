@@ -235,7 +235,8 @@ class ILearner(object):
         optimizer_kwargs={},
         auto_optimize=True,
         preprocess_batch=False,
-        uneven_batch_size=False):
+        uneven_batch_size=False,
+        collate_fn=None):
         """
         data: Dataset or tuple (X_train, y_train)
         """
@@ -250,6 +251,7 @@ class ILearner(object):
         self._auto_optimize = auto_optimize
         self._preprocess_batch = preprocess_batch
         self._uneven_batch_size = uneven_batch_size
+        self._collate_fn = collate_fn
         self._halt = False # prematurely halt training
 
         if data is not None:
@@ -411,11 +413,19 @@ class ILearner(object):
             batch_size = len(dataset)
 
         if not self._uneven_batch_size:
-            data_loader = DataLoader(dataset, 
-                batch_size=batch_size, 
-                num_workers=cpu_count,
-                shuffle=shuffle
-            )
+            if self._collate_fn is None:
+                data_loader = DataLoader(dataset, 
+                    batch_size=batch_size, 
+                    num_workers=cpu_count,
+                    shuffle=shuffle
+                )
+            else:
+                data_loader = DataLoader(dataset, 
+                    batch_size=batch_size, 
+                    num_workers=cpu_count,
+                    shuffle=shuffle,
+                    collate_fn=self._collate_fn
+                )
         else:
             data_loader = [([X[idx]], [y[idx]]) for idx in range(len(X))]
 
