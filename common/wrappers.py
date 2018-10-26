@@ -485,7 +485,6 @@ class ILearner(object):
                 
                 for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
                     if self._halt: # For early stopping / skipping batches
-                        self._halt = False
                         break
 
                     self._batch_idx = batch_idx
