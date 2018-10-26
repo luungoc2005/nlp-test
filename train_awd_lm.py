@@ -21,7 +21,10 @@ else:
     ])
     dataset.save()
 
-learner = LanguageModelLearner(model, optimizer_fn='sgd')
+learner = LanguageModelLearner(model, 
+    optimizer_fn='sgd', 
+    optimizer_kwargs={'lr': 30, 'weight_decay': 1.2e-6}
+)
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
 lr_range = list(range(25, 35))

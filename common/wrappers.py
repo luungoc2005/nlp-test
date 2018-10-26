@@ -305,6 +305,10 @@ class ILearner(object):
     
     def on_training_end(self): pass
 
+    def on_epoch_start(self); pass
+
+    def on_epoch_end(self): pass
+    
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
@@ -481,6 +485,8 @@ class ILearner(object):
                 self._current_epoch = epoch
                 self._metrics = None
 
+                self.on_epoch_start()
+
                 for callback in self._callbacks: callback.on_epoch_start()
                 
                 for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
@@ -521,6 +527,8 @@ class ILearner(object):
                         if batch_idx >= minibatches:
                             self._halt = True
 
+                self.on_epoch_end()
+                
                 for callback in self.callbacks: callback.on_epoch_end()
 
         except KeyboardInterrupt:
