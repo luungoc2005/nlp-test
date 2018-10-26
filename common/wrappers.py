@@ -305,7 +305,7 @@ class ILearner(object):
     
     def on_training_end(self): pass
 
-    def on_epoch_start(self); pass
+    def on_epoch_start(self): pass
 
     def on_epoch_end(self): pass
     
@@ -528,7 +528,7 @@ class ILearner(object):
                             self._halt = True
 
                 self.on_epoch_end()
-                
+
                 for callback in self.callbacks: callback.on_epoch_end()
 
         except KeyboardInterrupt:

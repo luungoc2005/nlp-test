@@ -6,7 +6,7 @@ from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
 
-model = LanguageModelWrapper({'embedding_dim': 400}) # small model
+model = LanguageModelWrapper({'embedding_dim': 1200}) # small model
 
 dataset = WikiTextDataset()
 
@@ -27,24 +27,24 @@ learner = LanguageModelLearner(model,
 )
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
-lr_range = list(range(25, 35))
-losses = learner.find_lr(lr_range, {
-    'training_data': dataset,
-    'batch_size': 64,
-    'epochs': 1,
-    'minibatches': 500
-})
-print([
-    (lr, losses[idx]) for idx, lr in enumerate(lr_range)
-])
-# learner.fit(
-#     training_data=dataset,
-#     batch_size=64,
-#     epochs=1000,
-#     callbacks=[
-#         PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-#         TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
-#         EarlyStoppingCallback(),
-#         ModelCheckpointCallback(metrics=['loss'])
-#     ]
-# )
+# lr_range = list(range(25, 35))
+# losses = learner.find_lr(lr_range, {
+#     'training_data': dataset,
+#     'batch_size': 64,
+#     'epochs': 1,
+#     'minibatches': 500
+# })
+# print([
+#     (lr, losses[idx]) for idx, lr in enumerate(lr_range)
+# ])
+learner.fit(
+    training_data=dataset,
+    batch_size=80,
+    epochs=1000,
+    callbacks=[
+        PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
+        TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+        EarlyStoppingCallback(),
+        ModelCheckpointCallback(metrics=['loss'])
+    ]
+)

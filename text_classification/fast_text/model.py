@@ -102,6 +102,11 @@ class FastTextWrapper(IModel):
             (model.i2h, model.h_dropout),
             model.h2o
         ]
+
+    # function to encode sentences to vectors
+    def encode(self, sents):
+        emb = self._featurizer.transform(sents)
+        return emb
     
     def infer_predict(self, logits, topk=None):
         return infer_classification_output(self, logits, topk)
