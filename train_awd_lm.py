@@ -24,12 +24,16 @@ else:
 learner = LanguageModelLearner(model, optimizer_fn='sgd')
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
-learner.find_lr(range(25, 35), {
+lr_range = list(range(25, 35))
+losses = learner.find_lr(lr_range, {
     'training_data': dataset,
     'batch_size': 64,
     'epochs': 1,
     'minibatches': 500
 })
+print([
+    (lr, losses[idx]) for idx, lr in enumerate(lr_range)
+])
 # learner.fit(
 #     training_data=dataset,
 #     batch_size=64,

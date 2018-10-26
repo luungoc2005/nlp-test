@@ -347,7 +347,7 @@ class ILearner(object):
 
         self._val_data = data
 
-    def find_lr(self, lr_range, fit_args):
+    def find_lr(self, lr_range, fit_args) -> Iterable:
         losses = []
         for lr in lr_range:
             print('Fitting with optimizer {} lr={}'.format(str(self._optimizer_fn), lr))
