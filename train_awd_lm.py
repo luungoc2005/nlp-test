@@ -24,14 +24,20 @@ else:
 learner = LanguageModelLearner(model, optimizer_fn='adam')
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
-learner.fit(
-    training_data=dataset,
-    batch_size=64,
-    epochs=1000,
-    callbacks=[
-        PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-        TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
-        EarlyStoppingCallback(),
-        ModelCheckpointCallback(metrics=['loss'])
-    ]
-)
+learner.find_lr(range(25, 35), {
+    'training_data': dataset,
+    'batch_size': 64,
+    'epochs': 1,
+    'minibatches': 5000
+})
+# learner.fit(
+#     training_data=dataset,
+#     batch_size=64,
+#     epochs=1000,
+#     callbacks=[
+#         PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
+#         TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+#         EarlyStoppingCallback(),
+#         ModelCheckpointCallback(metrics=['loss'])
+#     ]
+# )

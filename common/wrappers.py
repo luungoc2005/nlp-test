@@ -266,22 +266,27 @@ class ILearner(object):
             self.set_training_data(data)
     
         if optimizer_fn is not None:
-            if callable(optimizer_fn):
-                self._optimizer_fn = optimizer_fn
-            elif isinstance(optimizer_fn, str):
-                if optimizer_fn == 'adam':
-                    self._optimizer_fn = optim.Adam
-                elif optimizer_fn == 'rmsprop':
-                    self._optimizer_fn = optim.RMSprop
-                elif optimizer_fn == 'sgd':
-                    self._optimizer_fn = optim.SGD
-                else:
-                    raise ValueError('Unsupported optimizer name')
-            else:
-                raise ValueError('Unsupported optimizer type')
+            self._optimizer_fn = self.get_optimizer_fn(optimizer_fn)
         else:
             assert self._auto_optimize == False, 'Cannot auto-optimize with None type optimizer function'
             self._optimizer_fn = None
+
+    def get_optimizer_fn(self, optimizer_fn):
+        if callable(optimizer_fn):
+            return optimizer_fn
+        elif isinstance(optimizer_fn, str):
+            if optimizer_fn == 'adam':
+                return optim.Adam
+            elif optimizer_fn == 'rmsprop':
+                return optim.RMSprop
+            elif optimizer_fn == 'sgd':
+                return optim.SGD
+            elif optimizer_fn == 'asgd':
+                return optim.ASGD
+            else:
+                raise ValueError('Unsupported optimizer name')
+        else:
+            raise ValueError('Unsupported optimizer type')
 
     def init_on_dataset(self, dataset): pass
 
@@ -342,10 +347,23 @@ class ILearner(object):
 
         self._val_data = data
 
+    def find_lr(self, lr_range, fit_args):
+        losses = []
+        for lr in lr_range:
+            print('Fitting with optimizer {} lr={}'.format(str(self._optimizer_fn), lr))
+            self._optimizer_kwargs = self._optimizer_kwargs or dict()
+            self._optimizer_kwargs['lr'] = lr
+            self.fit(**fit_args)
+            loss = self.metrics['loss']
+            losses.append(loss)
+            print('Loss: {}'.format(str(loss)))
+        return losses
+
     def fit(self,
         training_data=None,
         validation_data=None,
-        epochs=1, 
+        epochs=1,
+        minibatches=None,
         epoch_start=0, 
         batch_size=64, 
         shuffle=True,
@@ -501,6 +519,9 @@ class ILearner(object):
                     for callback in self.callbacks: callback.on_batch_end()
 
                 for callback in self.callbacks: callback.on_epoch_end()
+
+                if epochs == 1 and minibatches is not None:
+                    if batch_idx >= minibatches: break
 
         except KeyboardInterrupt:
             warnings.warn('Training aborted')
