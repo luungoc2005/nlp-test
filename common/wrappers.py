@@ -521,7 +521,8 @@ class ILearner(object):
                 for callback in self.callbacks: callback.on_epoch_end()
 
                 if epochs == 1 and minibatches is not None:
-                    if batch_idx >= minibatches: break
+                    if batch_idx >= minibatches:
+                        self._halt = True
 
         except KeyboardInterrupt:
             warnings.warn('Training aborted')
