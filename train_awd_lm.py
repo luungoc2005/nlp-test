@@ -21,7 +21,7 @@ else:
     ])
     dataset.save()
 
-learner = LanguageModelLearner(model, optimizer_fn='adam')
+learner = LanguageModelLearner(model, optimizer_fn='sgd')
 
 print('Dataset: {} minibatches per epoch'.format(len(dataset)))
 learner.find_lr(range(25, 35), {
