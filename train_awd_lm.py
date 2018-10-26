@@ -28,7 +28,7 @@ learner.find_lr(range(25, 35), {
     'training_data': dataset,
     'batch_size': 64,
     'epochs': 1,
-    'minibatches': 5000
+    'minibatches': 500
 })
 # learner.fit(
 #     training_data=dataset,
