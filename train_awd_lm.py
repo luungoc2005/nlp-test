@@ -28,7 +28,7 @@ else:
 learner = LanguageModelLearner(model, 
     optimizer_fn='adam'
 )
-print('Dataset: {} minibatches per epoch'.format(len(dataset)))
+print('Dataset: {} sentences'.format(len(dataset)))
 # lr_range = list(range(25, 35))
 # losses = learner.find_lr(lr_range, {
 #     'training_data': dataset,

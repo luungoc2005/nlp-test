@@ -45,13 +45,15 @@ def nlu_init_model(model_id, filename, ent_file_name):
     # summary.print_(sum1)
     
 def nlu_predict(model_id, query):
+    ret_intents = CLF_MODEL.get(model_id)([query])
     intents_result = {
-        "intents": CLF_MODEL.get(model_id)([query])[0]
+        "intents": ret_intents[0] if ret_intents is not None else None
     }
 
     entities_result = {}
-    if ENT_MODEL.get(model_id, None) is not None and ENT_TAG_TO_IX.get(model_id, None) is not None:
-        entities_result = {"entities": ENT_MODEL[model_id]([query])[0]}
+    if ENT_MODEL.get(model_id, None) is not None:
+        ret_entities = ENT_MODEL[model_id]([query])
+        entities_result = {"entities": ret_entities[0] if ret_entities is not None else None}
 
     result = {**intents_result, **entities_result}
 
