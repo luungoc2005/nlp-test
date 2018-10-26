@@ -517,11 +517,11 @@ class ILearner(object):
 
                     for callback in self.callbacks: callback.on_batch_end()
 
-                for callback in self.callbacks: callback.on_epoch_end()
+                    if epochs == 1 and minibatches is not None:
+                        if batch_idx >= minibatches:
+                            self._halt = True
 
-                if epochs == 1 and minibatches is not None:
-                    if batch_idx >= minibatches:
-                        self._halt = True
+                for callback in self.callbacks: callback.on_epoch_end()
 
         except KeyboardInterrupt:
             warnings.warn('Training aborted')
