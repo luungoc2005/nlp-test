@@ -9,6 +9,7 @@ import uuid
 import json
 import subprocess
 import logging
+import sys, traceback
 
 consoleHandler = logging.StreamHandler()
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -82,82 +83,88 @@ def initialize(app):
 
     @app.route("/upload", methods=['POST'])
     def upload():
-        if request.method == 'POST':
+        try:
             if 'file' not in request.files:
                 return jsonerror('No file included')
             u_file = request.files['file']
             if u_file.filename == '':
                 return jsonerror('No selected file')
-            if u_file and allowed_file(u_file.filename):
-                request_form = request.form
+            if not u_file or not allowed_file(u_file.filename):
+                return jsonerror('Invalid file')
 
-                callback_url = request_form.get('callback_url', '')
-                if 'model_id' in request_form:
-                    prev_model_id = request_form['model_id']
+            request_form = request.form
 
-                    if prev_model_id in TRAIN_PROCESSES:
-                        process = TRAIN_PROCESSES[prev_model_id]
-                        return_code = process.poll()
-                        if return_code is None: # process is still running
-                            process.kill() # immediately kill the process
+            callback_url = request_form.get('callback_url', '')
+            if 'model_id' in request_form:
+                prev_model_id = request_form['model_id']
 
-                    print('Deleting previous model', prev_model_id)
-                    delete_model(app, prev_model_id)
+                if prev_model_id in TRAIN_PROCESSES:
+                    process = TRAIN_PROCESSES[prev_model_id]
+                    return_code = process.poll()
+                    if return_code is None: # process is still running
+                        process.kill() # immediately kill the process
 
-                model_id = str(uuid.uuid4())
+                print('Deleting previous model', prev_model_id)
+                delete_model(app, prev_model_id)
 
-                filename = model_id + '_' + secure_filename(u_file.filename)
-                save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
-                u_file.save(save_path)
+            model_id = str(uuid.uuid4())
 
-                print('Upload complete. Beginning training model', model_id)
+            filename = model_id + '_' + secure_filename(u_file.filename)
+            save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
+            u_file.save(save_path)
 
-                clf_model_path = save_path + '.cls.bin'
-                ent_model_path = save_path + '.ent.bin'
+            print('Upload complete. Beginning training model', model_id)
 
-                get_config(app)
+            clf_model_path = save_path + '.cls.bin'
+            ent_model_path = save_path + '.ent.bin'
 
-                if not app.config.get('USE_QUEUE', True):
-                    clf_model_path, ent_model_path = nlu_train_file(model_id,
-                        save_path,
-                        clf_model_path,
-                        ent_model_path)
-                else:
-                    log_file_name = path.join(app.config['LOGS_FOLDER'], model_id + '.log')
-                    with open(log_file_name, 'w', encoding='utf8') as log_fp:
-                        TRAIN_PROCESSES[model_id] = subprocess.Popen(
-                            [
-                                PYTHON_PATH, '-m', 'flask_app.nlu_train', 
-                                '--model_id', model_id, 
-                                '--save_path', save_path,
-                                '--clf_model_path', clf_model_path,
-                                '--ent_model_path', ent_model_path,
-                                '--callback_url', callback_url
-                            ],
-                            stdout=log_fp
-                        )
+            get_config(app)
 
-                if app.config.get('MODELS', None) is None:
-                    app.config['MODELS'] = {}
+            if not app.config.get('USE_QUEUE', True):
+                clf_model_path, ent_model_path = nlu_train_file(model_id,
+                    save_path,
+                    clf_model_path,
+                    ent_model_path)
+            else:
+                log_file_name = path.join(app.config['LOGS_FOLDER'], model_id + '.log')
+                with open(log_file_name, 'w', encoding='utf8') as log_fp:
+                    TRAIN_PROCESSES[model_id] = subprocess.Popen(
+                        [
+                            PYTHON_PATH, '-m', 'flask_app.nlu_train', 
+                            '--model_id', model_id, 
+                            '--save_path', save_path,
+                            '--clf_model_path', clf_model_path,
+                            '--ent_model_path', ent_model_path,
+                            '--callback_url', callback_url
+                        ],
+                        stdout=log_fp
+                    )
 
-                app.config['MODELS'][model_id] = {
-                    'CLF_MODEL_PATH': clf_model_path,
-                    'ENT_MODEL_PATH': ent_model_path,
-                    'created': time.time()
-                }
-                save_config(app)
+            if app.config.get('MODELS', None) is None:
+                app.config['MODELS'] = {}
 
-                return jsonify({
-                    'model_id': model_id
-                })
+            app.config['MODELS'][model_id] = {
+                'CLF_MODEL_PATH': clf_model_path,
+                'ENT_MODEL_PATH': ent_model_path,
+                'created': time.time()
+            }
+            save_config(app)
+
+            return jsonify({
+                'model_id': model_id
+            })
+        except:
+            traceback.print_exc(limit=2, file=sys.stdout)
+            return jsonerror('Runtime exception encountered when handling request')
 
     @app.route("/status", methods=['POST'])
     def flask_get_status():
-        content = request.get_json()
+        try:
+            content = request.get_json()
 
-        if 'model_id' not in content:
-            return jsonerror('Model ID must be provided')
-        else:
+            if 'model_id' not in content:
+                return jsonerror('Model ID must be provided')
+            
             get_config(app)
 
             model_id = content['model_id']
@@ -188,16 +195,20 @@ def initialize(app):
                 return jsonify({
                     'status': 'not_found'
                 })
+        except:
+            traceback.print_exc(limit=2, file=sys.stdout)
+            return jsonerror('Runtime exception encountered when handling request')
 
     @app.route("/predict", methods=['POST'])
     def flask_predict():
-        content = request.get_json()
+        try:
+            content = request.get_json()
 
-        if 'query' not in content:
-            return jsonerror('Invalid JSON object')
-        elif 'model_id' not in content:
-            return jsonerror('Model ID must be provided')
-        else:
+            if 'query' not in content:
+                return jsonerror('Invalid JSON object')
+            elif 'model_id' not in content:
+                return jsonerror('Model ID must be provided')
+            
             get_config(app)
             
             model_count = len(list(app.config['MODELS'].keys())) \
@@ -206,17 +217,20 @@ def initialize(app):
 
             if model_count == 0:
                 return jsonerror('No model trained')
-            else:
-                model_id = content['model_id'].strip()
+            
+            model_id = content['model_id'].strip()
 
-                if model_id not in app.config['MODELS']:
-                    return jsonerror('Model ID not found')
-                else:
-                    model_config = app.config['MODELS'][model_id]
-                    nlu_init_model(
-                        model_id,
-                        model_config['CLF_MODEL_PATH'],
-                        model_config['ENT_MODEL_PATH']
-                    )
-                    result = nlu_predict(model_id, content['query'])
-                    return jsonify(result)
+            if model_id not in app.config['MODELS']:
+                return jsonerror('Model ID not found')
+            
+            model_config = app.config['MODELS'][model_id]
+            nlu_init_model(
+                model_id,
+                model_config['CLF_MODEL_PATH'],
+                model_config['ENT_MODEL_PATH']
+            )
+            result = nlu_predict(model_id, content['query'])
+            return jsonify(result)
+        except:
+            traceback.print_exc(limit=2, file=sys.stdout)
+            return jsonerror('Runtime exception encountered when handling request')
