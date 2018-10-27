@@ -55,7 +55,7 @@ class RNNLanguageModel(nn.Module):
                     self.embedding_dim,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
-                    dropout=self.wdrop
+                    dropout=self.wdrop,
                     v1=True
                 )) 
                 for layer_ix in range(self.n_layers)
