@@ -16,10 +16,7 @@ import numpy as np
 from six.moves import range
 from six.moves import zip
 
-if sys.version_info < (3,):
-    maketrans = string.maketrans
-else:
-    maketrans = str.maketrans
+maketrans = str.maketrans
 
 
 def text_to_word_sequence(text,
@@ -305,7 +302,7 @@ class Tokenizer(object):
 
     def sequences_to_texts(self, sequences):
         ret_val = []
-        for i, seq in enumerate(sequences):
+        for _, seq in enumerate(sequences):
             if not seq:
                 continue
             texts = [self.ix_to_word[token] for token in seq if token < self.num_words]

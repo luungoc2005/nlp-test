@@ -32,40 +32,18 @@ class RNNLanguageModel(nn.Module):
 
         # for the mean time weight drop is broken
         if self.rnn_type == 'LSTM':
-            # self.rnns = nn.ModuleList([
-            #     WeightDrop(
-            #         nn.LSTM(
-            #             self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
-            #             self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-            #             bidirectional=True
-            #         ), 
-            #     ['weight_hh_l0'], dropout=self.wdrop) 
-            #     for layer_ix in range(self.n_layers)
-            # ])
             self.rnns = nn.ModuleList([
                 nn.LSTM(
                     self.embedding_dim, 
-                    self.embedding_dim // 2,
-                    bidirectional=True
+                    self.embedding_dim
                 )
                 for layer_ix in range(self.n_layers)
             ])
         elif self.rnn_type == 'GRU':
-            # self.rnns = nn.ModuleList([
-            #     WeightDrop(
-            #         nn.GRU(
-            #             self.embedding_dim if layer_ix == 0 else self.embedding_dim, 
-            #             self.embedding_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
-            #             bidirectional=True
-            #         ), 
-            #     ['weight_hh_l0'], dropout=self.wdrop) 
-            #     for layer_ix in range(self.n_layers)
-            # ])
             self.rnns = nn.ModuleList([
                 nn.GRU(
                     self.embedding_dim, 
-                    self.embedding_dim // 2,
-                    bidirectional=True
+                    self.embedding_dim
                 )
                 for layer_ix in range(self.n_layers)
         ])
@@ -74,11 +52,10 @@ class RNNLanguageModel(nn.Module):
             self.rnns = nn.ModuleList([
                 to_gpu(SRU(
                     self.embedding_dim, 
-                    self.embedding_dim // 2,
+                    self.embedding_dim,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
-                    dropout=self.wdrop,
-                    bidirectional=True,
+                    dropout=self.wdrop
                     v1=True
                 )) 
                 for layer_ix in range(self.n_layers)
@@ -101,14 +78,14 @@ class RNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             return [
                 (to_gpu(torch.zeros(
-                    2, 
+                    1, 
                     batch_size, 
-                    self.embedding_dim // 2
+                    self.embedding_dim
                 )),
                 to_gpu(torch.zeros(
-                    2, 
+                    1, 
                     batch_size, 
-                    self.embedding_dim // 2
+                    self.embedding_dim
                 )))
                 for l in range(self.n_layers)
             ]

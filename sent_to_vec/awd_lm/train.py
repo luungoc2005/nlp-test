@@ -7,7 +7,7 @@ from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
 from sent_to_vec.awd_lm.data import collate_seq_lm_fn
-from sent_to_vec.awd_lm.splitcross import SplitCrossEntropyLoss
+from common.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
 class LanguageModelLearner(ILearner):

@@ -229,4 +229,4 @@ class TemperatureScalingCallback(ICallback):
         super(TemperatureScalingCallback, self).__init__()
 
     def on_training_end(self):
-        model = self.learner.model_wrapper.model
+        # model = self.learner.model_wrapper.model

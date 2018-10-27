@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -37,8 +38,8 @@ class SplitCrossEntropyLoss(nn.Module):
 
             # Perform the softmax calculation for the word vectors in the head for all splits
             # We need to guard against empty splits as torch.cat does not like random lists
-            head_res = torch.nn.functional.linear(hiddens, head_weight, bias=head_bias)
-            softmaxed_head_res = torch.nn.functional.log_softmax(head_res, dim=-1)
+            head_res = F.linear(hiddens, head_weight, bias=head_bias)
+            softmaxed_head_res = F.log_softmax(head_res, dim=-1)
 
         if splits is None:
             splits = list(range(self.nsplits))
@@ -61,12 +62,12 @@ class SplitCrossEntropyLoss(nn.Module):
                 tail_bias = bias[start:end]
 
                 # Calculate the softmax for the words in the tombstone
-                tail_res = torch.nn.functional.linear(hiddens, tail_weight, bias=tail_bias)
+                tail_res = F.linear(hiddens, tail_weight, bias=tail_bias)
 
                 # Then we calculate p(tombstone) * p(word in tombstone)
                 # Adding is equivalent to multiplication in log space
                 head_entropy = (softmaxed_head_res[:, -idx]).contiguous()
-                tail_entropy = torch.nn.functional.log_softmax(tail_res, dim=-1)
+                tail_entropy = F.log_softmax(tail_res, dim=-1)
                 results.append(head_entropy.view(-1, 1) + tail_entropy)
 
         if len(results) > 1:
@@ -132,8 +133,8 @@ class SplitCrossEntropyLoss(nn.Module):
         # We need to guard against empty splits as torch.cat does not like random lists
         combo = torch.cat([split_hiddens[i] for i in range(self.nsplits) if len(split_hiddens[i])])
         ###
-        all_head_res = torch.nn.functional.linear(combo, head_weight, bias=head_bias)
-        softmaxed_all_head_res = torch.nn.functional.log_softmax(all_head_res, dim=-1)
+        all_head_res = F.linear(combo, head_weight, bias=head_bias)
+        softmaxed_all_head_res = F.log_softmax(all_head_res, dim=-1)
         if self.verbose or verbose:
             self.stats[0].append(combo.size()[0] * head_weight.size()[0])
 
@@ -164,7 +165,7 @@ class SplitCrossEntropyLoss(nn.Module):
                 # All indices are shifted - if the first split handles [0,...,499] then the 500th in the second split will be 0 indexed
                 indices = (split_targets[idx] - self.splits[idx]).view(-1, 1)
                 # Warning: if you don't squeeze, you get an N x 1 return, which acts oddly with broadcasting
-                tail_entropy = torch.gather(torch.nn.functional.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
+                tail_entropy = torch.gather(F.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
                 entropy = -(head_entropy + tail_entropy)
             ###
             running_offset += len(split_hiddens[idx])
