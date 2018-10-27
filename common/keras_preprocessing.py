@@ -16,6 +16,8 @@ import numpy as np
 from six.moves import range
 from six.moves import zip
 
+from config import START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG
+
 maketrans = str.maketrans
 
 
@@ -150,7 +152,8 @@ class Tokenizer(object):
                  lower=True,
                  split=' ',
                  char_level=False,
-                 oov_token=None,
+                 oov_token=UNK_TAG,
+                 reserved_tokens=[START_TAG, STOP_TAG, UNK_TAG],
                  **kwargs):
         # Legacy support
         if 'nb_words' in kwargs:
@@ -169,6 +172,7 @@ class Tokenizer(object):
         self.document_count = 0
         self.char_level = char_level
         self.oov_token = oov_token
+        self.reserved_tokens = reserved_tokens
         self.index_docs = {}
         self.word_index = {}
         self.ix_to_word = {}
@@ -202,6 +206,10 @@ class Tokenizer(object):
                     self.word_docs[w] += 1
                 else:
                     self.word_docs[w] = 1
+
+        max_count = max(self.word_counts.values())
+        for ix, token in enumerate(self.reserved_tokens):
+            self.word_counts[token] = max_count + 1 + ix
 
         wcounts = list(self.word_counts.items())
         wcounts.sort(key=lambda x: x[1], reverse=True)
