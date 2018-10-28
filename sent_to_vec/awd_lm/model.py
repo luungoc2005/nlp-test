@@ -22,6 +22,7 @@ class RNNLanguageModel(nn.Module):
         self.rnn_type = config.get('rnn_type', 'SRU')
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
+        self.highway_bias = config.get('highway_bias', -3)
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU']
 
@@ -56,6 +57,9 @@ class RNNLanguageModel(nn.Module):
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
                     dropout=self.wdrop,
+                    rescale=False,
+                    highway_bias=self.highway_bias,
+                    use_tanh=0,
                     v1=True
                 )) 
                 for layer_ix in range(self.n_layers)
