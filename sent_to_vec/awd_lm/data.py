@@ -46,7 +46,8 @@ class WikiTextDataset(Dataset):
 
         print('Fitting featurizer')
         self.featurizer.fit(self.raw_sents)
-        print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_counts.keys())))
+        print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
+        # print(list(self.featurizer.tokenizer.word_index.keys()))
 
         print('Tokenizing files')
         raw_data = self.featurizer.transform(self.raw_sents)

@@ -197,7 +197,7 @@ class Tokenizer(object):
         for text in texts:
             self.document_count += 1
             if self.char_level or isinstance(text, list):
-                seq = text.lower() if self.lower else text
+                seq = text
             else:
                 seq = text_to_word_sequence(text,
                                             self.filters,

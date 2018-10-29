@@ -69,7 +69,7 @@ class LanguageModelLearner(ILearner):
 
         if self.char_level:
             decoded = self.model_wrapper.model.decoder(logits)
-            decoded = decoded.view(outputs.size(0), outputs.size(1), decoded.size(1))
+            decoded = decoded.view(logits.size(0), logits.size(1), decoded.size(1))
             n_tokens = self.model_wrapper.model.num_words
             loss = self.criterion(decoded.view(-1, n_tokens), y)
         else:
