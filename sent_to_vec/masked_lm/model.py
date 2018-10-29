@@ -1,21 +1,19 @@
 import torch
 import torch.nn as nn
-from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_EMBEDDING_DIM
+from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
 from common.modules import LockedDropout, WeightDrop
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
 
-class RNNLanguageModel(nn.Module):
+class BiRNNLanguageModel(nn.Module):
 
     def __init__(self, config):
-        super(RNNLanguageModel, self).__init__()
+        super(BiRNNLanguageModel, self).__init__()
         self.config = config
 
-        self.tie_weights = config.get('tie_weights', True)
-        self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM if self.tie_weights else LM_EMBEDDING_DIM)
-        self.hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
+        self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
         self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
         self.dropout_h = config.get('h_dropout', .5)
@@ -37,16 +35,18 @@ class RNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             self.rnns = nn.ModuleList([
                 nn.LSTM(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
+                    bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
             ])
         elif self.rnn_type == 'GRU':
             self.rnns = nn.ModuleList([
                 nn.GRU(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
+                    bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
         ])
@@ -54,14 +54,15 @@ class RNNLanguageModel(nn.Module):
             from sru import SRU
             self.rnns = nn.ModuleList([
                 to_gpu(SRU(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_size, 
-                    self.hidden_size,
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
                     dropout=self.wdrop,
                     rescale=False,
                     highway_bias=self.highway_bias,
                     use_tanh=0,
+                    bidirectional=True,
                     v1=True
                 )) 
                 for layer_ix in range(self.n_layers)
@@ -70,8 +71,7 @@ class RNNLanguageModel(nn.Module):
         self.decoder = nn.Linear(self.embedding_dim, self.num_words)
 
         # Weight tying
-        if self.tie_weights:
-            self.decoder.weight = self.encoder.weight
+        self.decoder.weight = self.encoder.weight
 
         self.init_weights()
 
@@ -85,14 +85,14 @@ class RNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             return [
                 (to_gpu(torch.zeros(
-                    1, 
+                    2, 
                     batch_size, 
-                    self.hidden_size
+                    self.embedding_dim // 2
                 )),
                 to_gpu(torch.zeros(
-                    1, 
+                    2, 
                     batch_size, 
-                    self.hidden_size
+                    self.embedding_dim // 2
                 )))
                 for l in range(self.n_layers)
             ]
@@ -101,7 +101,7 @@ class RNNLanguageModel(nn.Module):
                 to_gpu(torch.zeros(
                     1, 
                     batch_size, 
-                    self.hidden_size
+                    self.embedding_dim
                 ))
                 for l in range(self.n_layers)
             ]

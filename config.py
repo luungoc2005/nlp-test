@@ -27,6 +27,7 @@ SENTENCE_DIM = 50
 NGRAM_BINS = 2 ** 16 # == 65536
 
 LM_VOCAB_SIZE = 200000 # Number of tokens in language model
+LM_EMBEDDING_DIM = 100
 LM_HIDDEN_DIM = 2048
 LM_SEQ_LEN = 35
 

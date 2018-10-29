@@ -207,8 +207,9 @@ class Tokenizer(object):
                 else:
                     self.word_docs[w] = 1
 
+        # add reserved tokens to top of word_counts
         max_count = max(self.word_counts.values())
-        for ix, token in enumerate(self.reserved_tokens):
+        for ix, token in enumerate(self.reserved_tokens[::-1]):
             self.word_counts[token] = max_count + 1 + ix
 
         wcounts = list(self.word_counts.items())

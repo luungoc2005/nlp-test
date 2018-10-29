@@ -26,7 +26,8 @@ else:
 #     optimizer_kwargs={'lr': 30, 'weight_decay': 1.2e-6}
 # )
 learner = LanguageModelLearner(model, 
-    optimizer_fn='adam'
+    optimizer_fn='adam',
+    optimizer_kwargs={'weight_decay': 1.2e-6}
 )
 print('Dataset: {} sentences'.format(len(dataset)))
 # lr_range = list(range(25, 35))
