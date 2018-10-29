@@ -15,7 +15,7 @@ class RNNLanguageModel(nn.Module):
 
         self.tie_weights = config.get('tie_weights', True)
         self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM if self.tie_weights else LM_EMBEDDING_DIM)
-        self.hidden_size = config.get('hidden_size', LM_HIDDEN_DIM)
+        self.hidden_size = self.embedding_dim if self.tie_weights else config.get('hidden_size', LM_HIDDEN_DIM)
         self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
         self.dropout_h = config.get('h_dropout', .5)
