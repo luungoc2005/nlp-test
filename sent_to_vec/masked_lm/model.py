@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
+from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN
 from common.modules import LockedDropout, WeightDrop
 from common.wrappers import IModel
 from common.torch_utils import to_gpu

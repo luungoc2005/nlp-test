@@ -67,6 +67,7 @@ data/quora/
 data/fasttext/
 data/wikitext2/
 data/wikitext103/
+data/wikitext103raw/
 output/
 flask_app/uploads/
 

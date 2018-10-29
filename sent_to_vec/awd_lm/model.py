@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_EMBEDDING_DIM
+from config import LM_VOCAB_SIZE, LM_CHAR_RESERVED, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, LM_EMBEDDING_DIM
 from common.modules import LockedDropout, WeightDrop
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
+from common.utils import n_letters
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
 
@@ -14,13 +15,16 @@ class RNNLanguageModel(nn.Module):
         self.config = config
 
         self.tie_weights = config.get('tie_weights', True)
+        self.char_level = config.get('char_level', False)
+
         self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM if self.tie_weights else LM_EMBEDDING_DIM)
         self.hidden_size = self.embedding_dim if self.tie_weights else config.get('hidden_size', LM_HIDDEN_DIM)
+        self.num_words = config.get('num_words', n_letters + LM_CHAR_RESERVED if self.char_level else LM_VOCAB_SIZE)
+
         self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
         self.dropout_h = config.get('h_dropout', .5)
         self.wdrop = config.get('wdrop', 0)
-        self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.rnn_type = config.get('rnn_type', 'SRU')
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
@@ -182,7 +186,8 @@ class LanguageModelWrapper(IModel):
             *args, **kwargs
         )
 
-        self.seq_len = config.get('seq_len', LM_SEQ_LEN)
+        self.char_level = config.get('char_level', False)
+        self.seq_len = config.get('seq_len', LM_CHAR_SEQ_LEN if self.char_level else LM_SEQ_LEN)
         self.config = config
 
     def generate(self, n_tokens, temperature=1.):
@@ -214,7 +219,10 @@ class LanguageModelWrapper(IModel):
 
         self.model.train()
 
-        return ' '.join(retstr)
+        if self.char_level:
+            return ''.join(retstr)
+        else:
+            return ' '.join(retstr)
 
     def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
         if torch.is_tensor(h):

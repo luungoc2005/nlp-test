@@ -17,6 +17,7 @@ from six.moves import range
 from six.moves import zip
 
 from config import START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG
+from common.utils import all_letters
 
 maketrans = str.maketrans
 
@@ -187,6 +188,12 @@ class Tokenizer(object):
                 a generator of strings (for memory-efficiency),
                 or a list of list of strings.
         """
+
+        if self.char_level:
+        # forcefully inserts all char tokens into word list
+            for letter in all_letters:
+                self.word_counts[letter] = 1
+
         for text in texts:
             self.document_count += 1
             if self.char_level or isinstance(text, list):

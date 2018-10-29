@@ -4,19 +4,20 @@ from common.wrappers import IFeaturizer
 from common.keras_preprocessing import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from nltk.tokenize import wordpunct_tokenize
-from config import LM_VOCAB_SIZE, START_TAG, STOP_TAG, MAX_SEQUENCE_LENGTH
+from common.utils import n_letters
+from config import LM_VOCAB_SIZE, LM_CHAR_RESERVED, START_TAG, STOP_TAG, MAX_SEQUENCE_LENGTH
 
 class BasicFeaturizer(IFeaturizer):
 
     def __init__(self, config=dict()):
         super(BasicFeaturizer, self).__init__()
 
-        self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.lower = config.get('lower', True)
         self.char_level = config.get('char_level', False)
+        self.num_words = config.get('num_words', n_letters + LM_CHAR_RESERVED if self.char_level else LM_VOCAB_SIZE)
         self.append_sos_eos = config.get('append_sos_eos', False)
         self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
-        
+
         self.tokenize_fn = wordpunct_tokenize
         self.tokenizer = Tokenizer(
             num_words=self.num_words, 
@@ -35,7 +36,11 @@ class BasicFeaturizer(IFeaturizer):
 
     def fit(self, data):
         if self.tokenizer is None:
-            self.tokenizer = Tokenizer(num_words=MAX_NUM_WORDS)
+            self.tokenizer = Tokenizer(
+                num_words=self.num_words, 
+                lower=self.lower, 
+                char_level=self.char_level
+            )
         
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
