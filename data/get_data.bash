@@ -9,6 +9,8 @@ fasttext='https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.
 quora='http://qim.ec.quoracdn.net/quora_duplicate_questions.tsv'
 wikitext2='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip'
 wikitext103='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
+wikitext2-raw='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-raw-v1.zip'
+wikitext3-raw='https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-raw-v1.zip'
 
 ZIPTOOL="unzip"
 
