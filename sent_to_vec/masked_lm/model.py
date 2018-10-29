@@ -176,7 +176,7 @@ class LanguageModelWrapper(IModel):
         featurizer_config['append_sos_eos'] = True
 
         super(LanguageModelWrapper, self).__init__(
-            model_class=RNNLanguageModel, 
+            model_class=BiRNNLanguageModel, 
             config=config, 
             featurizer=BasicFeaturizer(featurizer_config),
             *args, **kwargs
