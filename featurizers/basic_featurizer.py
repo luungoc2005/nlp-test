@@ -29,10 +29,13 @@ class BasicFeaturizer(IFeaturizer):
         return (None,)
 
     def tokenize(self, data):
-        if self.append_sos_eos:
-            return [[START_TAG] + self.tokenize_fn(sent) + [STOP_TAG] for sent in data]
+        if self.char_level:
+            return data
         else:
-            return [self.tokenize_fn(sent) for sent in data]
+            if self.append_sos_eos:
+                return [[START_TAG] + self.tokenize_fn(sent) + [STOP_TAG] for sent in data]
+            else:
+                return [self.tokenize_fn(sent) for sent in data]
 
     def fit(self, data):
         if self.tokenizer is None:
@@ -41,6 +44,7 @@ class BasicFeaturizer(IFeaturizer):
                 lower=self.lower, 
                 char_level=self.char_level
             )
+        if self.char_level: print('Using char-level tokenizer')
         
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
