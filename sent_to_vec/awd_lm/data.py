@@ -31,7 +31,7 @@ class WikiTextDataset(Dataset):
     def __init__(self):
         super(WikiTextDataset, self).__init__()
 
-    def initialize(self, model_wrapper, data_path):
+    def initialize(self, model_wrapper, data_path, batch_size):
         if isinstance(data_path, str):
             self.raw_sents, sent_count = read_wikitext_lm(data_path)
             print('Loaded {} sentences from {}'.format(len(sent_count, data_path))
@@ -57,7 +57,7 @@ class WikiTextDataset(Dataset):
         self.raw_data = raw_data
         self.process_raw(batch_size)
 
-    def process_raw(self, batch_size):
+    def process_raw(self, batch_size=64):
         n_batch = self.raw_data.size(0) // batch_size
         print('Dataset contains {} minibatches with batch_size={}'.format(n_batch, batch_size))
         batch_data = self.raw_data.narrow(0, 0, n_batch * batch_size)
@@ -77,7 +77,7 @@ class WikiTextDataset(Dataset):
         }, self.get_save_name())
         print('Finished saving preprocessed dataset')
 
-    def load(self, fp, model_wrapper):
+    def load(self, fp, model_wrapper, batch_size=64):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
@@ -95,7 +95,7 @@ class WikiTextDataset(Dataset):
         bptt = self.seq_len if np.random.random() < 0.95 else self.seq_len / 2
         seq_len = max(5, int(np.random.normal(bptt, 5)))
         seq_len = min(seq_len, len(self.batch_data) - 1 - index)
-        
+
         X = self.batch_data[index:index+seq_len].long()
         y = self.batch_data[index+1:index+1+seq_len].view(-1)
         return X, y

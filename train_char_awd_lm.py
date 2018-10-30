@@ -17,14 +17,16 @@ model = LanguageModelWrapper({
 dataset = WikiTextDataset()
 
 SAVE_PATH = path.join(BASE_PATH, 'wikitext-char-data.bin')
+BATCH_SIZE = 128
+
 if path.exists(SAVE_PATH):
     print('Loading from previously saved file')
-    dataset.load(SAVE_PATH, model)
+    dataset.load(SAVE_PATH, model, batch_size=BATCH_SIZE)
 else:
     dataset.initialize(model, data_path=[
         # path.join(BASE_PATH, 'data/wikitext2raw/wiki.train.raw'),
         path.join(BASE_PATH, 'data/wikitext103raw/wiki.train.raw')
-    ])
+    ], batch_size=BATCH_SIZE)
     dataset.save()
 
 # learner = LanguageModelLearner(model, 
@@ -39,7 +41,7 @@ print('Dataset: {} sentences'.format(len(dataset)))
 # lr_range = list(range(25, 35))
 # losses = learner.find_lr(lr_range, {
 #     'training_data': dataset,
-#     'batch_size': 64,
+#     'batch_size': BATCH_SIZE,
 #     'epochs': 1,
 #     'minibatches': 500
 # })
@@ -48,7 +50,7 @@ print('Dataset: {} sentences'.format(len(dataset)))
 # ])
 learner.fit(
     training_data=dataset,
-    batch_size=80,
+    batch_size=1,
     epochs=1000,
     callbacks=[
         PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
