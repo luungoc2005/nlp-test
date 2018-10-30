@@ -8,9 +8,10 @@ from torch.optim import RMSprop
 
 model = LanguageModelWrapper({
     'char_level': True,
+    'rnn_type': 'LSTM',
     'embedding_dim': 100,
     'hidden_size': 2400,
-    'n_layers': 8
+    'n_layers': 3
 })
 
 dataset = WikiTextDataset()
