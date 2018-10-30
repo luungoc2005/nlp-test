@@ -6,7 +6,11 @@ from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
 
-model = LanguageModelWrapper({'embedding_dim': 1200}) # small model
+model = LanguageModelWrapper({
+    'rnn_type': 'LSTM',
+    'n_layers': 3,
+    'embedding_dim': 1200
+}) # large model
 
 dataset = WikiTextDataset()
 
@@ -47,7 +51,6 @@ learner.fit(
     callbacks=[
         PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
         TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
-        EarlyStoppingCallback(),
         ModelCheckpointCallback(metrics=['loss'])
     ]
 )
