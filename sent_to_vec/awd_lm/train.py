@@ -56,14 +56,22 @@ class LanguageModelLearner(ILearner):
         self.clip_grad = config.get('clip_grad', .25)
         self.alpha = config.get('alpha', 2)
         self.beta = config.get('beta', 1)
+        self.batch_size = 0
+
+    def get_hidden(self, batch_size):
+        if self.hidden is None or batch_size != self.batch_size:
+            hidden = self.model_wrapper.model.init_hidden(batch_size)
+        else:
+            hidden = self.model_wrapper.repackage_hidden(self.hidden)
+        
+        self.batch_size = batch_size
+
+        return hidden
 
     def on_epoch(self, X, y):
-        if self.hidden is None:
-            batch_size = X.size(1)
-            self.hidden = self.model_wrapper.model.init_hidden(batch_size)
-        else:
-            self.hidden = self.model_wrapper.repackage_hidden(self.hidden)
-        
+        batch_size = X.size(1)
+        self.hidden = self.get_hidden(batch_size)
+
         logits, self.hidden, raw_outputs, outputs = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)
 
