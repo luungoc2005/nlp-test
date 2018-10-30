@@ -6,7 +6,6 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from sent_to_vec.awd_lm.data import collate_seq_lm_fn
 from common.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
@@ -20,7 +19,7 @@ class LanguageModelLearner(ILearner):
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
-            collate_fn=lambda data: collate_seq_lm_fn(data, self.seq_len),
+            collate_fn=lambda (X, y): (X[0], y[0])
             **kwargs)
 
     def on_training_start(self):
@@ -58,21 +57,19 @@ class LanguageModelLearner(ILearner):
         self.beta = config.get('beta', 1)
         self.batch_size = 0
 
-    # def get_hidden(self, batch_size):
-    #     if self.hidden is None or batch_size != self.batch_size:
-    #         hidden = self.model_wrapper.model.init_hidden(batch_size)
-    #     else:
-    #         hidden = self.model_wrapper.repackage_hidden(self.hidden)
+    def get_hidden(self, batch_size):
+        if self.hidden is None or batch_size != self.batch_size:
+            hidden = self.model_wrapper.model.init_hidden(batch_size)
+        else:
+            hidden = self.model_wrapper.repackage_hidden(self.hidden)
         
-    #     self.batch_size = batch_size
+        self.batch_size = batch_size
 
-    #     return hidden
+        return hidden
 
     def on_epoch(self, X, y):
         batch_size = X.size(1)
-        # self.hidden = self.get_hidden(batch_size)
-        # Reset hidden because we are training sentence-by-sentence
-        self.hidden = self.model_wrapper.model.init_hidden(batch_size)
+        self.hidden = self.get_hidden(batch_size)
 
         logits, self.hidden, raw_outputs, outputs = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)

@@ -17,12 +17,14 @@ class BasicFeaturizer(IFeaturizer):
         self.num_words = config.get('num_words', n_letters + LM_CHAR_RESERVED if self.char_level else LM_VOCAB_SIZE)
         self.append_sos_eos = config.get('append_sos_eos', False)
         self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
+        self.reserved_tokens = config.get('featurizer_reserved_tokens', [START_TAG, STOP_TAG, UNK_TAG])
 
         self.tokenize_fn = wordpunct_tokenize
         self.tokenizer = Tokenizer(
             num_words=self.num_words, 
             lower=self.lower, 
-            char_level=self.char_level
+            char_level=self.char_level,
+            reserved_tokens=self.reserved_tokens
         )
 
     def get_output_shape(self):
@@ -42,7 +44,8 @@ class BasicFeaturizer(IFeaturizer):
             self.tokenizer = Tokenizer(
                 num_words=self.num_words, 
                 lower=self.lower, 
-                char_level=self.char_level
+                char_level=self.char_level,
+                reserved_tokens=self.reserved_tokens
             )
         if self.char_level: print('Using char-level tokenizer')
         

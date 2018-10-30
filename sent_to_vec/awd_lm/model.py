@@ -179,7 +179,8 @@ class LanguageModelWrapper(IModel):
 
     def __init__(self, config=dict(), *args, **kwargs):
         featurizer_config = config
-        featurizer_config['append_sos_eos'] = True
+        featurizer_config['append_sos_eos'] = False
+        featurizer_config['featurizer_seq_len'] = 0
 
         super(LanguageModelWrapper, self).__init__(
             model_class=RNNLanguageModel, 

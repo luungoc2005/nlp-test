@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN
+from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG
 from common.modules import LockedDropout, WeightDrop
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
@@ -174,6 +174,7 @@ class LanguageModelWrapper(IModel):
     def __init__(self, config=dict(), *args, **kwargs):
         featurizer_config = config
         featurizer_config['append_sos_eos'] = True
+        featurizer_config['featurizer_reserved_tokens'] = [EMPTY_TAG, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG]
 
         super(LanguageModelWrapper, self).__init__(
             model_class=BiRNNLanguageModel, 
