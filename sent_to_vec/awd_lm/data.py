@@ -34,7 +34,7 @@ class WikiTextDataset(Dataset):
     def initialize(self, model_wrapper, data_path, batch_size):
         if isinstance(data_path, str):
             self.raw_sents, sent_count = read_wikitext_lm(data_path)
-            print('Loaded {} sentences from {}'.format(len(sent_count, data_path))
+            print('Loaded {} sentences from {}'.format(sent_count, data_path)
         else:
             self.raw_sents = []
             for file_path in data_path:
