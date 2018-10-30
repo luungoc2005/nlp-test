@@ -58,19 +58,21 @@ class LanguageModelLearner(ILearner):
         self.beta = config.get('beta', 1)
         self.batch_size = 0
 
-    def get_hidden(self, batch_size):
-        if self.hidden is None or batch_size != self.batch_size:
-            hidden = self.model_wrapper.model.init_hidden(batch_size)
-        else:
-            hidden = self.model_wrapper.repackage_hidden(self.hidden)
+    # def get_hidden(self, batch_size):
+    #     if self.hidden is None or batch_size != self.batch_size:
+    #         hidden = self.model_wrapper.model.init_hidden(batch_size)
+    #     else:
+    #         hidden = self.model_wrapper.repackage_hidden(self.hidden)
         
-        self.batch_size = batch_size
+    #     self.batch_size = batch_size
 
-        return hidden
+    #     return hidden
 
     def on_epoch(self, X, y):
         batch_size = X.size(1)
-        self.hidden = self.get_hidden(batch_size)
+        # self.hidden = self.get_hidden(batch_size)
+        # Reset hidden because we are training sentence-by-sentence
+        self.hidden = self.model_wrapper.model.init_hidden(batch_size)
 
         logits, self.hidden, raw_outputs, outputs = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)
