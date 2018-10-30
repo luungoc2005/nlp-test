@@ -19,7 +19,7 @@ class LanguageModelLearner(ILearner):
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
-            collate_fn=lambda (X, y): (X[0], y[0])
+            collate_fn=lambda X, y: X[0], y[0]
             **kwargs)
 
     def on_training_start(self):
