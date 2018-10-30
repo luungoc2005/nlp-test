@@ -42,15 +42,17 @@ class RNNLanguageModel(nn.Module):
             self.rnns = nn.ModuleList([
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size
+                    self.hidden_size //2 if layer_ix != self.n_layers - 1 else \
+                        (self.embedding_dim if self.tie_weights else self.hidden_size // 2)
                 )
                 for layer_ix in range(self.n_layers)
             ])
         elif self.rnn_type == 'GRU':
             self.rnns = nn.ModuleList([
                 nn.GRU(
-                    self.embedding_dim // 2 if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size
+                    self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
+                    self.hidden_size //2 if layer_ix != self.n_layers - 1 else \
+                        (self.embedding_dim if self.tie_weights else self.hidden_size // 2)
                 )
                 for layer_ix in range(self.n_layers)
         ])
