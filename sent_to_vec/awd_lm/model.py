@@ -41,18 +41,18 @@ class RNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             self.rnns = nn.ModuleList([
                 nn.LSTM(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size //2 if layer_ix != self.n_layers - 1 else \
-                        (self.embedding_dim if self.tie_weights else self.hidden_size // 2)
+                    self.embedding_dim if layer_ix == 0 else self.hidden_size, 
+                    self.hidden_size if layer_ix != self.n_layers - 1 else \
+                        (self.embedding_dim if self.tie_weights else self.hidden_size)
                 )
                 for layer_ix in range(self.n_layers)
             ])
         elif self.rnn_type == 'GRU':
             self.rnns = nn.ModuleList([
                 nn.GRU(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_size // 2, 
-                    self.hidden_size //2 if layer_ix != self.n_layers - 1 else \
-                        (self.embedding_dim if self.tie_weights else self.hidden_size // 2)
+                    self.embedding_dim if layer_ix == 0 else self.hidden_size, 
+                    self.hidden_size if layer_ix != self.n_layers - 1 else \
+                        (self.embedding_dim if self.tie_weights else self.hidden_size)
                 )
                 for layer_ix in range(self.n_layers)
         ])
@@ -60,7 +60,7 @@ class RNNLanguageModel(nn.Module):
             from sru import SRU
             self.rnns = nn.ModuleList([
                 to_gpu(SRU(
-                    self.embedding_dim // 2 if layer_ix == 0 else self.hidden_size // 2, 
+                    self.embedding_dim if layer_ix == 0 else self.hidden_size, 
                     self.hidden_size,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
