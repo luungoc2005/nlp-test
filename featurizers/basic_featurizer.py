@@ -5,7 +5,7 @@ from common.keras_preprocessing import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from nltk.tokenize import wordpunct_tokenize
 from common.utils import n_letters
-from config import LM_VOCAB_SIZE, LM_CHAR_RESERVED, START_TAG, STOP_TAG, MAX_SEQUENCE_LENGTH
+from config import LM_VOCAB_SIZE, LM_CHAR_RESERVED, START_TAG, STOP_TAG, UNK_TAG, MAX_SEQUENCE_LENGTH
 
 class BasicFeaturizer(IFeaturizer):
 
