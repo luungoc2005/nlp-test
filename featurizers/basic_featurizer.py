@@ -18,6 +18,7 @@ class BasicFeaturizer(IFeaturizer):
         self.append_sos_eos = config.get('append_sos_eos', False)
         self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
         self.reserved_tokens = config.get('featurizer_reserved_tokens', [START_TAG, STOP_TAG, UNK_TAG])
+        self.to_tensor = config.get('to_tensor', True) # pad sequences and return tensors
 
         self.tokenize_fn = wordpunct_tokenize
         self.tokenizer = Tokenizer(
@@ -53,17 +54,21 @@ class BasicFeaturizer(IFeaturizer):
 
     def transform(self, data):
         tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
-        lengths = [len(seq) for seq in tokens]
-        max_seq_len = max(lengths)
-        if self.featurizer_seq_len > 0:
-            max_seq_len = min(max_seq_len, self.featurizer_seq_len)
 
-        res = torch.zeros(len(tokens), max_seq_len).long()
-        for idx, seq in enumerate(tokens):
-            seq_len = min(max_seq_len, len(seq))
-            res[idx, :seq_len] = torch.LongTensor(seq[:seq_len])
+        if self.to_tensor:
+            lengths = [len(seq) for seq in tokens]
+            max_seq_len = max(lengths)
+            if self.featurizer_seq_len > 0:
+                max_seq_len = min(max_seq_len, self.featurizer_seq_len)
 
-        return res
+            res = torch.zeros(len(tokens), max_seq_len).long()
+            for idx, seq in enumerate(tokens):
+                seq_len = min(max_seq_len, len(seq))
+                res[idx, :seq_len] = torch.LongTensor(seq[:seq_len])
+
+            return res
+        else:
+            return tokens
 
     def inverse_transform(self, data):
         retval = []

@@ -169,14 +169,14 @@ class BiRNNLanguageModel(nn.Module):
         else:
             return result, raw_hiddens
 
-class LanguageModelWrapper(IModel):
+class BiLanguageModelWrapper(IModel):
 
     def __init__(self, config=dict(), *args, **kwargs):
         featurizer_config = config
         featurizer_config['append_sos_eos'] = True
         featurizer_config['featurizer_reserved_tokens'] = [EMPTY_TAG, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG]
 
-        super(LanguageModelWrapper, self).__init__(
+        super(BiLanguageModelWrapper, self).__init__(
             model_class=BiRNNLanguageModel, 
             config=config, 
             featurizer=BasicFeaturizer(featurizer_config),

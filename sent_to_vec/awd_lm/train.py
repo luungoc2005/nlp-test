@@ -19,7 +19,6 @@ class LanguageModelLearner(ILearner):
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
-            collate_fn=lambda X, y: (X[0], y[0])
             **kwargs)
 
     def on_training_start(self):
@@ -68,6 +67,10 @@ class LanguageModelLearner(ILearner):
         return hidden
 
     def on_epoch(self, X, y):
+        # Temporary workaround for using default collate fn
+        X = X[0]
+        y = y[0]
+
         batch_size = X.size(1)
         self.hidden = self.get_hidden(batch_size)
 

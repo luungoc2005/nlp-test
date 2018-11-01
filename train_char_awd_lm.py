@@ -8,6 +8,7 @@ from torch.optim import RMSprop
 
 model = LanguageModelWrapper({
     'char_level': True,
+    'seq_len': 150,
     'rnn_type': 'LSTM',
     'embedding_dim': 100,
     'hidden_size': 2400,
@@ -24,8 +25,8 @@ if path.exists(SAVE_PATH):
     dataset.load(SAVE_PATH, model, batch_size=BATCH_SIZE)
 else:
     dataset.initialize(model, data_path=[
-        # path.join(BASE_PATH, 'data/wikitext2raw/wiki.train.raw'),
-        path.join(BASE_PATH, 'data/wikitext103raw/wiki.train.raw')
+        path.join(BASE_PATH, 'data/wikitext2raw/wiki.train.raw')
+        # path.join(BASE_PATH, 'data/wikitext103raw/wiki.train.raw')
     ], batch_size=BATCH_SIZE)
     dataset.save()
 

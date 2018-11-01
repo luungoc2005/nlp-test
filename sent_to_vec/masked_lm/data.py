@@ -28,7 +28,8 @@ class WikiTextDataset(Dataset):
     def __init__(self):
         super(WikiTextDataset, self).__init__()
 
-    def initialize(self, model_wrapper, data_path):
+    def initialize(self, model_wrapper, data_path, get_next_sent=False):
+        self.get_next_sent = get_next_sent
         if isinstance(data_path, str):
             self.raw_sents = read_wikitext(data_path)
             print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
@@ -65,7 +66,8 @@ class WikiTextDataset(Dataset):
         }, self.get_save_name())
         print('Finished saving preprocessed dataset')
 
-    def load(self, fp, model_wrapper):
+    def load(self, fp, model_wrapper, get_next_sent=False):
+        self.get_next_sent = get_next_sent
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
@@ -78,24 +80,41 @@ class WikiTextDataset(Dataset):
         # return self.n_batch
         return len(self.raw_data)
 
-    def __getitem__(self, index) -> Iterable:
+    def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
         raw_sent = self.raw_data[index]
-        output_label = torch.zeros(len(raw_sent)).long()
-        for ix, token in enumerate(raw_sent):
+        output_label = torch.LongTensor(len(raw_sent))
+        word_index = self.featurizer.tokenizer.word_index
+        for ix in range(raw_sent.size(0)):
             prob = random.random()
             if prob < 0.15:
                 prob /= 0.15
+
+                if prob < 0.8:
+                    raw_sent[ix] = word_index[MASK_TAG]
+                
+                elif prob < 0.9:
+                    raw_sent[ix] = random.choice(word_index.values())
+
+                # else no change
+                output_label[ix] = raw_sent[ix]
             else:
-                output_label[ix] = self.featurizer.tokenizer.word_index[EMPTY_TAG]
-        return 
+                output_label[ix] = word_index[EMPTY_TAG]
+        return raw_sent, output_label
+
+    def __getitem__(self, index) -> Union[
+            Tuple[torch.Tensor, torch.Tensor],
+            Tuple[torch.Tensor, torch.Tensor, bool]
+        ]:
+        if not self.get_next_sent:
+            return self.get_sent(index)
+        else:
+            first_sent = self.get_sent(index)
+            if index == len(self.raw_data) - 1 or random.random() < 0.5:
+                return first_sent, self.get_sent(random.randrange(0, len(self.raw_data) - 1)), False
+            else:
+                return first_sent, self.get_sent(index + 1), True
 
 def collate_seq_lm_fn(data, max_seq_len) -> Iterable:
-    batch_data = torch.stack(data, 0) \
-        .t().contiguous() # (seq_len, batch_size)
     
     seq_len = min(max_seq_len, len(batch_data) - 1)
-    X = batch_data[:seq_len].long()
-    y = batch_data[1:1+seq_len].view(-1)
-
-    return X, y
