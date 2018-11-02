@@ -115,6 +115,12 @@ class WikiTextDataset(Dataset):
             else:
                 return first_sent, self.get_sent(index + 1), True
 
-def collate_seq_lm_fn(data, max_seq_len) -> Iterable:
+def collate_sent_target(data):
+    return torch.stack(data[0], 0).t(), torch.stack(data[1], 0).view(-1)
+
+def collate_seq_lm_fn(data) -> Iterable:
+    if len(data) == 2: # first task
+        return collate_sent_target(data)
+    else: # second task
+        return collate_sent_target(data[0]), collate_sent_target(data[1]), torch.LongTensor(data[2])
     
-    seq_len = min(max_seq_len, len(batch_data) - 1)

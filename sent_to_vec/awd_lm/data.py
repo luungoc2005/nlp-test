@@ -84,7 +84,8 @@ class WikiTextDataset(Dataset):
     
         batch_data = batch_data.view(batch_size, -1).t().contiguous()
         self.batch_data = batch_data
-        self.n_batch = n_batch
+        # self.n_batch = n_batch
+        self.n_batch = batch_data.size(0) - 1 - 1
 
     def get_save_name(self):
         return 'wikitext-data.bin'
