@@ -66,7 +66,9 @@ class WikiTextDataset(Dataset):
         print('Tokenizing files')
         if hasattr(self.featurizer, 'to_tensor'):
             self.featurizer.to_tensor = False
-            raw_data = torch.LongTensor(self.featurizer.transform(self.raw_sents))
+            raw_data = torch.LongTensor(
+                self.featurizer.transform(self.raw_sents)
+            )
             self.featurizer.to_tensor = True
         else:
             raw_data = self.featurizer.transform(self.raw_sents)
