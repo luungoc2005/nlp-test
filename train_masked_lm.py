@@ -14,7 +14,7 @@ model = BiLanguageModelWrapper({
 
 dataset = WikiTextDataset()
 
-SAVE_PATH = path.join(BASE_PATH, 'wikitext-data.bin')
+SAVE_PATH = path.join(BASE_PATH, 'wikitext-masked-data.bin')
 BATCH_SIZE = 64
 
 if path.exists(SAVE_PATH):

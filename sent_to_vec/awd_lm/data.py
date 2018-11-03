@@ -19,7 +19,9 @@ def read_wikitext_lm(file_path, char_level=False):
             for sent in sent_tokenize(line):
                 formatted_sent = sent \
                     .replace('<unk>', UNK_TAG) \
+                    .replace('<UNK>', UNK_TAG) \
                     .replace('UNK', UNK_TAG)
+                )
 
                 if not char_level:
                     formatted_sent = [START_TAG] + formatted_sent.split() + [STOP_TAG]

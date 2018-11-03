@@ -17,6 +17,7 @@ def read_wikitext(file_path):
             for sent in sent_tokenize(line):
                 sents.append(sent \
                     .replace('<unk>', UNK_TAG) \
+                    .replace('<UNK>', UNK_TAG) \
                     .replace('UNK', UNK_TAG)
                 )
 
@@ -84,7 +85,9 @@ class WikiTextDataset(Dataset):
         # process sentence
         raw_sent = self.raw_data[index]
         output_label = torch.LongTensor(len(raw_sent))
+        num_words = self.model_wrapper.model.num_words
         word_index = self.featurizer.tokenizer.word_index
+
         for ix in range(raw_sent.size(0)):
             prob = random.random()
             if prob < 0.15:
@@ -94,7 +97,8 @@ class WikiTextDataset(Dataset):
                     raw_sent[ix] = word_index[MASK_TAG]
                 
                 elif prob < 0.9:
-                    raw_sent[ix] = random.choice(word_index.values())
+                    # 5 reserved tokens - hardcoded
+                    raw_sent[ix] = random.randrange(4, num_words - 1)
 
                 # else no change
                 output_label[ix] = raw_sent[ix]
