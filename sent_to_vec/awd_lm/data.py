@@ -68,11 +68,11 @@ class WikiTextDataset(Dataset):
         if hasattr(self.featurizer, 'to_tensor'):
             self.featurizer.to_tensor = False
             raw_data = torch.LongTensor(
-                self.featurizer.transform(self.raw_sents)
+                self.featurizer.transform([self.raw_sents])
             )
             self.featurizer.to_tensor = True
         else:
-            raw_data = self.featurizer.transform(self.raw_sents)
+            raw_data = self.featurizer.transform([self.raw_sents])
 
         self.raw_data = raw_data
         self.process_raw(batch_size)

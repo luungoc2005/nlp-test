@@ -22,8 +22,8 @@ if path.exists(SAVE_PATH):
     dataset.load(SAVE_PATH, model, batch_size=BATCH_SIZE)
 else:
     dataset.initialize(model, data_path=[
-        # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
-        path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
+        path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens')
+        # path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
     ], batch_size=BATCH_SIZE)
     dataset.save()
 
