@@ -38,7 +38,10 @@ class BasicFeaturizer(IFeaturizer):
             if self.append_sos_eos:
                 return [[START_TAG] + self.tokenize_fn(sent) + [STOP_TAG] for sent in data]
             else:
-                return [self.tokenize_fn(sent) for sent in data]
+                if isinstance(sent, list):
+                    return data
+                else:
+                    return [self.tokenize_fn(sent) for sent in data]
 
     def fit(self, data):
         if self.tokenizer is None:
@@ -50,6 +53,12 @@ class BasicFeaturizer(IFeaturizer):
             )
         if self.char_level: print('Using char-level tokenizer')
         
+        try:
+            _ = (it for it in data)
+            if len(data) < 1: return # Must have at least 1 item
+        except:
+            return # data is not an iterable
+        
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
     def transform(self, data):
@@ -59,10 +68,7 @@ class BasicFeaturizer(IFeaturizer):
         except:
             return # data is not an iterable
         
-        if isinstance(data[0], list):
-            tokens = self.tokenizer.texts_to_sequences(data)
-        else:
-            tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
+        tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
 
         if self.to_tensor:
             lengths = [len(seq) for seq in tokens]
