@@ -12,6 +12,8 @@ from text_classification.ensemble.train import EnsembleLearner
 from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
 from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
+from common.utils import wordpunct_space_tokenize
+from config import START_TAG, STOP_TAG
 
 import argparse
 from datetime import datetime
@@ -67,7 +69,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                                     tag_names.append(entity.get('name'))
                                 else:
                                     example_tags.extend(['-' for _ in wordpunct_space_tokenize(entity.get('text'))])
-                            entities_data.append(text, example_tags.join(' '))
+                            entities_data.append(text, ' '.join(example_tags))
 
     num_entities = len(set(tag_names))
     print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
@@ -96,7 +98,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
         print('Training entities recognition model')
         ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
         ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])
-        learner.fit(
+        ent_learner.fit(
             training_data=entities_data,
             epochs=300,
             callbacks=[PrintLoggerCallback(), EarlyStoppingCallback()]
