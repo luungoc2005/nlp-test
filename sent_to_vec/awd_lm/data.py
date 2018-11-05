@@ -74,7 +74,7 @@ class WikiTextDataset(Dataset):
         else:
             raw_data = self.featurizer.transform([self.raw_sents])
 
-        self.raw_data = raw_data
+        self.raw_data = raw_data[0]
         self.process_raw(batch_size)
 
     def process_raw(self, batch_size=64):
