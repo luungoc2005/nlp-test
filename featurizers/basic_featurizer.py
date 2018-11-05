@@ -38,7 +38,7 @@ class BasicFeaturizer(IFeaturizer):
             if self.append_sos_eos:
                 return [[START_TAG] + self.tokenize_fn(sent) + [STOP_TAG] for sent in data]
             else:
-                if isinstance(sent, list):
+                if isinstance(data[0], list):
                     return data
                 else:
                     return [self.tokenize_fn(sent) for sent in data]
