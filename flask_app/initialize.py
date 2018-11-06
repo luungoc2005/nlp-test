@@ -104,8 +104,10 @@ def initialize(app):
                     if return_code is None: # process is still running
                         process.kill() # immediately kill the process
 
-                print('Deleting previous model', prev_model_id)
-                delete_model(app, prev_model_id)
+                # This deletes the model before training is complete so...
+
+                # print('Deleting previous model', prev_model_id)
+                # delete_model(app, prev_model_id)
 
             model_id = str(uuid.uuid4())
 
@@ -153,6 +155,20 @@ def initialize(app):
             return jsonify({
                 'model_id': model_id
             })
+        except:
+            traceback.print_exc(limit=2, file=sys.stdout)
+            return jsonerror('Runtime exception encountered when handling request')
+
+    @app.route("/delete", methods=['POST'])
+    def flask_delete_model():
+        try:
+            content = request.get_json()
+
+            if 'model_id' not in content:
+                return jsonerror('Missing model_id argument in request')
+            else:
+                model_id = content['model_id']
+                delete_model(app, model_id)
         except:
             traceback.print_exc(limit=2, file=sys.stdout)
             return jsonerror('Runtime exception encountered when handling request')
