@@ -1,5 +1,6 @@
 import torch
 import random
+from common.torch_utils import to_gpu
 from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG, LM_SEQ_LEN
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import Dataset
@@ -44,6 +45,7 @@ class WikiTextDataset(Dataset):
 
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         self.featurizer = model_wrapper.featurizer
+        self.model_wrapper = model_wrapper
         assert self.featurizer is not None
 
         print('Fitting featurizer')
@@ -73,6 +75,7 @@ class WikiTextDataset(Dataset):
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
         self.raw_data = state['data']
+        self.model_wrapper = model_wrapper
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
@@ -104,7 +107,7 @@ class WikiTextDataset(Dataset):
                 output_label[ix] = raw_sent[ix]
             else:
                 output_label[ix] = word_index[EMPTY_TAG]
-        return raw_sent, output_label
+        return to_gpu(raw_sent), to_gpu(output_label)
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],

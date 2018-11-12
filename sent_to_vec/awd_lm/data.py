@@ -2,6 +2,7 @@ import torch
 import random
 import numpy as np
 from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, LM_SEQ_LEN
+from common.torch_utils import to_gpu
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import Dataset
 from os import path
@@ -121,4 +122,4 @@ class WikiTextDataset(Dataset):
         X = self.batch_data[index:index+seq_len].long()
         y = self.batch_data[index+1:index+1+seq_len].view(-1)
 
-        return X, y
+        return to_gpu(X), to_gpu(y)

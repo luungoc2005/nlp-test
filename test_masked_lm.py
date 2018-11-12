@@ -1,6 +1,8 @@
 
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
-from sent_to_vec.masked_lm.data import WikiTextDataset
+from sent_to_vec.masked_lm.data import WikiTextDataset, collate_seq_lm_fn
+
+from torch.utils.data import DataLoader
 from config import BASE_PATH
 from os import path
 
@@ -21,3 +23,7 @@ else:
     ])
     dataset.save()
 
+loader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=collate_seq_lm_fn)
+inputs, outputs = next(iter(loader))
+
+result = model(inputs)

@@ -7,6 +7,7 @@ from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
 from common.splitcross import SplitCrossEntropyLoss
+from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from typing import Union, Tuple, Iterable
 
 class LanguageModelLearner(ILearner):
@@ -19,6 +20,7 @@ class LanguageModelLearner(ILearner):
             model, *args, 
             preprocess_batch=True, 
             auto_optimize=True,
+            collate_fn=collate_seq_lm_fn,
             **kwargs)
 
     def on_training_start(self):
@@ -79,8 +81,14 @@ class LanguageModelLearner(ILearner):
             )
         
         return {
-            'loss': loss.detach().cpu().item()
+            'loss': loss.detach().cpu().item(),
+            'logits': logits.detach().cpu()
         }
 
     def calculate_metrics(self, logits, y):
-        return None
+        batch_size = y.size(1)
+        decoded = self.model_wrapper.model.decoder(logits)
+        decoded = decoded.view(logits.size(0) / batch_size, batch_size, decoded.size(1))
+        return {
+            'accuracy': accuracy(decoded, y)
+        }
