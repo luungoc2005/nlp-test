@@ -5,7 +5,7 @@ import torch.nn as nn
 import warnings
 import pickle
 from torch.utils.data import Dataset, DataLoader
-from common.torch_utils import set_trainable, children, to_gpu
+from common.torch_utils import set_trainable, children, to_gpu, USE_GPU
 from typing import Iterable
 
 class IModel(object):
@@ -441,6 +441,9 @@ class ILearner(object):
 
         if batch_size is None:
             batch_size = len(dataset)
+
+        if USE_GPU:
+            mp.set_start_method('spawn')
 
         if not self._uneven_batch_size:
             if self._collate_fn is None:
