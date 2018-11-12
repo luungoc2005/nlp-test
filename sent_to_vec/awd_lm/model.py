@@ -174,7 +174,7 @@ class RNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+        # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         # return raw outputs
         # result = output.view(output.size(0) * output.size(1), output.size(2))

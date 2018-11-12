@@ -162,7 +162,7 @@ class BiRNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+        # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
         log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if target is None:
