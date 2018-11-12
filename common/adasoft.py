@@ -118,9 +118,14 @@ class TiedAdaptiveSoftmax(nn.Module):
 
         self.weight = weight
         self.biases = nn.ParameterList()
+
+        tokens = self.weight.size(0)
+        
         self.biases.append(nn.Parameter(torch.zeros(cutoff[0])))
         for i in range(len(cutoff) - 1):
             self.biases.append(nn.Parameter(torch.zeros(cutoff[i + 1] - cutoff[i])))
+            tokens = tokens - (cutoff[i + 1] - cutoff[i])
+        self.biases.append(nn.Parameter(torch.zeros(tokens)))
 
         self.split = nn.Linear(weight.shape[1], len(cutoff) - 1)
         self.cutoff = cutoff
