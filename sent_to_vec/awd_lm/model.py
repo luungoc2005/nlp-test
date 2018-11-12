@@ -188,13 +188,13 @@ class RNNLanguageModel(nn.Module):
             return log_prob, current_h
         else:
             if self.char_level:
-                decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2))) 
+                logits = self.decoder(output.view(output.size(0) * output.size(1), output.size(2))) 
             else:
-                decoded = self.decoder(
+                logits = self.decoder(
                     output.view(output.size(0) * output.size(1), output.size(2)),
                     target.view(-1).data
                 )
-            return decoded.view(output.size(0), output.size(1), decoded.size(1)), current_h
+            return logits, current_h
 
 class LanguageModelWrapper(IModel):
 

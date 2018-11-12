@@ -60,10 +60,7 @@ class LanguageModelLearner(ILearner):
 
         logits, hidden = self.model_wrapper.model(X, hidden, y)
 
-        loss = self.criterion(
-            logits.view(logits.size(0) * logits.size(1), logits.size(2)),
-            y
-        )
+        loss = self.criterion(logits, y)
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in outputs[-1:])
