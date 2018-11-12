@@ -40,6 +40,8 @@ class LanguageModelLearner(ILearner):
             elif num_words > 75000:
                 # WikiText-103
                 splits = [2800, 20000, 76000]
+            else:
+                splits = [num_words // 3, num_words // 3, num_words // 3]
             splits[-1] = num_words - sum(splits[:-1])
             print('Cross Entropy Splits: Using', splits)
 
