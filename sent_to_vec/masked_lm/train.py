@@ -37,6 +37,7 @@ class LanguageModelLearner(ILearner):
         elif num_words > 75000:
             # WikiText-103
             splits = [2800, 20000, 76000]
+        splits[-1] = num_words - sum(splits[:-1])
         print('Cross Entropy Splits: Using', splits)
 
         self.model_wrapper.config['adasoft_cutoffs'] = splits

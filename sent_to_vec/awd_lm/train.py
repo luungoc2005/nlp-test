@@ -30,7 +30,7 @@ class LanguageModelLearner(ILearner):
         if self.char_level:
             self.criterion = to_gpu(nn.CrossEntropyLoss())
         else:
-            num_words = config.get('num_words', LM_VOCAB_SIZE)
+            num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
             splits = []
             if num_words > 500000:
                 # One Billion
@@ -40,9 +40,11 @@ class LanguageModelLearner(ILearner):
             elif num_words > 75000:
                 # WikiText-103
                 splits = [2800, 20000, 76000]
+            splits[-1] = num_words - sum(splits[:-1])
             print('Cross Entropy Splits: Using', splits)
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
+            self.model_wrapper.config['num_words'] = self.num_words
             self.criterion = to_gpu(AdaptiveLoss(splits))
 
         self.hidden = None
