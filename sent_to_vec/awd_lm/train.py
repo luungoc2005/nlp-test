@@ -46,7 +46,7 @@ class LanguageModelLearner(ILearner):
             print('Cross Entropy Splits: Using', splits)
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
-            self.model_wrapper.config['num_words'] = self.num_words
+            self.model_wrapper.config['num_words'] = num_words
             self.criterion = to_gpu(AdaptiveLoss(splits))
 
         self.hidden = None
