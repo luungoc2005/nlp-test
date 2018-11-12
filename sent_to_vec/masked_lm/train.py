@@ -82,7 +82,7 @@ class LanguageModelLearner(ILearner):
         
         return {
             'loss': loss.detach().cpu().item(),
-            'logits': logits.detach().cpu()
+            'logits': logits.detach()
         }
 
     def calculate_metrics(self, logits, y):
