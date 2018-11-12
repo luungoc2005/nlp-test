@@ -162,12 +162,13 @@ class BiRNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        result = output.view(output.size(0) * output.size(1), output.size(2))
+        # return output as (seq_len, batch_size, hidden) instead
+        # result = output.view(output.size(0) * output.size(1), output.size(2))
 
         if return_raws:
-            return result, raw_hiddens, raw_outputs, outputs
+            return output, raw_hiddens, raw_outputs, outputs
         else:
-            return result, raw_hiddens
+            return output, raw_hiddens
 
 class BiLanguageModelWrapper(IModel):
 

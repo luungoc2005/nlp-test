@@ -123,11 +123,16 @@ class WikiTextDataset(Dataset):
                 return first_sent, self.get_sent(index + 1), True
 
 def collate_sent_target(data):
-    return torch.stack(data[0], 0).t(), torch.stack(data[1], 0).view(-1)
+    X_data = [item[0] for item in data]
+    y_data = [item[1] for item in data]
+    return torch.stack(X_data, 0).t(), torch.stack(y_data, 0).view(-1)
 
 def collate_seq_lm_fn(data) -> Iterable:
-    if len(data) == 2: # first task
+    if len(data[0]) == 2: # first task
         return collate_sent_target(data)
     else: # second task
-        return collate_sent_target(data[0]), collate_sent_target(data[1]), torch.LongTensor(data[2])
+        first_sent = [item[0] for item in data]
+        second_sent = [item[1] for item in data]
+        is_next = [item[2] for item in data]
+        return collate_sent_target(first_sent), collate_sent_target(second_sent), torch.LongTensor(is_next)
     

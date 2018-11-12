@@ -63,7 +63,7 @@ class LanguageModelLearner(ILearner):
         loss = self.criterion(
             self.model_wrapper.model.decoder.weight, 
             self.model_wrapper.model.decoder.bias,
-            logits,
+            logits.view(logits.size(0) * logits.size(1), logits.size(2)),
             y
         )
         
@@ -86,9 +86,10 @@ class LanguageModelLearner(ILearner):
         }
 
     def calculate_metrics(self, logits, y):
-        batch_size = y.size(1)
-        decoded = self.model_wrapper.model.decoder(logits)
-        decoded = decoded.view(logits.size(0) / batch_size, batch_size, decoded.size(1))
+        decoded = self.model_wrapper.model.decoder(
+            logits.view(logits.size(0) * logits.size(1), logits.size(2))
+        )
+        decoded = decoded.view(logits.size(0), logits.size(1), decoded.size(1))
         return {
-            'accuracy': accuracy(decoded, y)
+            'accuracy': accuracy(decoded, y.view(logits.size(0), logits.size(1)))
         }
