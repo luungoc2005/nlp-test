@@ -4,6 +4,7 @@ import torch.multiprocessing as mp
 import torch.nn as nn
 import warnings
 import pickle
+import os
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu, USE_GPU
 from typing import Iterable
@@ -437,7 +438,7 @@ class ILearner(object):
         else:
             iterator = range(epoch_start, self._n_epochs)
         
-        cpu_count = max(mp.cpu_count() - 1, 1)
+        cpu_count = int(os.environ.get('NUM_WORKERS', max(mp.cpu_count() - 1, 1)))
 
         if batch_size is None:
             batch_size = len(dataset)
