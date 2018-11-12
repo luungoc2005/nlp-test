@@ -58,14 +58,14 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, hidden = self.model_wrapper.model(X, hidden, y)
+        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, y)
 
         loss = self.criterion(logits, y.view(-1))
         
         # Activiation Regularization
-        if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in outputs[-1:])
+        if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])
         # Temporal Activation Regularization (slowness)
-        if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in raw_outputs[-1:])
+        if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in rnn_hs[-1:])
         
         loss.backward()
 

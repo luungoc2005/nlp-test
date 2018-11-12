@@ -45,7 +45,7 @@ class RNNLanguageModel(nn.Module):
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_size, 
                     self.hidden_size if layer_ix != self.n_layers - 1 else \
-                        (self.embedding_dim if self.tie_weights else self.hidden_size)
+                        (self.embedding_dim if self.tie_weights else self.hidden_size),
                 )
                 for layer_ix in range(self.n_layers)
             ])
@@ -185,7 +185,7 @@ class RNNLanguageModel(nn.Module):
             else:
                 log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
 
-            return log_prob, current_h
+            return log_prob, raw_hiddens
         else:
             if self.char_level:
                 logits = self.decoder(output.view(output.size(0) * output.size(1), output.size(2))) 
@@ -194,7 +194,7 @@ class RNNLanguageModel(nn.Module):
                     output.view(output.size(0) * output.size(1), output.size(2)),
                     target.view(-1).data
                 )
-            return logits, current_h
+            return logits, raw_hiddens, raw_outputs, outputs
 
 class LanguageModelWrapper(IModel):
 
