@@ -72,7 +72,7 @@ class LanguageModelLearner(ILearner):
         self.hidden = self.get_hidden(batch_size)
 
         logits, _, self.hidden = \
-            self.model_wrapper.model(X, self.hidden, return_raws=True)
+            self.model_wrapper.model(X, self.hidden, y)
 
         if self.char_level:
             # decoded = self.model_wrapper.model.decoder(logits)

@@ -54,7 +54,7 @@ class LanguageModelLearner(ILearner):
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
         logits, log_prob, hidden = \
-            self.model_wrapper.model(X, hidden, return_raws=True)
+            self.model_wrapper.model(X, hidden, y)
 
         loss = self.criterion(
             logits.view(logits.size(0) * logits.size(1), logits.size(2)),
