@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from common.splitcross import SplitCrossEntropyLoss
+from common.adasoft import AdaptiveLoss
 from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from typing import Union, Tuple, Iterable
 
@@ -39,13 +39,9 @@ class LanguageModelLearner(ILearner):
             splits = [2800, 20000, 76000]
         print('Cross Entropy Splits: Using', splits)
 
-        self.criterion = to_gpu(SplitCrossEntropyLoss(
-            embedding_dim,
-            splits=splits,
-            verbose=False
-        ))
+        self.model_wrapper.config['adasoft_cutoffs'] = splits
 
-        self.hidden = None
+        self.criterion = to_gpu(AdaptiveLoss(splits))
 
         # regularization
         self.clip_grad = config.get('clip_grad', .25)
@@ -57,12 +53,10 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, hidden, raw_outputs, outputs = \
+        logits, log_prob, hidden = \
             self.model_wrapper.model(X, hidden, return_raws=True)
 
         loss = self.criterion(
-            self.model_wrapper.model.decoder.weight, 
-            self.model_wrapper.model.decoder.bias,
             logits.view(logits.size(0) * logits.size(1), logits.size(2)),
             y
         )
@@ -82,14 +76,10 @@ class LanguageModelLearner(ILearner):
         
         return {
             'loss': loss.detach().cpu().item(),
-            'logits': logits.detach()
+            'logits': log_prob
         }
 
     def calculate_metrics(self, logits, y):
-        decoded = self.model_wrapper.model.decoder(
-            logits.view(logits.size(0) * logits.size(1), logits.size(2))
-        )
-        decoded = decoded.view(logits.size(0), logits.size(1), decoded.size(1))
         return {
-            'accuracy': accuracy(decoded, y.view(logits.size(0), logits.size(1)))
+            'accuracy': accuracy(logits, y.view(logits.size(0), logits.size(1)))
         }

@@ -6,6 +6,7 @@ from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
+from common.adasoft import TiedAdaptiveSoftmax
 
 class BiRNNLanguageModel(nn.Module):
 
@@ -13,6 +14,7 @@ class BiRNNLanguageModel(nn.Module):
         super(BiRNNLanguageModel, self).__init__()
         self.config = config
 
+        self.tie_weights = config.get('tie_weights', True)
         self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
         self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
@@ -23,6 +25,7 @@ class BiRNNLanguageModel(nn.Module):
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
         self.highway_bias = config.get('highway_bias', -3)
+        self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE])
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU']
 
@@ -71,14 +74,15 @@ class BiRNNLanguageModel(nn.Module):
         self.decoder = nn.Linear(self.embedding_dim, self.num_words)
 
         # Weight tying
-        self.decoder.weight = self.encoder.weight
+        if self.tie_weights:
+            # self.decoder.weight = self.encoder.weight
+            self.decoder = TiedAdaptiveSoftmax(self.encoder.weight, self.adasoft_cutoffs)
 
         self.init_weights()
 
     def init_weights(self):
         init_range = 0.1
         self.encoder.weight.data.uniform_(-init_range, init_range)
-        self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_range, init_range)
 
     def init_hidden(self, batch_size) -> Iterable[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]:
@@ -126,11 +130,7 @@ class BiRNNLanguageModel(nn.Module):
         
         return X
 
-    def forward(self, x_input, hidden=None, return_raws=False) -> \
-        Union[
-            Tuple[torch.Tensor, torch.Tensor], 
-            Tuple[torch.Tensor, torch.Tensor, Iterable[torch.Tensor], Iterable[torch.Tensor]]
-        ]:
+    def forward(self, x_input, hidden=None, target=None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         emb = self.embedded_dropout(
             self.encoder, 
             x_input, 
@@ -162,13 +162,17 @@ class BiRNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        # return output as (seq_len, batch_size, hidden) instead
-        # result = output.view(output.size(0) * output.size(1), output.size(2))
+        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+        log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
 
-        if return_raws:
-            return output, raw_hiddens, raw_outputs, outputs
+        if target is None:
+            return log_prob, current_h
         else:
-            return output, raw_hiddens
+            decoded = self.decoder(
+                output.view(output.size(0) * output.size(1), output.size(2)),
+                target.view(-1).data
+            )
+            return decoded.view(output.size(0), output.size(1), decoded.size(1)), log_prob, current_h
 
 class BiLanguageModelWrapper(IModel):
 

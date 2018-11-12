@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from common.splitcross import SplitCrossEntropyLoss
+from common.adasoft import AdaptiveLoss
 from typing import Union, Tuple, Iterable
 
 class LanguageModelLearner(ILearner):
@@ -23,7 +23,7 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        # embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
 
         self.char_level = config.get('char_level', False)
 
@@ -42,11 +42,8 @@ class LanguageModelLearner(ILearner):
                 splits = [2800, 20000, 76000]
             print('Cross Entropy Splits: Using', splits)
 
-            self.criterion = to_gpu(SplitCrossEntropyLoss(
-                embedding_dim,
-                splits=splits,
-                verbose=False
-            ))
+            self.model_wrapper.config['adasoft_cutoffs'] = splits
+            self.criterion = to_gpu(AdaptiveLoss(splits))
 
         self.hidden = None
 
@@ -74,19 +71,17 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         self.hidden = self.get_hidden(batch_size)
 
-        logits, self.hidden, raw_outputs, outputs = \
+        logits, _, self.hidden = \
             self.model_wrapper.model(X, self.hidden, return_raws=True)
 
         if self.char_level:
-            decoded = self.model_wrapper.model.decoder(logits)
+            # decoded = self.model_wrapper.model.decoder(logits)
             # decoded = decoded.view(logits.size(0), logits.size(1), decoded.size(1))
             n_tokens = self.model_wrapper.model.num_words
-            loss = self.criterion(decoded.view(-1, n_tokens), y)
+            loss = self.criterion(logits.view(-1, n_tokens), y)
         else:
             loss = self.criterion(
-                self.model_wrapper.model.decoder.weight, 
-                self.model_wrapper.model.decoder.bias,
-                logits,
+                logits.view(logits.size(0) * logits.size(1), logits.size(2)), 
                 y
             )
         

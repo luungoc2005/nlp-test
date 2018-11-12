@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 
-
 def to_long_tensor(tensor):
     if tensor.ndimension() == 2 and \
         (tensor.dtype == torch.float32 or tensor.dtype == torch.float64):
