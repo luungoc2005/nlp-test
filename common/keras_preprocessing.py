@@ -237,6 +237,8 @@ class Tokenizer(object):
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
+        self.num_words = min(len(sorted_voc) + 1, self.num_words)
+
     def fit_on_sequences(self, sequences):
         """Updates internal vocabulary based on a list of sequences.
         Required before using `sequences_to_matrix`

@@ -45,7 +45,6 @@ class WikiTextDataset(Dataset):
 
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         self.featurizer = model_wrapper.featurizer
-        self.model_wrapper = model_wrapper
         assert self.featurizer is not None
 
         print('Fitting featurizer')
@@ -75,7 +74,6 @@ class WikiTextDataset(Dataset):
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
         self.raw_data = state['data']
-        self.model_wrapper = model_wrapper
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
@@ -88,7 +86,7 @@ class WikiTextDataset(Dataset):
         # process sentence
         raw_sent = self.raw_data[index]
         output_label = torch.LongTensor(len(raw_sent))
-        num_words = self.model_wrapper.model.num_words
+        num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
 
         for ix in range(raw_sent.size(0)):
