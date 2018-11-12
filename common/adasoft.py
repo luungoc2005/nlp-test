@@ -162,7 +162,7 @@ class TiedAdaptiveSoftmax(nn.Module):
     def log_prob(self, input):
         with torch.no_grad():
             linear_out = F.linear(
-                input, self.weight, torch.cat([p for p in self.biases])
+                input, self.weight, torch.cat([p for p in self.biases], dim=0)
             )
             split = self.split(input)
             head = F.log_softmax(
