@@ -52,7 +52,7 @@ if __name__ == '__main__':
         batch_size=64,
         epochs=1000,
         callbacks=[
-            PrintLoggerCallback(log_every_batch=100, log_every=1, metrics=['loss', 'accuracy']),
+            PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss'])
         ]

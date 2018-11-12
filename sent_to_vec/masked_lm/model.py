@@ -163,16 +163,16 @@ class BiRNNLanguageModel(nn.Module):
         outputs.append(output)
 
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
-        log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if target is None:
-            return log_prob, current_h
+            decoded = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
+            return decoded, current_h
         else:
             decoded = self.decoder(
                 output.view(output.size(0) * output.size(1), output.size(2)),
                 target.view(-1).data
             )
-            return decoded.view(output.size(0), output.size(1), decoded.size(1)), log_prob, current_h
+            return decoded.view(output.size(0), output.size(1), decoded.size(1)), current_h
 
 class BiLanguageModelWrapper(IModel):
 

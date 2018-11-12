@@ -58,8 +58,7 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, log_prob, hidden = \
-            self.model_wrapper.model(X, hidden, y)
+        logits, hidden = self.model_wrapper.model(X, hidden, y)
 
         loss = self.criterion(
             logits.view(logits.size(0) * logits.size(1), logits.size(2)),
@@ -80,11 +79,8 @@ class LanguageModelLearner(ILearner):
             )
         
         return {
-            'loss': loss.detach().cpu().item(),
-            'logits': log_prob
+            'loss': loss.detach().cpu().item()
         }
 
     def calculate_metrics(self, logits, y):
-        return {
-            'accuracy': accuracy(logits, y.view(logits.size(0), logits.size(1)))
-        }
+        return None

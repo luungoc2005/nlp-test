@@ -179,22 +179,22 @@ class RNNLanguageModel(nn.Module):
         # return raw outputs
         # result = output.view(output.size(0) * output.size(1), output.size(2))
         
-        if self.char_level:
-            log_prob = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
-        else:
-            log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
-        
         if target is None:
+            if self.char_level:
+                log_prob = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+            else:
+                log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
+
             return log_prob, current_h
         else:
             if self.char_level:
-               decoded = log_prob 
+                decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2))) 
             else:
                 decoded = self.decoder(
                     output.view(output.size(0) * output.size(1), output.size(2)),
                     target.view(-1).data
                 )
-            return decoded.view(output.size(0), output.size(1), decoded.size(1)), log_prob, current_h
+            return decoded.view(output.size(0), output.size(1), decoded.size(1)), current_h
 
 class LanguageModelWrapper(IModel):
 
