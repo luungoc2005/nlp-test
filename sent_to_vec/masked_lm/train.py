@@ -25,9 +25,9 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        # embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
 
-        num_words = config.get('num_words', LM_VOCAB_SIZE)
+        num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
         splits = []
         if num_words > 500000:
             # One Billion
@@ -40,6 +40,7 @@ class LanguageModelLearner(ILearner):
         print('Cross Entropy Splits: Using', splits)
 
         self.model_wrapper.config['adasoft_cutoffs'] = splits
+        self.model_wrapper.config['num_words'] = num_words
 
         self.criterion = to_gpu(AdaptiveLoss(splits))
 
