@@ -42,7 +42,8 @@ class LanguageModelLearner(ILearner):
                 splits = [2800, 20000, 76000]
             else:
                 splits = [num_words // 3, num_words // 3]
-            splits.append(num_words - sum(splits[:-1]))
+            
+            print('Number of tokens', num_words)
             print('Cross Entropy Splits: Using', splits)
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
