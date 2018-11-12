@@ -84,7 +84,7 @@ class LanguageModelLearner(ILearner):
             n_tokens = self.model_wrapper.model.num_words
             loss = self.criterion(logits.view(-1, n_tokens), y)
         else:
-            loss = self.criterion(logits, y)
+            loss = self.criterion(logits, y.view(-1))
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in outputs[-1:])
