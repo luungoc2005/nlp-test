@@ -27,7 +27,7 @@ class BiRNNLanguageModel(nn.Module):
         self.highway_bias = config.get('highway_bias', -3)
         self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE])
 
-        assert self.rnn_type in ['LSTM', 'GRU', 'SRU']
+        assert self.rnn_type in ['LSTM', 'GRU', 'SRU', 'QRNN']
 
         self.encoder = nn.Embedding(
             self.num_words, self.embedding_dim
@@ -52,7 +52,17 @@ class BiRNNLanguageModel(nn.Module):
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
-        ])
+            ])
+        elif self.rnn_type == 'QRNN':
+            from torchqrnn import QRNNLayer
+            self.rnns = self.rnns = nn.ModuleList([
+                QRNNLayer(
+                    self.embedding_dim, 
+                    self.embedding_dim // 2,
+                    bidirectional=True
+                )
+                for layer_ix in range(self.n_layers)
+            ])
         else:
             from sru import SRU
             self.rnns = nn.ModuleList([
@@ -100,7 +110,7 @@ class BiRNNLanguageModel(nn.Module):
                 )))
                 for l in range(self.n_layers)
             ]
-        elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
+        elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU' or self.rnn_type == 'QRNN':
             return [
                 to_gpu(torch.zeros(
                     1, 
