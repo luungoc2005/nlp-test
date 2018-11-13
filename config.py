@@ -17,7 +17,7 @@ VN_TREEBANK_PATH = path.join(BASE_PATH, 'data/vn_treebank')
 
 WORDS_PATH = path.join(BASE_PATH, 'data/20k.txt')
 
-MAX_SEQUENCE_LENGTH = 70 # Max sentence length
+MAX_SEQUENCE_LENGTH = 50 # Max sentence length
 MAX_NUM_WORDS = 50000 # Max vocabulary size
 WORDS_SHORTLIST = 20000 # Common vocabulary size
 EMBEDDING_DIM = 300 # GLOVE vector dimensions
