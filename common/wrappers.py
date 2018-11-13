@@ -122,7 +122,7 @@ class IModel(object):
             self._model.eval()
 
         with torch.no_grad():
-            if self._featurizer is not None:
+            if not torch.is_tensor(X) and self._featurizer is not None:
                 X = self._featurizer.transform(X)
             
             X = self.preprocess_input(X)

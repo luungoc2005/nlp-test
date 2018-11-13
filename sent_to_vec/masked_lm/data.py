@@ -47,11 +47,15 @@ class WikiTextDataset(Dataset):
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
 
-        print('Fitting featurizer')
-        self.featurizer.fit(self.raw_sents)
-        print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
-        # print(list(self.featurizer.tokenizer.word_index.keys()))
+        if (len(self.featurizer.tokenizer.word_index) == 0):
+            print('Fitting featurizer')
+            self.featurizer.fit(self.raw_sents)
+            # print(list(self.featurizer.tokenizer.word_index.keys()))
+        else:
+            print('Featurizer previously fitted, continuing')
 
+        print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
+        
         print('Tokenizing files')
         raw_data = self.featurizer.transform(self.raw_sents)
         self.raw_data = raw_data
@@ -92,8 +96,9 @@ class WikiTextDataset(Dataset):
         for ix in range(raw_sent.size(0)):
             prob = random.random()
             if prob < 0.15:
-                prob /= 0.15
+                output_label[ix] = raw_sent[ix]
 
+                prob /= 0.15
                 if prob < 0.8:
                     raw_sent[ix] = word_index[MASK_TAG]
                 
@@ -102,7 +107,6 @@ class WikiTextDataset(Dataset):
                     raw_sent[ix] = random.randrange(4, num_words - 1)
 
                 # else no change
-                output_label[ix] = raw_sent[ix]
             else:
                 output_label[ix] = word_index[EMPTY_TAG]
         return to_gpu(raw_sent), to_gpu(output_label)

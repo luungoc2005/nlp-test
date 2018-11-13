@@ -57,8 +57,13 @@ class WikiTextDataset(Dataset):
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
 
-        print('Fitting featurizer')
-        self.featurizer.fit(self.raw_sents)
+        if (len(self.featurizer.tokenizer.word_index) == 0):
+            print('Fitting featurizer')
+            self.featurizer.fit(self.raw_sents)
+            # print(list(self.featurizer.tokenizer.word_index.keys()))
+        else:
+            print('Featurizer previously fitted, continuing')
+
         word_index = self.featurizer.tokenizer.word_index
 
         keys = list(word_index.keys())
