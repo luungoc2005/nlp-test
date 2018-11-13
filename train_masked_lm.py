@@ -10,7 +10,7 @@ if __name__ == '__main__':
     model = BiLanguageModelWrapper({
         'rnn_type': 'LSTM',
         'n_layers': 3,
-        'embedding_dim': 1200
+        'embedding_dim': 900
     }) # large model
 
     dataset = WikiTextDataset()
