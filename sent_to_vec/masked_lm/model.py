@@ -112,16 +112,11 @@ class BiRNNLanguageModel(nn.Module):
             ]
         elif self.rnn_type == 'QRNN': # 2 hidden layers for each direction
             return [
-                (to_gpu(torch.zeros(
-                    2, 
-                    batch_size, 
-                    self.embedding_dim // 2
-                )),
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
                     self.embedding_dim // 2
-                )))
+                ))
                 for l in range(self.n_layers)
             ]
         elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
