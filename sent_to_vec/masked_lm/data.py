@@ -109,7 +109,7 @@ class WikiTextDataset(Dataset):
                 # else no change
             else:
                 output_label[ix] = word_index[EMPTY_TAG]
-        return to_gpu(raw_sent), to_gpu(output_label)
+        return raw_sent, output_label
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],
@@ -127,7 +127,7 @@ class WikiTextDataset(Dataset):
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
-    return torch.stack(X_data, 0).t().contiguous(), torch.stack(y_data, 0).t().contiguous().view(-1)
+    return to_gpu(torch.stack(X_data, 0).t().contiguous()), to_gpu(torch.stack(y_data, 0).t().contiguous().view(-1))
 
 def collate_seq_lm_fn(data) -> Iterable:
     if len(data[0]) == 2: # first task
