@@ -1,6 +1,6 @@
 import torch
 import random
-from common.torch_utils import to_gpu
+# from common.torch_utils import to_gpu
 from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG, LM_SEQ_LEN
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import Dataset
@@ -127,7 +127,7 @@ class WikiTextDataset(Dataset):
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
-    return to_gpu(torch.stack(X_data, 0).t().contiguous()), to_gpu(torch.stack(y_data, 0).t().contiguous().view(-1))
+    return torch.stack(X_data, 0).t().contiguous(), torch.stack(y_data, 0).t().contiguous().view(-1)
 
 def collate_seq_lm_fn(data) -> Iterable:
     if len(data[0]) == 2: # first task
