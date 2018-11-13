@@ -114,7 +114,7 @@ class IModel(object):
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
 
-    def transform(self, X, return_logits=False):
+    def transform(self, X, interpret_fn=None, return_logits=False):
         if self._model is None: return
         is_pytorch = self.is_pytorch_module()
 
@@ -140,6 +140,8 @@ class IModel(object):
         
         if return_logits or logits is None:
             return logits
+        elif interpret_fn is not None:
+            return interpret_fn(logits)
         else:
             return self.infer_predict(logits)
     

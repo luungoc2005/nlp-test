@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from common.adasoft import AdaptiveLoss
+from common.splitcross import SplitCrossEntropyLoss
 from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from typing import Union, Tuple, Iterable
 
@@ -25,7 +25,7 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        # embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
 
         num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
         splits = []
@@ -46,7 +46,7 @@ class LanguageModelLearner(ILearner):
         self.model_wrapper.config['adasoft_cutoffs'] = splits
         self.model_wrapper.config['num_words'] = num_words
 
-        self.criterion = to_gpu(AdaptiveLoss(splits))
+        self.criterion = to_gpu(SplitCrossEntropyLoss(embedding_dim, splits))
 
         # regularization
         self.clip_grad = config.get('clip_grad', .25)
@@ -54,13 +54,22 @@ class LanguageModelLearner(ILearner):
         self.beta = config.get('beta', 1)
         self.batch_size = 0
 
+    def on_model_init(self):
+        print(self.model_wrapper.model)
+
     def on_epoch(self, X, y):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, y)
+        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
 
-        loss = self.criterion(logits, y.view(-1))
+        decoder = self.model_wrapper.model.decoder
+        loss = self.criterion(
+            decoder.weight,
+            decoder.bias,
+            logits,
+            y
+        )
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])

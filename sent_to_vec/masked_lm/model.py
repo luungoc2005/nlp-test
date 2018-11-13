@@ -6,7 +6,7 @@ from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
-from common.adasoft import TiedAdaptiveSoftmax
+from common.splitcross import SplitCrossEntropyLoss
 
 class BiRNNLanguageModel(nn.Module):
 
@@ -75,8 +75,7 @@ class BiRNNLanguageModel(nn.Module):
 
         # Weight tying
         if self.tie_weights:
-            # self.decoder.weight = self.encoder.weight
-            self.decoder = TiedAdaptiveSoftmax(self.encoder.weight, self.adasoft_cutoffs)
+            self.decoder.weight = self.encoder.weight
 
         self.init_weights()
 
@@ -130,7 +129,7 @@ class BiRNNLanguageModel(nn.Module):
         
         return X
 
-    def forward(self, x_input, hidden=None, target=None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x_input, hidden=None, training=False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         emb = self.embedded_dropout(
             self.encoder, 
             x_input, 
@@ -164,15 +163,12 @@ class BiRNNLanguageModel(nn.Module):
 
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
-        if target is None:
-            decoded = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
+        if training == False:
+            decoded = SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs) \
+                .logprob(self.decoder.weight, self.decoder.bias, output)
             return decoded, raw_hiddens
         else:
-            logits = self.decoder(
-                output.view(output.size(0) * output.size(1), output.size(2)),
-                target.view(-1).data
-            )
-            return logits, raw_hiddens, raw_outputs, outputs
+            return output, raw_hiddens, raw_outputs, outputs
 
 class BiLanguageModelWrapper(IModel):
 

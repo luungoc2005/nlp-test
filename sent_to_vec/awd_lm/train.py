@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
-from common.adasoft import AdaptiveLoss
+from common.splitcross import SplitCrossEntropyLoss
 from typing import Union, Tuple, Iterable
 
 class LanguageModelLearner(ILearner):
@@ -23,7 +23,7 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        # embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
 
         self.char_level = config.get('char_level', False)
 
@@ -48,7 +48,7 @@ class LanguageModelLearner(ILearner):
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
             self.model_wrapper.config['num_words'] = num_words
-            self.criterion = to_gpu(AdaptiveLoss(splits))
+            self.criterion = to_gpu(SplitCrossEntropyLoss(embedding_dim, splits))
 
         self.hidden = None
 
@@ -76,7 +76,7 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         self.hidden = self.get_hidden(batch_size)
 
-        logits, self.hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, self.hidden, y)
+        logits, self.hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, self.hidden, training=True)
 
         if self.char_level:
             # decoded = self.model_wrapper.model.decoder(logits)
@@ -84,7 +84,13 @@ class LanguageModelLearner(ILearner):
             n_tokens = self.model_wrapper.model.num_words
             loss = self.criterion(logits.view(-1, n_tokens), y)
         else:
-            loss = self.criterion(logits, y.view(-1))
+            decoder = self.model_wrapper.model.decoder
+            loss = self.criterion(
+                decoder.weight,
+                decoder.bias,
+                logits,
+                y
+            )
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])

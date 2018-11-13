@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from config import LM_VOCAB_SIZE, LM_CHAR_RESERVED, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, LM_EMBEDDING_DIM
 from common.modules import LockedDropout, WeightDrop
+from common.splitcross import SplitCrossEntropyLoss
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from common.utils import n_letters
-from common.adasoft import TiedAdaptiveSoftmax, AdaptiveSoftmax
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
 
@@ -75,15 +76,10 @@ class RNNLanguageModel(nn.Module):
                 for layer_ix in range(self.n_layers)
             ])
 
-        if self.char_level:
-            self.decoder = nn.Linear(self.hidden_size, self.num_words)
-        else:
-            # Weight tying
-            if self.tie_weights:
-                # self.decoder.weight = self.encoder.weight
-                self.decoder = TiedAdaptiveSoftmax(self.encoder.weight, self.adasoft_cutoffs)
-            else:
-                self.decoder = AdaptiveSoftmax(self.hidden_size, self.num_words)
+        self.decoder = nn.Linear(self.hidden_size, self.num_words)
+        # Weight tying
+        if self.tie_weights:
+            self.decoder.weight = self.encoder.weight
 
         self.init_weights()
 
@@ -138,7 +134,7 @@ class RNNLanguageModel(nn.Module):
         
         return X
 
-    def forward(self, x_input, hidden=None, target=None) -> \
+    def forward(self, x_input, hidden=None, training=False) -> \
         Union[
             Tuple[torch.Tensor, torch.Tensor], 
             Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
@@ -179,21 +175,26 @@ class RNNLanguageModel(nn.Module):
         # return raw outputs
         # result = output.view(output.size(0) * output.size(1), output.size(2))
         
-        if target is None:
+        if training == False:
             if self.char_level:
-                log_prob = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+                log_prob = F.log_softmax(
+                    self.decoder(output.view(output.size(0) * output.size(1), output.size(2))),
+                    dim=1
+                )
             else:
-                log_prob = self.decoder.log_prob(output.view(output.size(0) * output.size(1), output.size(2)))
+                log_prob = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+                log_prob = SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs).logprob(
+                    self.decoder.weight,
+                    self.decoder.bias,
+                    output
+                )
 
             return log_prob, raw_hiddens
         else:
             if self.char_level:
                 logits = self.decoder(output.view(output.size(0) * output.size(1), output.size(2))) 
             else:
-                logits = self.decoder(
-                    output.view(output.size(0) * output.size(1), output.size(2)),
-                    target.view(-1).data
-                )
+                logits = output
             return logits, raw_hiddens, raw_outputs, outputs
 
 class LanguageModelWrapper(IModel):

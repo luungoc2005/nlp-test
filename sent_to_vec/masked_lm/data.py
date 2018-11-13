@@ -123,7 +123,7 @@ class WikiTextDataset(Dataset):
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
-    return torch.stack(X_data, 0).t(), torch.stack(y_data, 0).view(-1)
+    return torch.stack(X_data, 0).t().contiguous(), torch.stack(y_data, 0).t().contiguous().view(-1)
 
 def collate_seq_lm_fn(data) -> Iterable:
     if len(data[0]) == 2: # first task
