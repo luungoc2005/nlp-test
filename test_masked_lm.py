@@ -9,6 +9,19 @@ from os import path
 from tqdm import trange
 import torch
 
+def pad_sents(first_array, second_array):
+    first_res = []
+    second_res = []
+    for ix, token in enumerate(first_array):
+        token2 = second_array[ix]
+        word_len = max(len(token), len(token2))
+
+        first_res.append(token.ljust(word_len))
+        second_res.append(token2.ljust(word_len))
+
+    return first_res, second_res
+
+
 if __name__ == '__main__':
     dataset = WikiTextDataset()
 
@@ -28,13 +41,19 @@ if __name__ == '__main__':
         dataset.save()
 
     # print(dataset.get_sent(4))
-    BATCH_SIZE = 4
+    BATCH_SIZE = 16
     loader = DataLoader(
-        dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_seq_lm_fn
+        dataset, 
+        batch_size=BATCH_SIZE, 
+        shuffle=True, 
+        collate_fn=collate_seq_lm_fn,
+        num_workers=torch.multiprocessing.cpu_count() - 1
     )
 
     TEST_EPOCHS = 100
     total_accuracy = 0.
+
+    print(model)
     for _ in trange(TEST_EPOCHS):
         inputs, outputs = next(iter(loader))
 
@@ -57,7 +76,8 @@ if __name__ == '__main__':
     y_decoded = model.featurizer.inverse_transform(result.t().contiguous())
 
     for ix in range(BATCH_SIZE):
-        print('ST: {}'.format(X_decoded[ix]))
-        print('GT: {}'.format(y_t_decoded[ix]))
-        print('RT: {}'.format(y_decoded[ix]))
+        y_t, y = pad_sents(y_t_decoded[ix], y_decoded[ix])
+        print('ST: {}'.format(' '.join(X_decoded[ix])))
+        print('GT: {}'.format(' '.join(y_t)))
+        print('RT: {}'.format(' '.join(y)))
         print('---')

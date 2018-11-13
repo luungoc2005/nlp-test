@@ -67,7 +67,7 @@ class BasicFeaturizer(IFeaturizer):
             if len(data) < 1: return # Must have at least 1 item
         except:
             return # data is not an iterable
-        
+
         tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
 
         if self.to_tensor:
@@ -91,9 +91,9 @@ class BasicFeaturizer(IFeaturizer):
         max_len = data.size(1)
         for ix in range(batch_size):
             retval.append(
-                ' '.join([
+                [
                     self.tokenizer.ix_to_word.get(int(data[ix, word_ix]), '')
                     for word_ix in range(max_len)
-                ])
+                ]
             )
         return retval
