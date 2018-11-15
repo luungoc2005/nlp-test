@@ -8,15 +8,15 @@ from torch.optim import RMSprop
 
 if __name__ == '__main__':
     model = BiLanguageModelWrapper({
-        'rnn_type': 'LSTM',
+        'rnn_type': 'QRNN',
         'n_layers': 4,
-        'embedding_dim': 2500,
+        'tie_weights': False,
+        'embedding_dim': 400,
+        'hidden_dim': 2500,
         'alpha': 0,
         'beta': 0,
         'emb_dropout': 0,
-        'h_dropout': .1,
-        'tie_weights': False,
-        
+        'h_dropout': .1
     }) # large model
 
     dataset = WikiTextDataset()
