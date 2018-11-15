@@ -9,8 +9,14 @@ from torch.optim import RMSprop
 if __name__ == '__main__':
     model = BiLanguageModelWrapper({
         'rnn_type': 'LSTM',
-        'n_layers': 3,
-        'embedding_dim': 900
+        'n_layers': 4,
+        'embedding_dim': 2500,
+        'alpha': 0,
+        'beta': 0,
+        'emb_dropout': 0,
+        'h_dropout': .1,
+        'tie_weights': False,
+        
     }) # large model
 
     dataset = WikiTextDataset()
