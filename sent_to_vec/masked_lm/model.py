@@ -39,7 +39,7 @@ class BiRNNLanguageModel(nn.Module):
         if self.rnn_type == 'LSTM':
             self.rnns = nn.ModuleList([
                 nn.LSTM(
-                    self.embedding_dim, 
+                    self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
                     bidirectional=True
                 )
@@ -53,7 +53,7 @@ class BiRNNLanguageModel(nn.Module):
         elif self.rnn_type == 'GRU':
             self.rnns = nn.ModuleList([
                 nn.GRU(
-                    self.embedding_dim, 
+                    self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
                     bidirectional=True
                 )
@@ -68,7 +68,7 @@ class BiRNNLanguageModel(nn.Module):
             from torchqrnn import QRNNLayer
             self.rnns = self.rnns = nn.ModuleList([
                 QRNNLayer(
-                    self.embedding_dim, 
+                    self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
                     bidirectional=True
                 )
@@ -81,7 +81,7 @@ class BiRNNLanguageModel(nn.Module):
             from sru import SRU
             self.rnns = nn.ModuleList([
                 to_gpu(SRU(
-                    self.embedding_dim, 
+                    self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
