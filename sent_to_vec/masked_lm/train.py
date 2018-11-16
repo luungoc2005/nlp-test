@@ -5,7 +5,7 @@ from common.torch_utils import to_gpu
 from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
-from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN
+from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_EMBEDDING_DIM
 from common.splitcross import SplitCrossEntropyLoss
 from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from typing import Union, Tuple, Iterable
@@ -25,7 +25,7 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
+        hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
 
         num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
         splits = []
@@ -46,7 +46,7 @@ class LanguageModelLearner(ILearner):
         self.model_wrapper.config['adasoft_cutoffs'] = splits
         self.model_wrapper.config['num_words'] = num_words
 
-        self.criterion = to_gpu(SplitCrossEntropyLoss(embedding_dim, splits))
+        self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
 
         # regularization
         self.clip_grad = config.get('clip_grad', .25)
