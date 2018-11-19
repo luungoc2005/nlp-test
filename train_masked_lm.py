@@ -12,7 +12,7 @@ if __name__ == '__main__':
         'n_layers': 4,
         'tie_weights': False,
         'embedding_dim': 400,
-        'hidden_dim': 2500,
+        'hidden_dim': 1250,
         'alpha': 0,
         'beta': 0,
         'emb_dropout': 0,
@@ -58,8 +58,8 @@ if __name__ == '__main__':
         batch_size=64,
         epochs=1000,
         callbacks=[
-            PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss', 'accuracy']),
+            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss', 'accuracy']),
             ModelCheckpointCallback(metrics=['loss'])
         ]
     )

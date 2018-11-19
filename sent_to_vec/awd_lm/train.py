@@ -85,7 +85,7 @@ class LanguageModelLearner(ILearner):
             loss = self.criterion(logits.view(-1, n_tokens), y)
         else:
             decoder = self.model_wrapper.model.decoder
-            loss = self.criterion(
+            logits, loss = self.criterion(
                 decoder.weight,
                 decoder.bias,
                 logits,

@@ -133,7 +133,9 @@ class SplitCrossEntropyLoss(nn.Module):
         if self.verbose or verbose:
             self.stats[0].append(combo.size()[0] * head_weight.size()[0])
 
+        results = []
         running_offset = 0
+
         for idx in range(self.nsplits):
             # If there are no targets for this split, continue
             if len(split_targets[idx]) == 0: continue
@@ -142,6 +144,8 @@ class SplitCrossEntropyLoss(nn.Module):
             if idx == 0:
                 softmaxed_head_res = softmaxed_all_head_res[running_offset:running_offset + len(split_hiddens[idx])]
                 entropy = -torch.gather(softmaxed_head_res, dim=1, index=split_targets[idx].view(-1, 1))
+                
+                results.append(softmaxed_head_res[:, :-(self.nsplits - 1)])
             # If the target is in one of the splits, the probability is the p(tombstone) * p(word within tombstone)
             else:
                 softmaxed_head_res = softmaxed_all_head_res[running_offset:running_offset + len(split_hiddens[idx])]
@@ -162,11 +166,20 @@ class SplitCrossEntropyLoss(nn.Module):
                 # Warning: if you don't squeeze, you get an N x 1 return, which acts oddly with broadcasting
                 tail_entropy = torch.gather(torch.nn.functional.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
                 entropy = -(head_entropy + tail_entropy)
+
+                results.append(head_entropy.view(-1, 1) + tail_entropy)
             ###
             running_offset += len(split_hiddens[idx])
             total_loss = entropy.float().sum() if total_loss is None else total_loss + entropy.float().sum()
 
-        return (total_loss / len(targets)).type_as(weight)
+        loss = (total_loss / len(targets)).type_as(weight)
+
+        if len(results) > 1:
+            logits = torch.cat(results, dim=1)
+        else:
+            logits = results[0]
+        
+        return logits, loss
 
 
 if __name__ == '__main__':
