@@ -15,10 +15,9 @@ def to_long_np(np_array):
         return np_array
 
 def accuracy(preds, targs):
-    with torch.no_grad():
-        targs = to_long_tensor(targs)
-        preds = to_long_tensor(preds)
-        return (preds==targs).float().mean()
+    targs = to_long_tensor(targs)
+    preds = to_long_tensor(preds)
+    return (preds==targs).float().mean()
 
 def accuracy_np(preds, targs):
     targs = to_long_np(targs)
@@ -29,19 +28,17 @@ def accuracy_thresh(thresh):
     return lambda preds,targs: accuracy_multi(preds, targs, thresh)
 
 def accuracy_multi(preds, targs, thresh):
-    with torch.no_grad():
-        return ((preds>thresh).float()==targs).float().mean()
+    return ((preds>thresh).float()==targs).float().mean()
 
 def accuracy_multi_np(preds, targs, thresh):
     return ((preds>thresh)==targs).mean()
 
 def recall(log_preds, targs, thresh=0.5, epsilon=1e-8):
-    with torch.no_grad():
-        targs = to_long_tensor(targs)
-        preds = torch.exp(log_preds)
-        pred_pos = torch.max(preds > thresh, dim=1)[1]
-        tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
-        return tpos.sum()/(targs.sum() + epsilon)
+    targs = to_long_tensor(targs)
+    preds = torch.exp(log_preds)
+    pred_pos = torch.max(preds > thresh, dim=1)[1]
+    tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
+    return tpos.sum()/(targs.sum() + epsilon)
 
 def recall_np(preds, targs, thresh=0.5, epsilon=1e-8):
     pred_pos = preds > thresh
@@ -49,12 +46,11 @@ def recall_np(preds, targs, thresh=0.5, epsilon=1e-8):
     return tpos.sum()/(targs.sum() + epsilon)
 
 def precision(log_preds, targs, thresh=0.5, epsilon=1e-8):
-    with torch.no_grad():
-        targs = to_long_tensor(targs)
-        preds = torch.exp(log_preds)
-        pred_pos = torch.max(preds > thresh, dim=1)[1]
-        tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
-        return tpos.sum()/(pred_pos.sum() + epsilon)
+    targs = to_long_tensor(targs)
+    preds = torch.exp(log_preds)
+    pred_pos = torch.max(preds > thresh, dim=1)[1]
+    tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
+    return tpos.sum()/(pred_pos.sum() + epsilon)
 
 def precision_np(preds, targs, thresh=0.5, epsilon=1e-8):
     pred_pos = preds > thresh
@@ -69,12 +65,10 @@ def fbeta(log_preds, targs, beta, thresh=0.5, epsilon=1e-8):
     beta > 1 favors recall.
     """
     assert beta > 0, 'beta needs to be greater than 0'
-
-    with torch.no_grad():
-        beta2 = beta ** 2
-        rec = recall(log_preds, targs, thresh)
-        prec = precision(log_preds, targs, thresh)
-        return (1 + beta2) * prec * rec / (beta2 * prec + rec + epsilon)
+    beta2 = beta ** 2
+    rec = recall(log_preds, targs, thresh)
+    prec = precision(log_preds, targs, thresh)
+    return (1 + beta2) * prec * rec / (beta2 * prec + rec + epsilon)
 
 def fbeta_np(preds, targs, beta, thresh=0.5, epsilon=1e-8):
     """ see fbeta """

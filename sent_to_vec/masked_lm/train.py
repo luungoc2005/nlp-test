@@ -64,7 +64,7 @@ class LanguageModelLearner(ILearner):
         logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
 
         decoder = self.model_wrapper.model.decoder
-        logits, loss = self.criterion(
+        loss = self.criterion(
             decoder.weight,
             decoder.bias,
             logits,
@@ -85,11 +85,8 @@ class LanguageModelLearner(ILearner):
             )
         
         return {
-            'loss': loss.detach().cpu().item(),
-            'logits': logits.detach()
+            'loss': loss.detach().cpu().item()
         }
 
     def calculate_metrics(self, logits, y):
-        return {
-            'accuracy': accuracy(logits, y)
-        }
+        return None
