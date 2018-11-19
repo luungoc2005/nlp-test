@@ -12,7 +12,7 @@ if __name__ == '__main__':
         'n_layers': 4,
         'tie_weights': False,
         'embedding_dim': 400,
-        'hidden_dim': 2500,
+        'hidden_dim': 1400,
         'alpha': 0,
         'beta': 0,
         'emb_dropout': 0,
