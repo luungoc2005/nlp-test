@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 from config import EMBEDDING_DIM, UNK_TAG
@@ -285,7 +286,7 @@ SCHEDULES = {
 }
 
 
-class BertAdam(nn.optim.Optimizer):
+class BertAdam(optim.Optimizer):
     """Implements BERT version of Adam algorithm with weight decay fix.
     Params:
         lr: learning rate
