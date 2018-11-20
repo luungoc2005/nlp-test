@@ -5,7 +5,7 @@ from common.utils import timeSince, asMinutes
 from abc import ABCMeta, abstractmethod
 from os import path, remove
 from collections import deque
-from typing import Union
+from typing import Union, Iterable
 
 class ICallback(object):
 
@@ -33,13 +33,13 @@ class ICallback(object):
 class PeriodicCallback(ICallback):
 
     def __init__(self, 
-        every_batch=1000,
-        every_epoch=1,
-        trigger_fn_batch=None,
-        trigger_fn_epoch=None,
-        fn_batch_args={},
-        fn_epoch_args={},
-        metrics=['loss', 'accuracy']):
+        every_batch:int = 1000,
+        every_epoch:int = 1,
+        trigger_fn_batch:callable = None,
+        trigger_fn_epoch:callable = None,
+        fn_batch_args:object = {},
+        fn_epoch_args:object = {},
+        metrics:Iterable[str] = ['loss', 'accuracy']):
 
         super(PeriodicCallback, self).__init__()
         self.every_epoch = every_epoch
@@ -65,7 +65,12 @@ class PeriodicCallback(ICallback):
 
 class PrintLoggerCallback(PeriodicCallback):
 
-    def __init__(self, log_every=5, log_every_batch=-1, metrics=['loss', 'accuracy'], logging_fn=print):
+    def __init__(self, 
+        log_every:int = 5, 
+        log_every_batch:int = -1, 
+        metrics:Iterable[str] = ['loss', 'accuracy'], 
+        logging_fn:callable = print):
+
         super(PrintLoggerCallback, self).__init__(
             every_batch=log_every_batch,
             every_epoch=log_every,
@@ -104,10 +109,13 @@ class PrintLoggerCallback(PeriodicCallback):
 
         self.logging_fn(print_line)
 
-
 class TensorboardCallback(PeriodicCallback):
 
-    def __init__(self, log_every=5, log_every_batch=-1, metrics=['loss', 'accuracy']):
+    def __init__(self, 
+        log_every:int = 5, 
+        log_every_batch:int = -1, 
+        metrics:Iterable[str] = ['loss', 'accuracy']):
+
         super(TensorboardCallback, self).__init__(
             every_batch=log_every_batch,
             every_epoch=log_every,
@@ -144,7 +152,11 @@ class TensorboardCallback(PeriodicCallback):
                     )
 
 class MetricsTriggeredCallback(ICallback):
-    def __init__(self, monitor='loss', tolerance=1e-6, patience=5, trigger_fn=None):
+    def __init__(self, 
+        monitor:str = 'loss', 
+        tolerance:float = 1e-6, 
+        patience:int = 5, 
+        trigger_fn: callable = None):
         super(MetricsTriggeredCallback, self).__init__()
 
         self.monitor = monitor
@@ -184,7 +196,11 @@ class MetricsTriggeredCallback(ICallback):
             self.wait += 1
 
 class EarlyStoppingCallback(MetricsTriggeredCallback):
-    def __init__(self, monitor='loss', tolerance=1e-6, patience=5, logging_fn=print):
+    def __init__(self, 
+        monitor:str = 'loss', 
+        tolerance:float = 1e-6, 
+        patience:int = 5, 
+        logging_fn:callable = print):
         super(EarlyStoppingCallback, self).__init__(
             monitor=monitor,
             tolerance=tolerance,

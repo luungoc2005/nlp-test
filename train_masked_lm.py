@@ -8,21 +8,22 @@ from torch.optim import RMSprop
 
 if __name__ == '__main__':
     model = BiLanguageModelWrapper({
-        'rnn_type': 'QRNN',
-        'n_layers': 4,
-        'tie_weights': False,
-        'embedding_dim': 400,
-        'hidden_dim': 1400,
+        'rnn_type': 'LSTM',
+        'n_layers': 2,
+        'tie_weights': True,
+        'embedding_dim': 2048,
+        'hidden_dim': 2048,
         'alpha': 0,
         'beta': 0,
         'emb_dropout': 0,
-        'h_dropout': .1
+        'h_dropout': .1,
+        'use_adasoft': False
     }) # large model
 
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
-    BATCH_SIZE = 64
+    BATCH_SIZE = 20
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model, 
         optimizer_fn='sgd',
-        optimizer_kwargs={'lr': 1., 'weight_decay': 1.2e-6}
+        optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -55,12 +56,12 @@ if __name__ == '__main__':
     # ])
     learner.fit(
         training_data=dataset,
-        batch_size=64,
-        epochs=1000,
+        batch_size=BATCH_SIZE,
+        epochs=100,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
-            ReduceLROnPlateau()
+            ReduceLROnPlateau(reduce_factor=4, patience=2)
         ]
     )
