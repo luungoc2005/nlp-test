@@ -126,7 +126,7 @@ class IModel(object):
 
     def load_state_dict(self, state_dict:dict, *args, **kwargs): pass
 
-    def infer_predict(self, logits: Union[np.array, torch.Tensor]): return logits
+    def infer_predict(self, logits: Union[object, torch.Tensor]): return logits
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
 
