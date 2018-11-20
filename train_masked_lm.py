@@ -17,7 +17,8 @@ if __name__ == '__main__':
         'beta': 0,
         'emb_dropout': 0,
         'h_dropout': .1,
-        'use_adasoft': False
+        'use_adasoft': False,
+        'num_words': 30000
     }) # large model
 
     dataset = WikiTextDataset()
