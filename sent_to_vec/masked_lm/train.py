@@ -28,32 +28,38 @@ class LanguageModelLearner(ILearner):
         # hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
 
         num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
-        # splits = []
-        # if num_words > 500000:
-        #     # One Billion
-        #     # This produces fairly even matrix mults for the buckets:
-        #     # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
-        #     splits = [4200, 35000, 180000]
-        # elif num_words > 75000:
-        #     # WikiText-103
-        #     splits = [2800, 20000, 76000]
-        # else:
-        #     splits = [num_words // 3, num_words // 3]
-        
+        use_adasoft = config.get('use_adasoft', True)
+
         print('Number of tokens', num_words)
-        # print('Cross Entropy Splits: Using', splits)
+        if use_adasoft:
+            splits = []
+            if num_words > 500000:
+                # One Billion
+                # This produces fairly even matrix mults for the buckets:
+                # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
+                splits = [4200, 35000, 180000]
+            elif num_words > 75000:
+                # WikiText-103
+                splits = [2800, 20000, 76000]
+            else:
+                splits = [num_words // 3, num_words // 3]
+        
+            print('Cross Entropy Splits: Using', splits)
 
-        # self.model_wrapper.config['adasoft_cutoffs'] = splits
+            self.model_wrapper.config['adasoft_cutoffs'] = splits
+
+            self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
+        else:
+            self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))
+        
         self.model_wrapper.config['num_words'] = num_words
-
-        # self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
-        self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))
 
         # regularization
         self.clip_grad = config.get('clip_grad', .25)
         self.alpha = config.get('alpha', 2)
         self.beta = config.get('beta', 1)
         self.batch_size = 0
+        self.use_adasoft = use_adasoft
 
     def on_model_init(self):
         print(self.model_wrapper.model)
@@ -62,16 +68,21 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        decoded, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
+        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
 
-        # decoder = self.model_wrapper.model.decoder
-        # loss = self.criterion(
-        #     decoder.weight,
-        #     decoder.bias,
-        #     logits,
-        #     y
-        # )
-        loss = self.criterion(decoded, y)
+        if self.use_adasoft:
+            decoder = self.model_wrapper.model.decoder
+            loss = self.criterion(
+                decoder.weight,
+                decoder.bias,
+                logits,
+                y
+            )
+        else:
+            loss = self.criterion(
+                logits.view(logits.size(0) * logits.size(1), logits.size(2)), 
+                y
+            )
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])
