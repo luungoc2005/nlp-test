@@ -61,7 +61,7 @@ if __name__ == '__main__':
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
         result, hidden = model(inputs)
-        result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
+        result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1)).cpu()
         
         total_accuracy += accuracy(result, outputs)
     
