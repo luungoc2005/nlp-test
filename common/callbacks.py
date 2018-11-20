@@ -70,7 +70,7 @@ class PrintLoggerCallback(PeriodicCallback):
             every_epoch=log_every,
             metrics=metrics,
             trigger_fn_batch=self.print_line,
-            fn_batch_kargs={'print_minibatch': True},
+            fn_batch_args={'print_minibatch': True},
             trigger_fn_epoch=self.print_line
         )
         self.log_every = log_every
