@@ -4,12 +4,13 @@ from sent_to_vec.masked_lm.data import WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path
 from config import BASE_PATH
-from torch.optim import RMSprop
+# from torch.optim import RMSprop
+from common.modules import BertAdam
 
 if __name__ == '__main__':
     model = BiLanguageModelWrapper({
         'rnn_type': 'LSTM',
-        'n_layers': 2,
+        'n_layers': 4,
         'tie_weights': True,
         'embedding_dim': 2048,
         'hidden_dim': 2048,
@@ -40,9 +41,13 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd', 
     #     optimizer_kwargs={'lr': 30, 'weight_decay': 1.2e-6}
     # )
-    learner = LanguageModelLearner(model, 
-        optimizer_fn='sgd',
-        optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
+    # learner = LanguageModelLearner(model, 
+    #     optimizer_fn='sgd',
+    #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
+    # )
+    learner = LanguageModelLearner(model,
+        optimizer_fn=BertAdam,
+        optimizer_kwargs={'lr': 1e-4, 'weight_decay': 0.01}    
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
