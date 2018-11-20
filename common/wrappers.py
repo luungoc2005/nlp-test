@@ -5,18 +5,34 @@ import torch.nn as nn
 import warnings
 import pickle
 import os
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
-from typing import Iterable
+from typing import Iterable, Union, Callable, Tuple
+
+
+class IFeaturizer(object):
+
+    def __init__(self): pass
+
+    def fit(self): pass
+
+    def transform(self): return
+
+    def fit_transform(self): return
+
+    def inverse_transform(self): return
+
+    def get_output_shape(self) -> Tuple[int]: return (0,)
 
 class IModel(object):
 
     def __init__(self, 
-        model_class=None,
-        config=None, 
-        from_fp=None, 
-        predict_fn=None, 
-        featurizer=None,
+        model_class:nn.Module = None,
+        config:dict = None, 
+        from_fp:str = None, 
+        predict_fn:Callable = None, 
+        featurizer:IFeaturizer = None,
         *args, **kwargs):
 
         self._model_class = model_class
@@ -73,21 +89,21 @@ class IModel(object):
 
     def on_model_init(self): pass
 
-    def preprocess_dataset_X(self, X):
+    def preprocess_dataset_X(self, X: Union[Iterable, torch.Tensor]):
         return X
 
-    def preprocess_dataset_y(self, y):
+    def preprocess_dataset_y(self, y: Union[Iterable, torch.Tensor]):
         return y
 
-    def preprocess_input(self, X):
+    def preprocess_input(self, X: Union[Iterable, torch.Tensor]):
         return X
     
-    def preprocess_output(self, y):
+    def preprocess_output(self, y: Union[Iterable, torch.Tensor]):
         return y
 
     def get_state_dict(self): raise NotImplementedError
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict:
         model_state = None
         try:
             model_state = self.get_state_dict()
@@ -108,13 +124,13 @@ class IModel(object):
             model_state['featurizer'] = self._featurizer
         return model_state
 
-    def load_state_dict(self, state_dict, *args, **kwargs): pass
+    def load_state_dict(self, state_dict:dict, *args, **kwargs): pass
 
-    def infer_predict(self, logits): return logits
+    def infer_predict(self, logits: Union[np.array, torch.Tensor]): return logits
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
 
-    def transform(self, X, interpret_fn=None, return_logits=False):
+    def transform(self, X, interpret_fn:Callable = None, return_logits:bool = False):
         if self._model is None: return
         is_pytorch = self.is_pytorch_module()
 
@@ -145,14 +161,14 @@ class IModel(object):
         else:
             return self.infer_predict(logits)
     
-    def freeze_to(self, n):
+    def freeze_to(self, n:int):
         c = self.get_layer_groups()
         for l in c:
             set_trainable(l, False)
         for l in c[n:]:
             set_trainable(l, True)
 
-    def freeze_all_but(self, n):
+    def freeze_all_but(self, n:int):
         c = self.get_layer_groups()
         for l in c:
             set_trainable(l, False)
@@ -178,10 +194,6 @@ class IModel(object):
         # ]
         raise NotImplementedError
 
-    
-    def loss_function(self, X, y):
-        raise NotImplementedError
-    
     @property
     def model(self): return self._model
 
@@ -212,42 +224,28 @@ class IModel(object):
     
         self._predict_fn = predict_fn
 
-    def summary(self):
+    def summary(self) -> str:
         return self.__str__()
 
     def __call__(self, *args, **kwargs):
         return self.transform(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._model.__str__()
 
-
-class IFeaturizer(object):
-
-    def __init__(self): pass
-
-    def fit(self): pass
-
-    def transform(self): return
-
-    def fit_transform(self): return
-
-    def inverse_transform(self): return
-
-    def get_output_shape(self): return (0,)
 
 class ILearner(object):
 
     def __init__(self, 
-        model_wrapper, 
+        model_wrapper:IModel, 
         data=None, 
         val_data=None, 
-        optimizer_fn='adam', 
-        optimizer_kwargs={},
-        auto_optimize=True,
-        preprocess_batch=False,
-        uneven_batch_size=False,
-        collate_fn=None):
+        optimizer_fn:Union[str, callable]='adam', 
+        optimizer_kwargs:dict={},
+        auto_optimize:bool=True,
+        preprocess_batch:bool=False,
+        uneven_batch_size:bool=False,
+        collate_fn:Callable=None):
         """
         data: Dataset or tuple (X_train, y_train)
         """
