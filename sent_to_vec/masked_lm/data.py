@@ -1,7 +1,7 @@
 import torch
 import random
 # from common.torch_utils import to_gpu
-from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG, LM_SEQ_LEN
+from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG, LM_SEQ_LEN
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import Dataset
 from os import path
@@ -108,7 +108,7 @@ class WikiTextDataset(Dataset):
 
                 # else no change
             else:
-                output_label[ix] = word_index[EMPTY_TAG]
+                output_label[ix] = 0 # ignore idx
         return raw_sent, output_label
 
     def __getitem__(self, index) -> Union[

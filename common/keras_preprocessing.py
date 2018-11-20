@@ -16,7 +16,7 @@ import numpy as np
 from six.moves import range
 from six.moves import zip
 
-from config import START_TAG, STOP_TAG, UNK_TAG, EMPTY_TAG, MASK_TAG
+from config import START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
 from common.utils import all_letters
 
 maketrans = str.maketrans
