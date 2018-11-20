@@ -1,8 +1,8 @@
 
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.data import WikiTextDataset, collate_seq_lm_fn
-
 from torch.utils.data import DataLoader
+from common.torch_utils import to_gpu
 from common.metrics import accuracy
 from config import BASE_PATH
 from os import path
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
-        result, hidden = model(inputs)
+        result, hidden = model(to_gpu(inputs))
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         
         total_accuracy += accuracy(result, outputs)
@@ -71,9 +71,9 @@ if __name__ == '__main__':
         total_accuracy * 100
     ))
 
-    X_decoded = model.featurizer.inverse_transform(inputs.t().contiguous())
-    y_t_decoded = model.featurizer.inverse_transform(outputs.t().contiguous())
-    y_decoded = model.featurizer.inverse_transform(result.t().contiguous())
+    X_decoded = model.featurizer.inverse_transform(inputs.cpu().t().contiguous())
+    y_t_decoded = model.featurizer.inverse_transform(outputs.cpu().t().contiguous())
+    y_decoded = model.featurizer.inverse_transform(result.cpu().t().contiguous())
 
     for ix in range(BATCH_SIZE):
         y_t, y = pad_sents(y_t_decoded[ix], y_decoded[ix])
