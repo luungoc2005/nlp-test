@@ -31,7 +31,12 @@ class LanguageModelLearner(ILearner):
 
         print('Number of tokens', num_words)
         if use_adasoft:
+            tie_weights = config.get('tie_weights', True)
             hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
+            embedding_dim = config.get('embedding_dim', LM_EMBEDDING_DIM)
+
+            hidden_dim = embedding_dim if tie_weights else hidden_dim
+
             splits = []
             if num_words > 500000:
                 # One Billion
@@ -48,7 +53,10 @@ class LanguageModelLearner(ILearner):
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
 
-            self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
+            self.criterion = to_gpu(SplitCrossEntropyLoss(
+                hidden_dim, 
+                splits
+            ))
         else:
             self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))
         
