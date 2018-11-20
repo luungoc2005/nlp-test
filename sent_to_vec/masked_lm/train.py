@@ -25,13 +25,13 @@ class LanguageModelLearner(ILearner):
 
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
-        # hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
 
         num_words = config.get('num_words', self.model_wrapper.featurizer.tokenizer.num_words)
         use_adasoft = config.get('use_adasoft', True)
 
         print('Number of tokens', num_words)
         if use_adasoft:
+            hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
             splits = []
             if num_words > 500000:
                 # One Billion
