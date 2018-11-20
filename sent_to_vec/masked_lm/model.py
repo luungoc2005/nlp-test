@@ -26,7 +26,8 @@ class BiRNNLanguageModel(nn.Module):
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
         self.highway_bias = config.get('highway_bias', -3)
-        # self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE])
+        self.use_adasoft = config.get('use_adasoft', True)
+        self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE // 2, LM_VOCAB_SIZE // 2])
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU', 'QRNN']
 
@@ -198,7 +199,7 @@ class BiRNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+        # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training == False:
             # logprob = to_gpu(SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs)) \
@@ -207,10 +208,10 @@ class BiRNNLanguageModel(nn.Module):
             #         self.decoder.bias, 
             #         output.view(output.size(0) * output.size(1), output.size(2))
             #     )
-            # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+            decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
             return decoded, raw_hiddens
         else:
-            return decoded, raw_hiddens, raw_outputs, outputs
+            return output, raw_hiddens, raw_outputs, outputs
 
 class BiLanguageModelWrapper(IModel):
 

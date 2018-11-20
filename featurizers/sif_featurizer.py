@@ -14,6 +14,8 @@ class SIFFeaturizer(IFeaturizer):
 
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
         self.tokenize_fn = wordpunct_tokenize
+        self.use_tokenizer = config.get('use_tokenizer', False)
+
         self.tokenizer = Tokenizer(num_words=self.num_words)
 
     def get_output_shape(self):
@@ -26,8 +28,8 @@ class SIFFeaturizer(IFeaturizer):
         self.tokenizer.fit_on_texts(tokens)
 
     def transform(self, data):
-        tokens = [self.tokenize_fn(sent) for sent in data]
-        tokens = self.tokenizer.texts_to_sequences(tokens)
+        raw_tokens = [self.tokenize_fn(sent) for sent in data]
+        tokens = self.tokenizer.texts_to_sequences(raw_tokens)
         tfidf_matrix = self.tokenizer.sequences_to_matrix(tokens, mode='tfidf')
         
         maxlen = max([len(sent) for sent in tokens])
@@ -39,7 +41,8 @@ class SIFFeaturizer(IFeaturizer):
         
         # convert from token back to texts
         # this is to guarantee that tfidf matrix and X has the same length (with oov words ommited)
-        embs = word_to_vec(self.tokenizer.sequences_to_texts(tokens))
+        # embs = word_to_vec(self.tokenizer.sequences_to_texts(tokens))
+        embs = word_to_vec(raw_tokens)
         
         if embs is None: return None
 

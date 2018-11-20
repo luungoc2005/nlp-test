@@ -21,6 +21,7 @@ class BasicFeaturizer(IFeaturizer):
         self.to_tensor = config.get('to_tensor', True) # pad sequences and return tensors
 
         self.tokenize_fn = wordpunct_tokenize
+        
         self.tokenizer = Tokenizer(
             num_words=self.num_words, 
             lower=self.lower, 

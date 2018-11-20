@@ -18,7 +18,7 @@ from config import START_TAG, STOP_TAG
 import argparse
 from datetime import datetime
 
-IGNORE_CONTEXT = True  # flag for ignoring intents with contexts
+IGNORE_CONTEXT = False  # flag for ignoring intents with contexts
 CLF_MODEL = dict()
 ENT_MODEL = dict()
 
