@@ -78,8 +78,8 @@ class LanguageModelLearner(ILearner):
 
         logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
 
+        decoder = self.model_wrapper.model.decoder
         if self.use_adasoft:
-            decoder = self.model_wrapper.model.decoder
             loss = self.criterion(
                 decoder.weight,
                 decoder.bias,
@@ -87,8 +87,9 @@ class LanguageModelLearner(ILearner):
                 y
             )
         else:
+            decoded = decoder(logits.view(logits.size(0) * logits.size(1), logits.size(2)))
             loss = self.criterion(
-                logits.view(logits.size(0) * logits.size(1), logits.size(2)), 
+                decoded, 
                 y
             )
         
