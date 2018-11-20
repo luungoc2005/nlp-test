@@ -56,10 +56,11 @@ if __name__ == '__main__':
     print(model)
     for _ in trange(TEST_EPOCHS):
         inputs, outputs = next(iter(loader))
+        inputs = to_gpu(inputs)
 
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
-        result, hidden = model(to_gpu(inputs))
+        result, hidden = model(inputs)
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         
         total_accuracy += accuracy(result, outputs)

@@ -201,13 +201,14 @@ class BiRNNLanguageModel(nn.Module):
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training == False:
-            logprob = to_gpu(SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs)) \
-                .logprob(
-                    self.decoder.weight, 
-                    self.decoder.bias, 
-                    output
-                )
-            return logprob, raw_hiddens
+            # logprob = to_gpu(SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs)) \
+            #     .logprob(
+            #         self.decoder.weight, 
+            #         self.decoder.bias, 
+            #         output.view(output.size(0) * output.size(1), output.size(2))
+            #     )
+            decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+            return decoded, raw_hiddens
         else:
             return output, raw_hiddens, raw_outputs, outputs
 
