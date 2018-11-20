@@ -6,7 +6,7 @@ import warnings
 import pickle
 import os
 from torch.utils.data import Dataset, DataLoader
-from common.torch_utils import set_trainable, children, to_gpu, USE_GPU
+from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
 from typing import Iterable
 
 class IModel(object):
@@ -369,12 +369,13 @@ class ILearner(object):
     def fit(self,
         training_data=None,
         validation_data=None,
-        epochs=1,
-        minibatches=None,
-        epoch_start=0, 
-        batch_size=64, 
-        shuffle=True,
-        callbacks=[]):
+        epochs:int = 1,
+        minibatches:int = None,
+        epoch_start:int = 0, 
+        batch_size:int = 64, 
+        shuffle:bool = True,
+        optimize_on_cpu:bool = False,
+        callbacks:Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
 
@@ -385,6 +386,7 @@ class ILearner(object):
 
         self._callbacks = callbacks or []
         self._n_epochs = epochs
+        self._optimize_on_cpu = optimize_on_cpu
 
         # Preprocess data. If data is already a dataset class
         # then preprocessing logic should be implemented in the class
@@ -439,7 +441,7 @@ class ILearner(object):
             iterator = trange(epoch_start, self._n_epochs, desc='Epochs', leave=False)
         else:
             iterator = range(epoch_start, self._n_epochs)
-        
+
         cpu_count = int(os.environ.get('NUM_WORKERS', max(mp.cpu_count() - 1, 1)))
 
         if batch_size is None:
@@ -473,8 +475,19 @@ class ILearner(object):
 
         # optimizer must be initialized after the model
         if self.optimizer is None and self._auto_optimize:
+            optim_params = [
+                (n, param) for n, param in self.model_wrapper._model.named_parameters()
+                if param.requires_grad
+            ]
+
+            if self._optimize_on_cpu:
+                optim_params = [
+                    (n, param.clone().detach().to('cpu').requires_grad_()) \
+                    for n, param in optim_params
+                ]
+
             self.optimizer = self._optimizer_fn(
-                filter(lambda p: p.requires_grad, self._model_wrapper._model.parameters()),
+                optim_params,
                 **self._optimizer_kwargs
             )
 
@@ -503,9 +516,6 @@ class ILearner(object):
 
                     for callback in self.callbacks: callback.on_batch_start()
 
-                    # auto_optimize: auto handling the optimizer
-                    if self._auto_optimize: self.optimizer.zero_grad()
-
                     epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
 
                     if epoch_ret is not None:
@@ -525,8 +535,18 @@ class ILearner(object):
                         else:
                             self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
-                    if self._auto_optimize: self.optimizer.step()
+                    if self._auto_optimize: 
+                        if self._optimize_on_cpu:
+                            set_optimizer_params_grad(optim_params, self.model_wrapper._model.named_parameters())
 
+                        self.optimizer.step()
+
+                        if self._optimize_on_cpu:
+                            copy_optimizer_params_to_model(model.named_parameters(), optim_params)
+
+                        if self.model_wrapper.is_pytorch_module():
+                            self.model_wrapper._model.zero_grad()
+                    
                     for callback in self.callbacks: callback.on_batch_end()
 
                     if epochs == 1 and minibatches is not None:
