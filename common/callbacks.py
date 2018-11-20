@@ -112,7 +112,7 @@ class TensorboardCallback(PeriodicCallback):
             every_epoch=log_every,
             metrics=metrics,
             trigger_fn_batch=self.print_line,
-            fn_batch_kargs={'print_minibatch': True},
+            fn_batch_args={'print_minibatch': True},
             trigger_fn_epoch=self.print_line
         )
         self.log_every = log_every
@@ -192,14 +192,8 @@ class EarlyStoppingCallback(MetricsTriggeredCallback):
         )
         assert monitor in ['loss', 'accuracy'], \
             'Early Stopping only implements loss and accuracy metrics at the moment'
-        self.monitor = monitor
-        self.tolerance = tolerance
-        self.patience = patience
-        self.logging_fn = print
 
-        self.multiplier = 1
-        if self.monitor == 'accuracy':
-            self.multiplier = -1 # Reverse the monitor
+        self.logging_fn = print
 
     def stop_training(self, monitor_val):
         self.logging_fn('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
