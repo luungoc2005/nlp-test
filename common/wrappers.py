@@ -240,7 +240,7 @@ class ILearner(object):
         model_wrapper:IModel, 
         data=None, 
         val_data=None, 
-        optimizer_fn:Union[str, callable]='adam', 
+        optimizer_fn:Union[str, Callable]='adam', 
         optimizer_kwargs:dict={},
         auto_optimize:bool=True,
         preprocess_batch:bool=False,
