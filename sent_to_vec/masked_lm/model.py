@@ -198,7 +198,7 @@ class BiRNNLanguageModel(nn.Module):
         output = self.lockdrop(raw_output, self.dropout_h)
         outputs.append(output)
 
-        # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+        decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training == False:
             # logprob = to_gpu(SplitCrossEntropyLoss(self.embedding_dim, self.adasoft_cutoffs)) \
@@ -207,10 +207,10 @@ class BiRNNLanguageModel(nn.Module):
             #         self.decoder.bias, 
             #         output.view(output.size(0) * output.size(1), output.size(2))
             #     )
-            decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+            # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
             return decoded, raw_hiddens
         else:
-            return output, raw_hiddens, raw_outputs, outputs
+            return decoded, raw_hiddens, raw_outputs, outputs
 
 class BiLanguageModelWrapper(IModel):
 

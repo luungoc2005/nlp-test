@@ -46,7 +46,8 @@ class LanguageModelLearner(ILearner):
         self.model_wrapper.config['adasoft_cutoffs'] = splits
         self.model_wrapper.config['num_words'] = num_words
 
-        self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
+        # self.criterion = to_gpu(SplitCrossEntropyLoss(hidden_dim, splits))
+        self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))
 
         # regularization
         self.clip_grad = config.get('clip_grad', .25)
@@ -61,15 +62,16 @@ class LanguageModelLearner(ILearner):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
+        decoded, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
 
-        decoder = self.model_wrapper.model.decoder
-        loss = self.criterion(
-            decoder.weight,
-            decoder.bias,
-            logits,
-            y
-        )
+        # decoder = self.model_wrapper.model.decoder
+        # loss = self.criterion(
+        #     decoder.weight,
+        #     decoder.bias,
+        #     logits,
+        #     y
+        # )
+        loss = self.criterion(decoded, y)
         
         # Activiation Regularization
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])
