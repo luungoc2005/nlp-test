@@ -1,7 +1,7 @@
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.data import WikiTextDataset
-from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback
+from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path
 from config import BASE_PATH
 from torch.optim import RMSprop
@@ -39,8 +39,8 @@ if __name__ == '__main__':
     #     optimizer_kwargs={'lr': 30, 'weight_decay': 1.2e-6}
     # )
     learner = LanguageModelLearner(model, 
-        optimizer_fn='adam',
-        optimizer_kwargs={'weight_decay': 1.2e-6}
+        optimizer_fn='sgd',
+        optimizer_kwargs={'lr': 1., 'weight_decay': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -60,6 +60,7 @@ if __name__ == '__main__':
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
-            ModelCheckpointCallback(metrics=['loss'])
+            ModelCheckpointCallback(metrics=['loss']),
+            ReduceLROnPlateau()
         ]
     )

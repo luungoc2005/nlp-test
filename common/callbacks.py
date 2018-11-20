@@ -5,6 +5,7 @@ from common.utils import timeSince, asMinutes
 from abc import ABCMeta, abstractmethod
 from os import path, remove
 from collections import deque
+from typing import Union
 
 class ICallback(object):
 
@@ -198,6 +199,39 @@ class EarlyStoppingCallback(MetricsTriggeredCallback):
     def stop_training(self, monitor_val):
         self.logging_fn('Best monitor value `%s` == %4f reached. Early stopping' % (self.monitor, monitor_val))
         self._learner._halt = True
+
+class ReduceLROnPlateau(MetricsTriggeredCallback):
+    def __init__(self, 
+        monitor:str = 'loss', 
+        tolerance:float = 1e-6, 
+        patience:int = 1, 
+        logging_fn:callable = print, 
+        reduce_factor: Union[int, float] = 5, 
+        min_lr:float = 1e-4):
+        super(ReduceLROnPlateau, self).__init__(
+            monitor=monitor,
+            tolerance=tolerance,
+            patience=patience,
+            trigger_fn=self.reduce_lr
+        )
+        assert monitor in ['loss', 'accuracy'], \
+            'Early Stopping only implements loss and accuracy metrics at the moment'
+
+        self.logging_fn = print
+        self.reduce_factor = reduce_factor
+        self.min_lr = min_lr
+
+    def reduce_lr(self, monitor_val):
+        optimizer = self._learner._optimizer
+        current_lr = optimizer.param_groups[0]['lr']
+        new_lr = current_lr / self.reduce_factor
+
+        if new_lr > self.min_lr:
+            self.logging_fn('Monitor value plateaued at `%s` == %4f. Applying new learning rate: %4f -> %4f' % (self.monitor, monitor_val, current_lr, new_lr))
+            self._learner._optimizer.param_groups[0]['lr'] = new_lr
+        else:
+            self.logging_fn('Minimum learning rate reached. Early stopping')
+            self._learner._halt = True
 
 class ModelCheckpointCallback(PeriodicCallback):
 
