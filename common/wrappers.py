@@ -485,7 +485,7 @@ class ILearner(object):
                 ]
 
             self.optimizer = self._optimizer_fn(
-                optim_params,
+                [p for n, p in optim_params],
                 **self._optimizer_kwargs
             )
 
