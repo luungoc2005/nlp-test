@@ -26,7 +26,7 @@ class BiRNNLanguageModel(nn.Module):
         self.n_layers = config.get('n_layers', 6)
         self.dropout_rnn = config.get('rnn_dropout', .2)
         self.highway_bias = config.get('highway_bias', -3)
-        self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE])
+        # self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE])
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU', 'QRNN']
 
