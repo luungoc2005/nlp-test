@@ -5,7 +5,7 @@ from common.utils import timeSince, asMinutes
 from abc import ABCMeta, abstractmethod
 from os import path, remove
 from collections import deque
-from typing import Union, Iterable
+from typing import Union, Iterable, Callable
 
 class ICallback(object):
 
@@ -35,8 +35,8 @@ class PeriodicCallback(ICallback):
     def __init__(self, 
         every_batch:int = 1000,
         every_epoch:int = 1,
-        trigger_fn_batch:callable = None,
-        trigger_fn_epoch:callable = None,
+        trigger_fn_batch:Callable = None,
+        trigger_fn_epoch:Callable = None,
         fn_batch_args:object = {},
         fn_epoch_args:object = {},
         metrics:Iterable[str] = ['loss', 'accuracy']):
@@ -69,7 +69,7 @@ class PrintLoggerCallback(PeriodicCallback):
         log_every:int = 5, 
         log_every_batch:int = -1, 
         metrics:Iterable[str] = ['loss', 'accuracy'], 
-        logging_fn:callable = print):
+        logging_fn:Callable = print):
 
         super(PrintLoggerCallback, self).__init__(
             every_batch=log_every_batch,
@@ -156,7 +156,7 @@ class MetricsTriggeredCallback(ICallback):
         monitor:str = 'loss', 
         tolerance:float = 1e-6, 
         patience:int = 5, 
-        trigger_fn: callable = None):
+        trigger_fn:Callable = None):
         super(MetricsTriggeredCallback, self).__init__()
 
         self.monitor = monitor
@@ -200,7 +200,7 @@ class EarlyStoppingCallback(MetricsTriggeredCallback):
         monitor:str = 'loss', 
         tolerance:float = 1e-6, 
         patience:int = 5, 
-        logging_fn:callable = print):
+        logging_fn:Callable = print):
         super(EarlyStoppingCallback, self).__init__(
             monitor=monitor,
             tolerance=tolerance,
@@ -221,7 +221,7 @@ class ReduceLROnPlateau(MetricsTriggeredCallback):
         monitor:str = 'loss', 
         tolerance:float = 1e-6, 
         patience:int = 1, 
-        logging_fn:callable = print, 
+        logging_fn:Callable = print, 
         reduce_factor: Union[int, float] = 5, 
         min_lr:float = 1e-4):
         super(ReduceLROnPlateau, self).__init__(
