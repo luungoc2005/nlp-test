@@ -205,7 +205,7 @@ class BiRNNLanguageModel(nn.Module):
                 .logprob(
                     self.decoder.weight, 
                     self.decoder.bias, 
-                    output.view(output.size(0) * output.size(1), output.size(2))
+                    output
                 )
             return logprob, raw_hiddens
         else:
