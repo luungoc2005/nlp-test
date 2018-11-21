@@ -219,13 +219,18 @@ class LockedDropout(nn.Module):
         return mask * x
 
 # https://github.com/salesforce/awd-lstm-lm/blob/master/weight_drop.py
-class WeightDrop(torch.nn.Module):
-    def __init__(self, module, weights, dropout=0, variational=False):
+class WeightDrop(nn.Module):
+    def __init__(self, 
+        module:nn.Module, 
+        weights:list, 
+        dropout:float=0, 
+        variational:bool=False):
+
         super(WeightDrop, self).__init__()
-        self.module = module
-        self.weights = weights
-        self.dropout = dropout
-        self.variational = variational
+        self.module:nn.Module = module
+        self.weights:list = weights
+        self.dropout:float = dropout
+        self.variational:bool = variational
         self._setup()
 
     def widget_demagnetizer_y2k_edition(*args, **kwargs):
@@ -237,7 +242,7 @@ class WeightDrop(torch.nn.Module):
 
     def _setup(self):
         # Terrible temporary solution to an issue regarding compacting weights re: CUDNN RNN
-        if issubclass(type(self.module), torch.nn.RNNBase):
+        if issubclass(type(self.module), nn.RNNBase):
             self.module.flatten_parameters = self.widget_demagnetizer_y2k_edition
 
         for name_w in self.weights:

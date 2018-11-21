@@ -7,6 +7,7 @@ from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
 from typing import Union, Iterable, Tuple
 from common.splitcross import SplitCrossEntropyLoss
+from typing import Union, List, Iterable
 
 class BiRNNLanguageModel(nn.Module):
 
@@ -14,27 +15,28 @@ class BiRNNLanguageModel(nn.Module):
         super(BiRNNLanguageModel, self).__init__()
         self.config = config
 
-        self.tie_weights = config.get('tie_weights', True)
-        self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
-        self.hidden_dim = self.embedding_dim if self.tie_weights else config.get('hidden_dim', LM_HIDDEN_DIM)
-        self.dropout_emb = config.get('emb_dropout', .2)
-        self.dropout_i = config.get('lock_drop', .5)
-        self.dropout_h = config.get('h_dropout', .5)
-        self.dropout_w = config.get('w_dropout', 0)
-        self.num_words = config.get('num_words', LM_VOCAB_SIZE)
-        self.rnn_type = config.get('rnn_type', 'SRU')
-        self.n_layers = config.get('n_layers', 6)
-        self.dropout_rnn = config.get('rnn_dropout', .2)
-        self.highway_bias = config.get('highway_bias', -3)
-        self.use_adasoft = config.get('use_adasoft', True)
-        self.adasoft_cutoffs = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE // 2, LM_VOCAB_SIZE // 2])
+        self.tie_weights: bool = config.get('tie_weights', True)
+        self.embedding_dim: int = config.get('embedding_dim', LM_HIDDEN_DIM)
+        self.hidden_dim: int = self.embedding_dim if self.tie_weights else config.get('hidden_dim', LM_HIDDEN_DIM)
+        self.dropout_emb: float = config.get('emb_dropout', .2)
+        self.dropout_i: float = config.get('lock_drop', .5)
+        self.dropout_h: float = config.get('h_dropout', .5)
+        self.dropout_w: float = config.get('w_dropout', 0)
+        self.num_words: int = config.get('num_words', LM_VOCAB_SIZE)
+        self.rnn_type: str = config.get('rnn_type', 'SRU')
+        self.n_layers: int = config.get('n_layers', 6)
+        self.dropout_rnn: float = config.get('rnn_dropout', .2)
+        self.highway_bias: float = config.get('highway_bias', -3)
+        self.use_adasoft: bool = config.get('use_adasoft', True)
+        self.adasoft_cutoffs: List[int] = config.get('adasoft_cutoffs', [LM_VOCAB_SIZE // 2, LM_VOCAB_SIZE // 2])
 
         assert self.rnn_type in ['LSTM', 'GRU', 'SRU', 'QRNN']
 
         self.encoder = nn.Embedding(
             self.num_words, self.embedding_dim
         )
-        self.lockdrop = to_gpu(LockedDropout())
+        self.lockdrop:LockedDropout = to_gpu(LockedDropout())
+        self.rnns:Iterable[nn.Module] = nn.ModuleList([])
 
         # for the mean time weight drop is broken
         if self.rnn_type == 'LSTM':
@@ -96,7 +98,7 @@ class BiRNNLanguageModel(nn.Module):
                 for layer_ix in range(self.n_layers)
             ])
 
-        self.decoder = nn.Linear(
+        self.decoder:nn.Module = nn.Linear(
             self.embedding_dim if self.tie_weights else self.hidden_dim, 
             self.num_words
         )
@@ -113,7 +115,7 @@ class BiRNNLanguageModel(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_range, init_range)
 
-    def init_hidden(self, batch_size) -> Iterable[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]:
+    def init_hidden(self, batch_size:int) -> Iterable[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]]:
         if self.rnn_type == 'LSTM':
             return [
                 (to_gpu(torch.zeros(
@@ -147,7 +149,11 @@ class BiRNNLanguageModel(nn.Module):
                 for l in range(self.n_layers)
             ]
 
-    def embedded_dropout(self, embed, words, dropout=0.1, scale=None):
+    def embedded_dropout(self, 
+        embed:nn.Module, 
+        words:Union[torch.LongTensor, torch.cuda.LongTensor], 
+        dropout:float = 0.1, scale=None):
+        
         if dropout:
             mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - dropout).expand_as(embed.weight) / (1 - dropout)
             masked_embed_weight = mask * embed.weight
@@ -167,7 +173,11 @@ class BiRNNLanguageModel(nn.Module):
         
         return X
 
-    def forward(self, x_input, hidden=None, training=False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, 
+        x_input:Union[torch.LongTensor, torch.cuda.LongTensor], 
+        hidden:Union[torch.FloatTensor, torch.cuda.FloatTensor] = None, 
+        training:bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        
         emb = self.embedded_dropout(
             self.encoder, 
             x_input, 
@@ -231,6 +241,13 @@ class BiLanguageModelWrapper(IModel):
 
         self.seq_len = config.get('seq_len', LM_SEQ_LEN)
         self.config = config
+
+    def on_model_init(self):
+        model = self._model
+        if model.rnn_type != 'QRNN':
+            for rnn in model.rnns:
+                if issubclass(type(rnn.module), nn.RNNBase):
+                    rnn.flatten_parameters()
 
     # def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
     #     if torch.is_tensor(h):

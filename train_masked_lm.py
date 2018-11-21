@@ -70,5 +70,6 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        optimize_on_cpu=True
+        optimize_on_cpu=True,
+        fp16=True
     )

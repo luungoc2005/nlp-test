@@ -45,7 +45,7 @@ class IModel(object):
         self._featurizer = featurizer
         self.config = config or dict()
 
-    def init_model(self):
+    def init_model(self, fp16: bool = False):
         if self._from_fp is None:
             model_state = None
         else:
@@ -64,7 +64,9 @@ class IModel(object):
 
         if self.is_pytorch_module():
             # re-initialize model with loaded config
-            self._model = to_gpu(self._model_class(config=config, *self._args, **self._kwargs))
+            self._model = self._model_class(config=config, *self._args, **self._kwargs)
+            if fp16: self._model.half()
+            self._model = to_gpu(self._model)
         else:
             # initialize model normally
             self._model = self._model_class(*self._args, **self._kwargs)
@@ -313,7 +315,7 @@ class ILearner(object):
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
-    def on_epoch(self, X, y): return
+    def on_epoch(self, X, y) -> dict: return dict()
 
     def calculate_metrics(self, logits, y): pass
 
@@ -365,15 +367,17 @@ class ILearner(object):
         return losses
 
     def fit(self,
-        training_data=None,
-        validation_data=None,
-        epochs:int = 1,
-        minibatches:int = None,
-        epoch_start:int = 0, 
-        batch_size:int = 64, 
-        shuffle:bool = True,
-        optimize_on_cpu:bool = False,
-        callbacks:Iterable[object] = []):
+        training_data: Iterable = None,
+        validation_data: Iterable = None,
+        epochs: int = 1,
+        minibatches: int = None,
+        epoch_start: int = 0, 
+        batch_size: int = 64, 
+        shuffle: bool = True,
+        optimize_on_cpu: bool = False,
+        fp16: bool = False,
+        loss_scale: float = 128,
+        callbacks: Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
 
@@ -468,14 +472,14 @@ class ILearner(object):
         if self.model_wrapper._featurizer is not None:
             self.model_wrapper.config['input_shape'] = self.model_wrapper._featurizer.get_output_shape()
 
-        if self.model_wrapper.model is None: self.model_wrapper.init_model()
+        if self.model_wrapper.model is None: self.model_wrapper.init_model(fp16)
         self.on_model_init()
 
         model = self.model_wrapper._model
 
         # optimizer must be initialized after the model
         if self.optimizer is None and self._auto_optimize:
-            optim_params = [
+            optim_params: Iterable[Tuple[str, nn.Parameter]] = [
                 (n, param) for n, param in model.named_parameters()
                 if param.requires_grad
             ]
@@ -483,6 +487,12 @@ class ILearner(object):
             if self._optimize_on_cpu:
                 optim_params = [
                     (n, param.clone().detach().to('cpu').requires_grad_()) \
+                    for n, param in optim_params
+                ]
+
+            elif fp16:
+                optim_params = [
+                    (n, param.clone().detach().to('cpu').float().requires_grad_()) \
                     for n, param in optim_params
                 ]
 
@@ -538,13 +548,24 @@ class ILearner(object):
                             self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
                     if self.model_wrapper.is_pytorch_module() and self._auto_optimize: 
-                        if self._optimize_on_cpu:
-                            set_optimizer_params_grad(optim_params, model.named_parameters())
+                        if fp16 or self._optimize_on_cpu:
+                            if fp16 and loss_scale != 1.0:
+                                # scale down gradients for fp16 training
+                                for param in model.parameters():
+                                    if param.grad is not None:
+                                        param.grad.data = param.grad.data / loss_scale
 
-                        self.optimizer.step()
+                            is_nan = set_optimizer_params_grad(optim_params, model.named_parameters(), test_nan=True)
+                            if is_nan:
+                                print('FP16 TRAINING: Nan in gradients, reducing loss scaling')
+                                loss_scale = loss_scale / 2
+                                model.zero_grad()
+                            else:
+                                self.optimizer.step()
+                                copy_optimizer_params_to_model(model.named_parameters(), optim_params)
 
-                        if self._optimize_on_cpu:
-                            copy_optimizer_params_to_model(model.named_parameters(), optim_params)
+                        else:
+                            self.optimizer.step()
 
                         model.zero_grad()
                     
