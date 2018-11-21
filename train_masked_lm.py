@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 0.01}    
+        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 0.01}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -69,5 +69,6 @@ if __name__ == '__main__':
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
-        ]
+        ],
+        optimize_on_cpu=True
     )

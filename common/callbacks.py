@@ -223,7 +223,7 @@ class ReduceLROnPlateau(MetricsTriggeredCallback):
         patience:int = 1, 
         logging_fn:Callable = print, 
         reduce_factor: Union[int, float] = 5, 
-        min_lr:float = 1e-4):
+        min_lr:float = 1e-6):
         super(ReduceLROnPlateau, self).__init__(
             monitor=monitor,
             tolerance=tolerance,

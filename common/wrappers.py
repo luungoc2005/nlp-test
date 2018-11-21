@@ -471,10 +471,12 @@ class ILearner(object):
         if self.model_wrapper.model is None: self.model_wrapper.init_model()
         self.on_model_init()
 
+        model = self.model_wrapper._model
+
         # optimizer must be initialized after the model
         if self.optimizer is None and self._auto_optimize:
             optim_params = [
-                (n, param) for n, param in self.model_wrapper._model.named_parameters()
+                (n, param) for n, param in model.named_parameters()
                 if param.requires_grad
             ]
 
@@ -514,6 +516,8 @@ class ILearner(object):
 
                     for callback in self.callbacks: callback.on_batch_start()
 
+                    if self.model_wrapper.is_pytorch_module(): model.train()
+
                     epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
 
                     if epoch_ret is not None:
@@ -533,17 +537,16 @@ class ILearner(object):
                         else:
                             self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
-                    if self._auto_optimize: 
+                    if self.model_wrapper.is_pytorch_module() and self._auto_optimize: 
                         if self._optimize_on_cpu:
-                            set_optimizer_params_grad(optim_params, self.model_wrapper._model.named_parameters())
+                            set_optimizer_params_grad(optim_params, model.named_parameters())
 
                         self.optimizer.step()
 
                         if self._optimize_on_cpu:
                             copy_optimizer_params_to_model(model.named_parameters(), optim_params)
 
-                        if self.model_wrapper.is_pytorch_module():
-                            self.model_wrapper._model.zero_grad()
+                        model.zero_grad()
                     
                     for callback in self.callbacks: callback.on_batch_end()
 
