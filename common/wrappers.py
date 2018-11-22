@@ -381,7 +381,7 @@ class ILearner(object):
 
         if self._uneven_batch_size: batch_size = 1
 
-        if fp16 and 'loss_scale' in inspect.getmembers(self.on_epoch.__func__.__code__)['co_varnames']:
+        if fp16 and 'loss_scale' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
             print('FP16 is supported by this class')
         else:
             fp16 = False
