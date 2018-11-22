@@ -479,7 +479,7 @@ class ILearner(object):
 
         # optimizer must be initialized after the model
         if self.optimizer is None and self._auto_optimize:
-            optim_params: Iterable[Tuple[str, nn.Parameter]] = [
+            optim_params = [
                 (n, param) for n, param in model.named_parameters()
                 if param.requires_grad
             ]
