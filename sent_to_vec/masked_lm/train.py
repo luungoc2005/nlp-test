@@ -72,7 +72,7 @@ class LanguageModelLearner(ILearner):
     def on_model_init(self):
         print(self.model_wrapper.model)
 
-    def on_epoch(self, X, y):
+    def on_epoch(self, X, y, loss_scale=1.):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
@@ -97,6 +97,9 @@ class LanguageModelLearner(ILearner):
         if self.alpha: loss = loss + sum(self.alpha * dropped_rnn_h.pow(2).mean() for dropped_rnn_h in dropped_rnn_hs[-1:])
         # Temporal Activation Regularization (slowness)
         if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in rnn_hs[-1:])
+        
+        if loss_scale != 1.:
+            loss = loss * loss_scale
         
         loss.backward()
 

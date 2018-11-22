@@ -9,7 +9,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
 from typing import Iterable, Union, Callable, Tuple
-
+import inspect
 
 class IFeaturizer(object):
 
@@ -315,7 +315,7 @@ class ILearner(object):
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
-    def on_epoch(self, X, y) -> dict: return dict()
+    def on_epoch(self, X, y, fp16_loss_scale: float = 1.) -> dict: return dict()
 
     def calculate_metrics(self, logits, y): pass
 
@@ -380,6 +380,11 @@ class ILearner(object):
         callbacks: Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
+
+        if fp16 and 'loss_scale' in inspect.getmembers(self.on_epoch.__func__.__code__)['co_varnames']:
+            print('FP16 is supported by this class')
+        else:
+            fp16 = False
 
         if training_data is not None: self.set_training_data(training_data)
         if validation_data is not None: self.set_validation_data(validation_data)
@@ -528,7 +533,7 @@ class ILearner(object):
 
                     if self.model_wrapper.is_pytorch_module(): model.train()
 
-                    epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch))
+                    epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch), 1. if not fp16 else loss_scale)
 
                     if epoch_ret is not None:
                         if 'logits' in epoch_ret:
