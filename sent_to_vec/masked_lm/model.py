@@ -245,7 +245,7 @@ class BiLanguageModelWrapper(IModel):
         model = self._model
         if model.rnn_type != 'QRNN':
             for rnn in model.rnns:
-                if issubclass(type(rnn.module), nn.RNNBase):
+                if issubclass(type(rnn), nn.RNNBase):
                     rnn.flatten_parameters()
 
     # def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
