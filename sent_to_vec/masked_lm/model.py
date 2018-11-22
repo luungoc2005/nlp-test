@@ -35,8 +35,7 @@ class BiRNNLanguageModel(nn.Module):
         self.encoder = nn.Embedding(
             self.num_words, self.embedding_dim
         )
-        self.lockdrop:LockedDropout = to_gpu(LockedDropout())
-        self.rnns:Iterable[nn.Module] = nn.ModuleList([])
+        self.lockdrop = to_gpu(LockedDropout())
 
         # for the mean time weight drop is broken
         if self.rnn_type == 'LSTM':
@@ -98,7 +97,7 @@ class BiRNNLanguageModel(nn.Module):
                 for layer_ix in range(self.n_layers)
             ])
 
-        self.decoder:nn.Module = nn.Linear(
+        self.decoder = nn.Linear(
             self.embedding_dim if self.tie_weights else self.hidden_dim, 
             self.num_words
         )
