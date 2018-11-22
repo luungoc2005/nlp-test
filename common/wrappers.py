@@ -484,17 +484,17 @@ class ILearner(object):
                 if param.requires_grad
             ]
 
-            if self._optimize_on_cpu:
-                optim_params = [
-                    (n, param.clone().detach().to('cpu').requires_grad_()) \
-                    for n, param in optim_params
-                ]
-
-            elif fp16:
+            if fp16:
                 optim_params = [
                     (n, param.clone().detach().to('cpu').float().requires_grad_()) \
                     for n, param in optim_params
                 ]
+
+            elif self._optimize_on_cpu:
+                optim_params = [
+                    (n, param.clone().detach().to('cpu').requires_grad_()) \
+                    for n, param in optim_params
+                ] 
 
             self.optimizer = self._optimizer_fn(
                 [p for n, p in optim_params],
