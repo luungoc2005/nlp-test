@@ -221,16 +221,16 @@ class LockedDropout(nn.Module):
 # https://github.com/salesforce/awd-lstm-lm/blob/master/weight_drop.py
 class WeightDrop(nn.Module):
     def __init__(self, 
-        module:nn.Module, 
-        weights:list, 
-        dropout:float=0, 
-        variational:bool=False):
+        module: nn.Module, 
+        weights: list, 
+        dropout: float = 0, 
+        variational: bool = False):
 
         super(WeightDrop, self).__init__()
-        self.module:nn.Module = module
-        self.weights:list = weights
-        self.dropout:float = dropout
-        self.variational:bool = variational
+        self.module = module
+        self.weights = weights
+        self.dropout = dropout
+        self.variational = variational
         self._setup()
 
     def widget_demagnetizer_y2k_edition(*args, **kwargs):
