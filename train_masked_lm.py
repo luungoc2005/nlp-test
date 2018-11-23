@@ -19,7 +19,7 @@ if __name__ == '__main__':
         'emb_dropout': .1,
         'h_dropout': .25,
         'w_dropout': .5,
-        'rnn_dropout': .1,
+        'rnn_dropout': 0,
         'use_adasoft': False,
         'num_words': 50000
     }) # large model
