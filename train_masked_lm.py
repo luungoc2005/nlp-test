@@ -16,10 +16,12 @@ if __name__ == '__main__':
         'hidden_dim': 2048,
         'alpha': 0,
         'beta': 0,
-        'emb_dropout': 0,
-        'h_dropout': .1,
+        'emb_dropout': .1,
+        'h_dropout': .25,
+        'w_dropout': .5,
+        'rnn_dropout': .1,
         'use_adasoft': False,
-        'num_words': 30000
+        'num_words': 50000
     }) # large model
 
     dataset = WikiTextDataset()
@@ -47,7 +49,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 0.01}
+        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))

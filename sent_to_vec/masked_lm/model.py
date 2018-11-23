@@ -43,7 +43,8 @@ class BiRNNLanguageModel(nn.Module):
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
-                    bidirectional=True
+                    bidirectional=True,
+                    dropout=self.dropout_rnn
                 )
                 for layer_ix in range(self.n_layers)
             ])
@@ -57,7 +58,8 @@ class BiRNNLanguageModel(nn.Module):
                 nn.GRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
-                    bidirectional=True
+                    bidirectional=True,
+                    dropout=self.dropout_rnn
                 )
                 for layer_ix in range(self.n_layers)
             ])
