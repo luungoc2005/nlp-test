@@ -25,7 +25,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
-    BATCH_SIZE = 20
+    BATCH_SIZE = 64
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
