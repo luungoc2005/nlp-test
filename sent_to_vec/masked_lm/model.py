@@ -39,7 +39,7 @@ class BiRNNLanguageModel(nn.Module):
 
         # for the mean time weight drop is broken
         if self.rnn_type == 'LSTM':
-            self.rnns = nn.ModuleList([
+            self.rnns = [
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
@@ -47,14 +47,14 @@ class BiRNNLanguageModel(nn.Module):
                     dropout=self.dropout_rnn
                 )
                 for layer_ix in range(self.n_layers)
-            ])
+            ]
             if self.dropout_w:
                 self.rnns = [
                     WeightDrop(rnn, ['weight_hh_l0'], dropout=self.dropout_w) 
                     for rnn in self.rnns
                 ]
         elif self.rnn_type == 'GRU':
-            self.rnns = nn.ModuleList([
+            self.rnns = [
                 nn.GRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
@@ -62,7 +62,7 @@ class BiRNNLanguageModel(nn.Module):
                     dropout=self.dropout_rnn
                 )
                 for layer_ix in range(self.n_layers)
-            ])
+            ]
             if self.dropout_w:
                 self.rnns = [
                     WeightDrop(rnn, ['weight_hh_l0'], dropout=self.dropout_w) 
@@ -70,20 +70,20 @@ class BiRNNLanguageModel(nn.Module):
                 ]
         elif self.rnn_type == 'QRNN':
             from torchqrnn import QRNNLayer
-            self.rnns = self.rnns = nn.ModuleList([
+            self.rnns = self.rnns = [
                 QRNNLayer(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
-            ])
+            ]
             if self.dropout_w:
                 for rnn in self.rnns:
                     rnn.linear = WeightDrop(rnn.linear, ['weight'], dropout=self.dropout_w)
         else:
             from sru import SRU
-            self.rnns = nn.ModuleList([
+            self.rnns = [
                 to_gpu(SRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
                     self.hidden_dim // 2,
@@ -95,10 +95,11 @@ class BiRNNLanguageModel(nn.Module):
                     use_tanh=0,
                     bidirectional=True,
                     v1=True
-                )) 
+                ))
                 for layer_ix in range(self.n_layers)
-            ])
+            ]
 
+        self.rnns = nn.ModuleList(self.rnns)
         self.decoder = nn.Linear(
             self.embedding_dim if self.tie_weights else self.hidden_dim, 
             self.num_words
