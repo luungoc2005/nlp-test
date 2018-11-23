@@ -47,7 +47,7 @@ class LanguageModelLearner(ILearner):
                 # WikiText-103
                 splits = [2800, 20000, 76000]
             elif num_words > 20000:
-                splits = [2000, 10000]
+                splits = [2000, 4000, 10000]
             else:
                 splits = [num_words // 3, num_words // 3]
         
