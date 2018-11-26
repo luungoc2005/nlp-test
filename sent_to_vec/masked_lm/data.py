@@ -61,8 +61,11 @@ class WikiTextDataset(Dataset):
         self.raw_data = raw_data
         # self.process_raw(batch_size)
 
-    def get_save_name(self):
-        return 'wikitext-maskedlm-data.bin'
+    def get_save_name(self, num_words: int = None):
+        if num_words is None:
+            return 'wikitext-maskedlm-data.bin'
+        else:
+            return 'wikitext-maskedlm-data-{}.bin'.format(num_words)
 
     def save(self):
         torch.save({

@@ -25,13 +25,16 @@ def pad_sents(first_array, second_array):
 if __name__ == '__main__':
     dataset = WikiTextDataset()
 
-    SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
     model = BiLanguageModelWrapper(from_fp='masked-lm-checkpoint.bin')
     # model = BiLanguageModelWrapper()
     model.init_model()
 
+    SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
+    if not path.exists(SAVE_PATH):
+        SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
+
     if path.exists(SAVE_PATH):
-        print('Loading from previously saved file')
+        print('Loading from previously saved file at %s' % SAVE_PATH)
         dataset.load(SAVE_PATH, model)
     else:
         dataset.initialize(model, data_path=[
@@ -47,7 +50,7 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE, 
         shuffle=True, 
         collate_fn=collate_seq_lm_fn,
-        num_workers=torch.multiprocessing.cpu_count() - 1
+        num_workers=0
     )
 
     TEST_EPOCHS = 100

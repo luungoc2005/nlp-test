@@ -8,21 +8,26 @@ from config import BASE_PATH
 from common.modules import BertAdam
 
 if __name__ == '__main__':
-    model = BiLanguageModelWrapper({
-        'rnn_type': 'LSTM',
-        'n_layers': 4,
-        'tie_weights': True,
-        'embedding_dim': 2048,
-        'hidden_dim': 2048,
-        'alpha': 0,
-        'beta': 0,
-        'emb_dropout': .1,
-        'h_dropout': .25,
-        'w_dropout': .5,
-        'rnn_dropout': 0,
-        'use_adasoft': False,
-        'num_words': 50000
-    }) # large model
+    MODEL_PATH = 'masked-lm-checkpoint.bin'
+    if path.exists(MODEL_PATH):
+        print('Resuming from saved checkpoint')
+        model = BiLanguageModelWrapper(from_fp=MODEL_PATH)
+    else:
+        model = BiLanguageModelWrapper({
+            'rnn_type': 'LSTM',
+            'n_layers': 4,
+            'tie_weights': True,
+            'embedding_dim': 2048,
+            'hidden_dim': 2048,
+            'alpha': 0,
+            'beta': 0,
+            'emb_dropout': .1,
+            'h_dropout': .25,
+            'w_dropout': .5,
+            'rnn_dropout': 0,
+            'use_adasoft': False,
+            'num_words': 50000
+        }) # large model
 
     dataset = WikiTextDataset()
 
