@@ -1,5 +1,6 @@
 import torch
 import random
+import re
 # from common.torch_utils import to_gpu
 from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG, LM_SEQ_LEN
 from nltk.tokenize import sent_tokenize
@@ -7,6 +8,9 @@ from torch.utils.data import Dataset
 from os import path
 from typing import Union, Iterable, Tuple
 
+PATTERNS = [
+    (re.compile(r'[^\n]-[^\n]'), ' @-@ ')
+]
 def read_wikitext(file_path):
     assert path.exists(file_path), '{} does not exist'.format(file_path)
     sents = []
@@ -17,11 +21,15 @@ def read_wikitext(file_path):
                 continue
 
             for sent in sent_tokenize(line):
-                sents.append(sent \
+                processed_sent = sent \
                     .replace('<unk>', UNK_TAG) \
                     .replace('<UNK>', UNK_TAG) \
                     .replace('UNK', UNK_TAG)
-                )
+
+                for pattern in PATTERNS:
+                    re.sub(pattern[0], pattern[1], processed_sent)
+
+                sents.append(processed_sent)
 
     return sents
 
