@@ -65,7 +65,7 @@ class WikiTextDataset(Dataset):
 
         print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
         
-        print('Tokenizing files')
+        # print('Tokenizing files')
         # raw_data = self.featurizer.transform(self.raw_sents)
         # self.raw_data = raw_data
         # self.process_raw(batch_size)
@@ -99,7 +99,7 @@ class WikiTextDataset(Dataset):
 
     def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
-        raw_sent = self.featurizer.transform([self.raw_sents[index]])
+        raw_sent = self.featurizer.transform([self.raw_sents[index]])[0]
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
