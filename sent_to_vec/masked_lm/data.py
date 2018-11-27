@@ -12,7 +12,8 @@ def read_wikitext(file_path):
     sents = []
     with open(file_path, 'r', encoding='utf8') as f:
         for line in f:
-            if line.strip == '' or line.startswith(' = '):
+            stripped = line.strip()
+            if stripped == '' or stripped.startswith('=') or stripped.startswith('~~'):
                 continue
 
             for sent in sent_tokenize(line):

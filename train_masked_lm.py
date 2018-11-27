@@ -2,7 +2,7 @@ from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.data import WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
-from os import path
+from os import path, listdir
 from config import BASE_PATH
 # from torch.optim import RMSprop
 from common.modules import BertAdam
@@ -38,10 +38,18 @@ if __name__ == '__main__':
         print('Loading from previously saved file')
         dataset.load(SAVE_PATH, model)
     else:
-        dataset.initialize(model, data_path=[
+        paths = [
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
             path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
-        ])
+        ]
+        bookcorpus_path = path.join(BASE_PATH, 'data/bookcorpus')
+        if path.exists(bookcorpus_path):
+            paths.extend([
+                path.join(bookcorpus_path, filename)
+                for filename in listdir(bookcorpus_path)
+                if filename.lower().endswith('txt')
+            ])
+        dataset.initialize(model, data_path=paths)
         dataset.save()
 
     # learner = LanguageModelLearner(model, 
