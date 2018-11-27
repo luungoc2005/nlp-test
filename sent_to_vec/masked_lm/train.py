@@ -57,7 +57,8 @@ class LanguageModelLearner(ILearner):
 
             self.criterion = to_gpu(SplitCrossEntropyLoss(
                 hidden_dim, 
-                splits
+                splits,
+                ignore_index=0
             ))
         else:
             self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))

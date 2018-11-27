@@ -8,7 +8,7 @@ import numpy as np
 
 class SplitCrossEntropyLoss(nn.Module):
     r'''SplitCrossEntropyLoss calculates an approximate softmax'''
-    def __init__(self, hidden_size, splits, verbose=False):
+    def __init__(self, hidden_size, splits, verbose=False, ignore_index=None):
         # We assume splits is [0, split1, split2, N] where N >= |V|
         # For example, a vocab of 1000 words may have splits [0] + [100, 500] + [inf]
         super(SplitCrossEntropyLoss, self).__init__()
@@ -17,6 +17,7 @@ class SplitCrossEntropyLoss(nn.Module):
         self.nsplits = len(self.splits) - 1
         self.stats = defaultdict(list)
         self.verbose = verbose
+        self.ignore_index = ignore_index
         # Each of the splits that aren't in the head require a pretend token, we'll call them tombstones
         # The probability given to this tombstone is the probability of selecting an item from the represented split
         if self.nsplits > 1:
@@ -83,6 +84,8 @@ class SplitCrossEntropyLoss(nn.Module):
         mask = None
         for idx in range(1, self.nsplits):
             partial_mask = targets >= self.splits[idx]
+            if self.ignore_index is not None:
+                partial_mask = partial_mask != self.ignore_index
             mask = mask + partial_mask if mask is not None else partial_mask
         ###
         #masks = torch.stack([targets] * (self.nsplits - 1))
