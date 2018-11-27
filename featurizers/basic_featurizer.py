@@ -62,7 +62,7 @@ class BasicFeaturizer(IFeaturizer):
         
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
-    def transform(self, data):
+    def transform(self, data, to_tensor=None):
         try:
             _ = (it for it in data)
             if len(data) < 1: return # Must have at least 1 item
@@ -71,7 +71,7 @@ class BasicFeaturizer(IFeaturizer):
 
         tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
 
-        if self.to_tensor:
+        if to_tensor if to_tensor is not None else self.to_tensor:
             lengths = [len(seq) for seq in tokens]
             max_seq_len = max(lengths)
             if self.featurizer_seq_len > 0:

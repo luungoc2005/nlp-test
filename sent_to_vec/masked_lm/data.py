@@ -135,10 +135,19 @@ class WikiTextDataset(Dataset):
             else:
                 return first_sent, self.get_sent(index + 1), True
 
+def collate_sent(data):
+    max_seq_len = max([len(item) for item in data])
+    ret_val = torch.zeros(len(data), max_seq_len)
+    for ix, seq in enumerate(data):
+        seq_len = min(max_seq_len, len(seq))
+        ret_val[ix, :seq_len] = seq
+    return ret_val.long().t().contiguous()
+
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
-    return torch.stack(X_data, 0).t().contiguous(), torch.stack(y_data, 0).t().contiguous().view(-1)
+    # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
+    return collate_sent(X_data), collate_sent(y_data)
 
 def collate_seq_lm_fn(data) -> Iterable:
     if len(data[0]) == 2: # first task
