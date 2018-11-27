@@ -55,13 +55,17 @@ class LanguageModelLearner(ILearner):
 
             self.model_wrapper.config['adasoft_cutoffs'] = splits
 
-            self.criterion = to_gpu(SplitCrossEntropyLoss(
+            self.criterion = SplitCrossEntropyLoss(
                 hidden_dim, 
                 splits,
                 ignore_index=0
-            ))
+            )
         else:
-            self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0))
+            self.criterion = nn.CrossEntropyLoss(ignore_index=0)
+
+        if self.fp16:
+            self.criterion.half()
+        self.criterion = to_gpu(self.criterion)
         
         self.model_wrapper.config['num_words'] = num_words
 

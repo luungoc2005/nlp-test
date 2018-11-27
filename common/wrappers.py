@@ -264,6 +264,7 @@ class ILearner(object):
         self._uneven_batch_size = uneven_batch_size
         self._collate_fn = collate_fn
         self._halt = False # prematurely halt training
+        self.fp16 = False
 
         if data is not None:
             self.set_training_data(data)
@@ -383,8 +384,10 @@ class ILearner(object):
 
         if fp16 and 'loss_scale' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
             print('FP16 is supported by this class')
+            self.fp16 = True
         else:
             fp16 = False
+            self.fp16 = False
 
         if training_data is not None: self.set_training_data(training_data)
         if validation_data is not None: self.set_validation_data(validation_data)
