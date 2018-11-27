@@ -66,8 +66,8 @@ class WikiTextDataset(Dataset):
         print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
         
         print('Tokenizing files')
-        raw_data = self.featurizer.transform(self.raw_sents)
-        self.raw_data = raw_data
+        # raw_data = self.featurizer.transform(self.raw_sents)
+        # self.raw_data = raw_data
         # self.process_raw(batch_size)
 
     def get_save_name(self, num_words: int = None):
@@ -79,7 +79,6 @@ class WikiTextDataset(Dataset):
     def save(self):
         torch.save({
             'featurizer': self.featurizer,
-            'data': self.raw_data,
             'raw_sents': self.raw_sents
         }, self.get_save_name())
         print('Finished saving preprocessed dataset')
@@ -89,18 +88,18 @@ class WikiTextDataset(Dataset):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
-        self.raw_data = state['data']
+        self.raw_sents = state['raw_sents']
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
 
     def __len__(self) -> int:
         # return self.n_batch
-        return len(self.raw_data)
+        return len(self.raw_sents)
 
     def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
-        raw_sent = self.raw_data[index]
+        raw_sent = self.featurizer.transform([self.raw_sents[index]])
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
@@ -131,8 +130,8 @@ class WikiTextDataset(Dataset):
             return self.get_sent(index)
         else:
             first_sent = self.get_sent(index)
-            if index == len(self.raw_data) - 1 or random.random() < 0.5:
-                return first_sent, self.get_sent(random.randrange(0, len(self.raw_data) - 1)), False
+            if index == len(self.raw_sents) - 1 or random.random() < 0.5:
+                return first_sent, self.get_sent(random.randrange(0, len(self.raw_sents) - 1)), False
             else:
                 return first_sent, self.get_sent(index + 1), True
 

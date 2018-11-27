@@ -259,6 +259,7 @@ class ILearner(object):
         self._metrics = None
         self._current_epoch = 0
         self._batch_idx = 0
+        self._batch_size = 0
         self._auto_optimize = auto_optimize
         self._preprocess_batch = preprocess_batch
         self._uneven_batch_size = uneven_batch_size
@@ -381,6 +382,8 @@ class ILearner(object):
         callbacks: Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
+
+        self._batch_size = batch_size
 
         if fp16 and 'loss_scale' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
             print('FP16 is supported by this class')
