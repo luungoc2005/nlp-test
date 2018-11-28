@@ -552,7 +552,7 @@ class ILearner(object):
 
                     kwargs = {'X': to_gpu(X_batch), 'Y': to_gpu(y_batch)}
                     if fp16:
-                        kwargs['fp16_loss_scale'] = loss_scale
+                        kwargs['loss_scale'] = loss_scale
                     if gradient_accumulation_steps > 1:
                         kwargs['gradient_accumulation_steps'] = self.gradient_accumulation_steps
 
