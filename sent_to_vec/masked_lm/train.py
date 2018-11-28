@@ -70,7 +70,7 @@ class LanguageModelLearner(ILearner):
         self.model_wrapper.config['num_words'] = num_words
 
         # regularization
-        self.clip_grad = config.get('clip_grad', 1.)
+        self.clip_grad = config.get('clip_grad', 5.)
         self.alpha = config.get('alpha', 2)
         self.beta = config.get('beta', 1)
         self.batch_size = 0
