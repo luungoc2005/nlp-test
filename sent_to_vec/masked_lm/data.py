@@ -50,7 +50,7 @@ class WikiTextDataset(Dataset):
                 file_sents = read_wikitext(file_path)
                 self.raw_sents.extend(file_sents)
                 print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
-                print('Sample sentence: {}'.format(random.choice(file_sents.decode('utf-8'))))
+                print('Sample sentence: {}'.format(random.choice(file_sents).decode('utf-8')))
 
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         self.featurizer = model_wrapper.featurizer
