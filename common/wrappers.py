@@ -550,13 +550,14 @@ class ILearner(object):
 
                     if self.model_wrapper.is_pytorch_module(): model.train()
 
-                    kwargs = {'X': to_gpu(X_batch), 'Y': to_gpu(y_batch)}
+                    args = to_gpu(X_batch), to_gpu(y_batch)
+                    kwargs = {}
                     if fp16:
                         kwargs['loss_scale'] = loss_scale
                     if gradient_accumulation_steps > 1:
                         kwargs['gradient_accumulation_steps'] = self.gradient_accumulation_steps
 
-                    epoch_ret = self.on_epoch(**kwargs)
+                    epoch_ret = self.on_epoch(*args, **kwargs)
 
                     if epoch_ret is not None:
                         if 'logits' in epoch_ret:
