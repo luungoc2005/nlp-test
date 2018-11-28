@@ -266,6 +266,7 @@ class ILearner(object):
         self._collate_fn = collate_fn
         self._halt = False # prematurely halt training
         self.fp16 = False
+        self.gradient_accumulation_steps = 1
 
         if data is not None:
             self.set_training_data(data)
@@ -317,7 +318,10 @@ class ILearner(object):
     # Runs the forward pass
     # Returns: (loss, logits) loss and raw results of the model
     
-    def on_epoch(self, X, y, fp16_loss_scale: float = 1.) -> dict: return dict()
+    def on_epoch(self, 
+        X, y, 
+        fp16_loss_scale: float = 1., 
+        gradient_accumulation_steps: int = 1) -> dict: return dict()
 
     def calculate_metrics(self, logits, y): pass
 
@@ -379,6 +383,7 @@ class ILearner(object):
         optimize_on_cpu: bool = False,
         fp16: bool = False,
         loss_scale: float = 128,
+        gradient_accumulation_steps: int = 1,
         callbacks: Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
@@ -391,6 +396,12 @@ class ILearner(object):
         else:
             fp16 = False
             self.fp16 = False
+
+        if gradient_accumulation_steps and 'gradient_accumulation_steps' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
+            print('Gradient accumulation is supported by this class')
+            self.gradient_accumulation_steps = gradient_accumulation_steps
+        else:
+            self.gradient_accumulation_steps = 1
 
         if training_data is not None: self.set_training_data(training_data)
         if validation_data is not None: self.set_validation_data(validation_data)
@@ -539,7 +550,13 @@ class ILearner(object):
 
                     if self.model_wrapper.is_pytorch_module(): model.train()
 
-                    epoch_ret = self.on_epoch(to_gpu(X_batch), to_gpu(y_batch), 1. if not fp16 else loss_scale)
+                    kwargs = {'X': to_gpu(X_batch), 'Y': to_gpu(y_batch)}
+                    if fp16:
+                        kwargs['fp16_loss_scale'] = loss_scale
+                    if gradient_accumulation_steps > 1:
+                        kwargs['gradient_accumulation_steps'] = self.gradient_accumulation_steps
+
+                    epoch_ret = self.on_epoch(**kwargs)
 
                     if epoch_ret is not None:
                         if 'logits' in epoch_ret:
@@ -559,26 +576,27 @@ class ILearner(object):
                             self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
                     if self.model_wrapper.is_pytorch_module() and self._auto_optimize: 
-                        if fp16 or self._optimize_on_cpu:
-                            if fp16 and loss_scale != 1.0:
-                                # scale down gradients for fp16 training
-                                for param in model.parameters():
-                                    if param.grad is not None:
-                                        param.grad.data = param.grad.data / loss_scale
+                        if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
+                            if fp16 or self._optimize_on_cpu:
+                                if fp16 and loss_scale != 1.0:
+                                    # scale down gradients for fp16 training
+                                    for param in model.parameters():
+                                        if param.grad is not None:
+                                            param.grad.data = param.grad.data / loss_scale
 
-                            is_nan = set_optimizer_params_grad(optim_params, model.named_parameters(), test_nan=True)
-                            if is_nan:
-                                print('FP16 TRAINING: Nan in gradients, reducing loss scaling')
-                                loss_scale = loss_scale / 2
-                                model.zero_grad()
+                                is_nan = set_optimizer_params_grad(optim_params, model.named_parameters(), test_nan=True)
+                                if is_nan:
+                                    print('FP16 TRAINING: Nan in gradients, reducing loss scaling')
+                                    loss_scale = loss_scale / 2
+                                    model.zero_grad()
+                                else:
+                                    self.optimizer.step()
+                                    copy_optimizer_params_to_model(model.named_parameters(), optim_params)
+
                             else:
                                 self.optimizer.step()
-                                copy_optimizer_params_to_model(model.named_parameters(), optim_params)
 
-                        else:
-                            self.optimizer.step()
-
-                        model.zero_grad()
+                            model.zero_grad()
                     
                     for callback in self.callbacks: callback.on_batch_end()
 

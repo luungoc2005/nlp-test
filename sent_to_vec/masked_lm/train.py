@@ -79,7 +79,7 @@ class LanguageModelLearner(ILearner):
     def on_model_init(self):
         print(self.model_wrapper.model)
 
-    def on_epoch(self, X, y, loss_scale=1.):
+    def on_epoch(self, X, y, loss_scale:float = 1., gradient_accumulation_steps:int = 1.):
         batch_size = X.size(1)
         hidden = self.model_wrapper.model.init_hidden(batch_size)
 
@@ -107,6 +107,9 @@ class LanguageModelLearner(ILearner):
         
         if loss_scale != 1.:
             loss = loss * loss_scale
+
+        if gradient_accumulation_steps > 1:
+            loss = loss / gradient_accumulation_steps
         
         loss.backward()
 
