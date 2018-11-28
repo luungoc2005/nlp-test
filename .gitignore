@@ -69,6 +69,10 @@ data/wikitext2/
 data/wikitext2raw/
 data/wikitext103/
 data/wikitext103raw/
+data/glove
+data/GloVe
+data/bookcorpus/
+data/*.zip
 output/
 flask_app/uploads/
 

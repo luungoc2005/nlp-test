@@ -37,8 +37,8 @@ class PeriodicCallback(ICallback):
         every_epoch:int = 1,
         trigger_fn_batch:Callable = None,
         trigger_fn_epoch:Callable = None,
-        fn_batch_args:object = {},
-        fn_epoch_args:object = {},
+        fn_batch_kwargs:object = {},
+        fn_epoch_kwargs:object = {},
         metrics:Iterable[str] = ['loss', 'accuracy']):
 
         super(PeriodicCallback, self).__init__()
@@ -47,8 +47,8 @@ class PeriodicCallback(ICallback):
         self.metrics = metrics
         self.trigger_fn_batch = trigger_fn_batch
         self.trigger_fn_epoch = trigger_fn_epoch
-        self.fn_batch_kargs={}
-        self.fn_epoch_kargs={}
+        self.fn_batch_kwargs = fn_batch_kwargs
+        self.fn_epoch_kwargs = fn_epoch_kwargs
 
     def on_training_start(self):
         self.start = time.time()
@@ -56,12 +56,12 @@ class PeriodicCallback(ICallback):
     def on_batch_end(self):
         if self.every_batch > 0 and self.trigger_fn_batch is not None:
             if ((self._learner._batch_idx + 1) % self.every_batch) == 0:
-                self.trigger_fn_batch(**self.fn_batch_kargs)
+                self.trigger_fn_batch(**self.fn_batch_kwargs)
 
     def on_epoch_end(self):
         if self.every_epoch > 0 and self.trigger_fn_epoch is not None:
             if ((self._learner._current_epoch + 1) % self.every_epoch) == 0:
-                self.trigger_fn_epoch(**self.fn_epoch_kargs)
+                self.trigger_fn_epoch(**self.fn_epoch_kwargs)
 
 class PrintLoggerCallback(PeriodicCallback):
 
@@ -76,7 +76,7 @@ class PrintLoggerCallback(PeriodicCallback):
             every_epoch=log_every,
             metrics=metrics,
             trigger_fn_batch=self.print_line,
-            fn_batch_args={'print_minibatch': True},
+            fn_epoch_kwargs={'print_minibatch': True},
             trigger_fn_epoch=self.print_line
         )
         self.log_every = log_every
@@ -123,7 +123,7 @@ class TensorboardCallback(PeriodicCallback):
             every_epoch=log_every,
             metrics=metrics,
             trigger_fn_batch=self.print_line,
-            fn_batch_args={'print_minibatch': True},
+            fn_epoch_kwargs={'print_minibatch': True},
             trigger_fn_epoch=self.print_line
         )
         self.log_every = log_every

@@ -25,14 +25,14 @@ if __name__ == '__main__':
             'h_dropout': .25,
             'w_dropout': .5,
             'rnn_dropout': 0,
-            'use_adasoft': False,
+            'use_adasoft': True,
             'num_words': 50000
         }) # large model
 
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
-    BATCH_SIZE = 64
+    BATCH_SIZE = 80
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
