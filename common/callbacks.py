@@ -84,6 +84,12 @@ class PrintLoggerCallback(PeriodicCallback):
         self.metrics = metrics
         self.logging_fn = logging_fn
         self.last_log_at = 0
+        self.last_log_batch_idx = 0
+
+    def on_epoch_start(self):
+        super().on_epoch_start()
+        self.last_log_at = time.time()
+        self.last_log_batch_idx = 0
 
     def print_line(self, print_minibatch=False):
         if print_minibatch == False:
@@ -101,7 +107,9 @@ class PrintLoggerCallback(PeriodicCallback):
                 self._learner._current_epoch + 1,
                 progress * 100
             )
-            print_line += ' - %.2f it/s' % ()
+            print_line += ' - %.2f it/s' % (self._learner._batch_idx - self.last_log_batch_idx) / (time.time() - self.last_log_at)
+            self.last_log_at = time.time()
+            self.last_log_batch_idx = self._learner._batch_idx
         metrics = self.learner.metrics
         # metrics = self.learner._batch_metrics
         if metrics is not None:
