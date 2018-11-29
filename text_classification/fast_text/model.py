@@ -89,8 +89,8 @@ class FastTextWrapper(IModel):
     def preprocess_output(self, y):
         # One-hot encode outputs
         # Can also use torch.eye() but leaving as numpy until torch achieves performance parity
-        # lookup = np.eye(self.num_classes)
-        # outputs = np.array([lookup[label] for label in y])
+        # lookup = np.eye(self.config['num_classes'])
+        # outputs = np.array([lookup[label] for label in self.label_encoder.transform(y)])
         # return to_gpu(torch.from_numpy(outputs).float())
 
         return torch.from_numpy(self.label_encoder.transform(y)).long()

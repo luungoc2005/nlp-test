@@ -475,19 +475,17 @@ class ILearner(object):
             mp.set_start_method('spawn')
 
         if not self._uneven_batch_size:
-            if self._collate_fn is None:
-                data_loader = DataLoader(dataset, 
-                    batch_size=batch_size, 
-                    num_workers=cpu_count,
-                    shuffle=shuffle
-                )
-            else:
-                data_loader = DataLoader(dataset, 
-                    batch_size=batch_size, 
-                    num_workers=cpu_count,
-                    shuffle=shuffle,
-                    collate_fn=self._collate_fn
-                )
+            loader_kwargs = {
+                'batch_size': batch_size, 
+                'num_workers': cpu_count,
+                'shuffle': shuffle
+            }
+            if USE_GPU:
+                loader_kwargs['pin_memory'] = True
+            if self._collate_fn is not None:
+                loader_kwargs['collate_fn'] = self._collate_fn
+            
+            data_loader = DataLoader(dataset, **loader_kwargs)
         else:
             data_loader = [([X[idx]], [y[idx]]) for idx in range(len(X))]
 
