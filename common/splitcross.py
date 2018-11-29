@@ -172,7 +172,7 @@ class SplitCrossEntropyLoss(nn.Module):
             loss = entropy.float().sum()
             total_loss = loss if total_loss is None else total_loss + loss
 
-        if self.ignore_index is not None:
+        if self.ignore_index is None:
             return (total_loss / len(targets)).type_as(weight)
         else:
             return (total_loss / (sum(targets != self.ignore_index) + 1e-8)).type_as(weight)
