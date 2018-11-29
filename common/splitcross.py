@@ -175,7 +175,7 @@ class SplitCrossEntropyLoss(nn.Module):
         if self.ignore_index is None:
             return (total_loss / len(targets)).type_as(weight)
         else:
-            return (total_loss / (sum(targets != self.ignore_index) + 1e-8)).type_as(weight)
+            return (total_loss / (torch.sum(targets != self.ignore_index).float() + 1e-8)).type_as(weight)
 
 
 if __name__ == '__main__':
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     E = 10
 
     embed = torch.nn.Embedding(V, H)
-    crit = SplitCrossEntropyLoss(hidden_size=H, splits=[V // 2])
+    crit = SplitCrossEntropyLoss(hidden_size=H, splits=[V // 2], ignore_index=0)
     bias = torch.nn.Parameter(torch.ones(V))
     optimizer = torch.optim.SGD(list(embed.parameters()) + list(crit.parameters()), lr=1)
 
