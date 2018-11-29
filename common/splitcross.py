@@ -175,7 +175,7 @@ class SplitCrossEntropyLoss(nn.Module):
         if self.ignore_index is not None:
             return (total_loss / len(targets)).type_as(weight)
         else:
-            return (total_loss / sum(targets != self.ignore_index)).type_as(weight)
+            return (total_loss / (sum(targets != self.ignore_index) + 1e-8)).type_as(weight)
 
 
 if __name__ == '__main__':
