@@ -12,6 +12,9 @@ from featurizers.fasttext_featurizer import FastTextFeaturizer
 from text_classification.utils.inference import infer_classification_output
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 
+import pyro
+from pyro.distributions import Normal, Categorical
+
 class FastText(nn.Module):
 
     def __init__(self, config={}):
@@ -29,7 +32,6 @@ class FastText(nn.Module):
         self.embedding = nn.EmbeddingBag(self.max_features, self.embedding_dim)
         if self.embedding_matrix is not None:
             self.embedding.from_pretrained(self.embedding_matrix)
-        self.embedding.requires_grad = False
 
         self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
         self.i2h = nn.Linear(self.embedding_dim, self.hidden_size, bias=False)
@@ -64,11 +66,13 @@ class FastTextWrapper(IModel):
             model_class=FastText, 
             config=config, 
             featurizer=FastTextFeaturizer(),
+            predict_fn=self.predict,
             *args, **kwargs
         )
         self.config = config
         self.topk = config.get('top_k', 5)
         self.label_encoder = LabelEncoder()
+        self.num_samples = config.get('num_samples', 100)
 
     def get_state_dict(self):
         return {
@@ -85,6 +89,90 @@ class FastTextWrapper(IModel):
 
         # load label encoder
         self.label_encoder = state_dict['label_encoder']
+
+    def init_model(self):
+        super().init_model()
+
+        model = self.model
+
+        def pyro_model(X_data, y_data):
+            model.embedding.requires_grad = False
+            scale = 5.
+            i2h_w_prior = Normal(
+                loc=torch.zeros_like(model.i2h.weight), 
+                scale=torch.ones_like(model.i2h.weight) * scale
+            ).independent(1)
+            # i2h_b_prior = Normal(
+            #     loc=torch.zeros_like(model.i2h.bias), 
+            #     scale=torch.ones_like(model.i2h.bias)
+            # ).independent(1)
+            h2o_w_prior = Normal(
+                loc=torch.zeros_like(model.h2o.weight), 
+                scale=torch.ones_like(model.h2o.weight) * scale
+            ).independent(1)
+            h2o_b_prior = Normal(
+                loc=torch.zeros_like(model.h2o.bias), 
+                scale=torch.ones_like(model.h2o.bias) * scale
+            ).independent(1)
+            priors = {
+                'i2h.weight': i2h_w_prior, 
+                # 'i2h.bias': i2h_b_prior,  
+                'h2o.weight': h2o_w_prior, 
+                'h2o.bias': h2o_b_prior
+            }
+            lifted_module = pyro.random_module('module', model, priors)
+            lifted_reg_model = lifted_module()
+
+            lhat = F.log_softmax(lifted_reg_model(X_data), dim=1)
+            pyro.sample('obs', Categorical(logits=lhat), obs=y_data)
+
+        def pyro_guide(X_data, y_data):
+            softplus = nn.Softplus()
+
+            # First layer weight distribution priors
+            i2h_w_mu = torch.randn_like(model.i2h.weight)
+            i2h_w_sigma = torch.randn_like(model.i2h.weight)
+            i2h_w_mu_param = pyro.param("i2h_mu", i2h_w_mu)
+            i2h_w_sigma_param = softplus(pyro.param("i2h_sigma", i2h_w_sigma))
+            # i2h_w_sigma_param = pyro.param("i2h_sigma", i2h_w_sigma)
+            i2h_w_prior = Normal(loc=i2h_w_mu_param, scale=i2h_w_sigma_param)
+
+            # First layer bias distribution priors
+            # i2h_b_mu = torch.randn_like(model.i2h.bias)
+            # i2h_b_sigma = torch.randn_like(model.i2h.bias)
+            # i2h_b_mu_param = pyro.param("i2h_b_mu", i2h_b_mu)
+            # i2h_b_sigma_param = softplus(pyro.param("i2h_b_sigma", i2h_b_sigma))
+            # i2h_b_prior = Normal(loc=i2h_b_mu_param, scale=i2h_b_sigma_param)
+            
+            # Output layer weight distribution priors
+            h2o_w_mu = torch.randn_like(model.h2o.weight)
+            h2o_w_sigma = torch.randn_like(model.h2o.weight)
+            h2o_w_mu_param = pyro.param("h2o_w_mu", h2o_w_mu)
+            h2o_w_sigma_param = softplus(pyro.param("h2o_w_sigma", h2o_w_sigma))
+            # h2o_w_sigma_param = pyro.param("h2o_w_sigma", h2o_w_sigma)
+            h2o_w_prior = Normal(loc=h2o_w_mu_param, scale=h2o_w_sigma_param)
+
+            # Output layer bias distribution priors
+            h2o_b_mu = torch.randn_like(model.h2o.bias)
+            h2o_b_sigma = torch.randn_like(model.h2o.bias)
+            h2o_b_mu_param = pyro.param("h2o_b_mu", h2o_b_mu)
+            h2o_b_sigma_param = softplus(pyro.param("h2o_b_sigma", h2o_b_sigma))
+            # h2o_b_sigma_param = pyro.param("h2o_b_sigma", h2o_b_sigma)
+            h2o_b_prior = Normal(loc=h2o_b_mu_param, scale=h2o_b_sigma_param).independent(1)
+            
+            priors = {
+                'i2h.weight': i2h_w_prior, 
+                # 'i2h.bias': i2h_b_prior, 
+                'h2o.weight': h2o_w_prior, 
+                'h2o.bias': h2o_b_prior
+            }
+            
+            lifted_module = pyro.random_module("module", model, priors)
+            
+            return lifted_module()
+
+        self.pyro_guide = pyro_guide
+        self.pyro_model = pyro_model
 
     def preprocess_output(self, y):
         # One-hot encode outputs
@@ -107,6 +195,12 @@ class FastTextWrapper(IModel):
     def encode(self, sents):
         emb = self._featurizer.transform(sents)
         return emb
-    
+
+    def predict(self, X):
+        sampled_models = [self.pyro_guide(None, None) for _ in range(self.num_samples)]
+        yhats = [model(X).data for model in sampled_models]
+        mean = torch.mean(torch.stack(yhats), 0)
+        return mean
+
     def infer_predict(self, logits, topk=None):
         return infer_classification_output(self, logits, topk)

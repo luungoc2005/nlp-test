@@ -141,7 +141,16 @@ class BiRNNLanguageModel(nn.Module):
                 ))
                 for l in range(self.n_layers)
             ]
-        elif self.rnn_type == 'SRU' or self.rnn_type == 'GRU':
+        elif self.rnn_type == 'GRU':
+            return [
+                to_gpu(torch.zeros(
+                    2, 
+                    batch_size, 
+                    self.hidden_dim // 2
+                ))
+                for l in range(self.n_layers)
+            ]
+        elif self.rnn_type == 'SRU':
             return [
                 to_gpu(torch.zeros(
                     1, 
@@ -150,6 +159,8 @@ class BiRNNLanguageModel(nn.Module):
                 ))
                 for l in range(self.n_layers)
             ]
+        else:
+            return None
 
     def embedded_dropout(self, 
         embed:nn.Module, 

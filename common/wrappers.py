@@ -492,7 +492,11 @@ class ILearner(object):
         if self.model_wrapper._featurizer is not None:
             self.model_wrapper.config['input_shape'] = self.model_wrapper._featurizer.get_output_shape()
 
-        if self.model_wrapper.model is None: self.model_wrapper.init_model(fp16)
+        if self.model_wrapper.model is None: 
+            if fp16:
+                self.model_wrapper.init_model(fp16)
+            else:
+                self.model_wrapper.init_model()
         self.on_model_init()
 
         model = self.model_wrapper._model
@@ -546,7 +550,7 @@ class ILearner(object):
 
                     for callback in self.callbacks: callback.on_batch_start()
 
-                    if self.model_wrapper.is_pytorch_module(): model.train()
+                    if model is not None and self.model_wrapper.is_pytorch_module(): model.train()
 
                     args = to_gpu(X_batch), to_gpu(y_batch)
                     kwargs = {}
