@@ -96,24 +96,24 @@ class FastTextWrapper(IModel):
         model = self.model
 
         def pyro_model(X_data, y_data):
-            model.embedding.requires_grad = False
-            scale = 5.
+            # model.embedding.requires_grad = False
+            scale = 1.
             i2h_w_prior = Normal(
                 loc=torch.zeros_like(model.i2h.weight), 
                 scale=torch.ones_like(model.i2h.weight) * scale
-            ).independent(1)
+            )
             # i2h_b_prior = Normal(
             #     loc=torch.zeros_like(model.i2h.bias), 
             #     scale=torch.ones_like(model.i2h.bias)
-            # ).independent(1)
+            # )
             h2o_w_prior = Normal(
                 loc=torch.zeros_like(model.h2o.weight), 
                 scale=torch.ones_like(model.h2o.weight) * scale
-            ).independent(1)
+            )
             h2o_b_prior = Normal(
                 loc=torch.zeros_like(model.h2o.bias), 
                 scale=torch.ones_like(model.h2o.bias) * scale
-            ).independent(1)
+            )
             priors = {
                 'i2h.weight': i2h_w_prior, 
                 # 'i2h.bias': i2h_b_prior,  
@@ -158,7 +158,7 @@ class FastTextWrapper(IModel):
             h2o_b_mu_param = pyro.param("h2o_b_mu", h2o_b_mu)
             h2o_b_sigma_param = softplus(pyro.param("h2o_b_sigma", h2o_b_sigma))
             # h2o_b_sigma_param = pyro.param("h2o_b_sigma", h2o_b_sigma)
-            h2o_b_prior = Normal(loc=h2o_b_mu_param, scale=h2o_b_sigma_param).independent(1)
+            h2o_b_prior = Normal(loc=h2o_b_mu_param, scale=h2o_b_sigma_param)
             
             priors = {
                 'i2h.weight': i2h_w_prior, 

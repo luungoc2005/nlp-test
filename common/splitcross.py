@@ -168,7 +168,7 @@ class SplitCrossEntropyLoss(nn.Module):
             ###
             running_offset += len(split_hiddens[idx])
             if self.ignore_index is not None:
-                entropy[:self.ignore_index] = 0
+                entropy = entropy.masked_select(targets != self.ignore_index)
             loss = entropy.float().sum()
             total_loss = loss if total_loss is None else total_loss + loss
 

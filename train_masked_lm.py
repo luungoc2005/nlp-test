@@ -80,12 +80,12 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE,
         epochs=100,
         callbacks=[
-            PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
+            PrintLoggerCallback(log_every_batch=10, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
-        ],
-        gradient_accumulation_steps=3,
-        optimize_on_cpu=True,
-        fp16=True
+        ]
+        # gradient_accumulation_steps=3,
+        # optimize_on_cpu=True,
+        # fp16=True
     )

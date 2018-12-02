@@ -15,7 +15,7 @@ class FastTextLearner(ILearner):
 
     def __init__(self, model, *args, **kwargs):
         super(FastTextLearner, self).__init__(model, *args, auto_optimize=False, **kwargs)
-        self.emb_train_epochs = self.model_wrapper.config.get('emb_train_epochs', .3)
+        self.emb_train_epochs = self.model_wrapper.config.get('emb_train_epochs', 0)
 
     def init_on_data(self, X, y):
         self.model_wrapper.label_encoder.fit(y)
@@ -41,7 +41,7 @@ class FastTextLearner(ILearner):
             if not self.start_finetune:
                 print('Switching to pyro')
                 self.start_finetune = True
-                self.optimizer = Adam({"lr": 1e-2})
+                self.optimizer = Adam({"lr": 1e-3})
                 self.svi = SVI(self.model_wrapper.pyro_model, self.model_wrapper.pyro_guide, self.optimizer, loss=Trace_ELBO())
         else:
             if self.optimizer is None:
