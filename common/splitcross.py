@@ -82,10 +82,12 @@ class SplitCrossEntropyLoss(nn.Module):
         ###
         # This is equally fast for smaller splits as method below but scales linearly
         mask = None
+
         for idx in range(1, self.nsplits):
-            partial_mask = targets >= self.splits[idx]
             if self.ignore_index is not None:
-                partial_mask = partial_mask != self.ignore_index
+                partial_mask = (targets >= self.splits[idx]) & (targets != self.ignore_index)
+            else:
+                partial_mask = targets >= self.splits[idx]
             mask = mask + partial_mask if mask is not None else partial_mask
         ###
         #masks = torch.stack([targets] * (self.nsplits - 1))
@@ -163,19 +165,19 @@ class SplitCrossEntropyLoss(nn.Module):
                 # All indices are shifted - if the first split handles [0,...,499] then the 500th in the second split will be 0 indexed
                 indices = (split_targets[idx] - self.splits[idx]).view(-1, 1)
                 # Warning: if you don't squeeze, you get an N x 1 return, which acts oddly with broadcasting
-                tail_entropy = torch.gather(torch.nn.functional.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
+                tail_entropy = torch.gather(
+                    torch.nn.functional.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
                 entropy = -(head_entropy + tail_entropy)
             ###
             running_offset += len(split_hiddens[idx])
-            if self.ignore_index is not None:
-                entropy = entropy.masked_select(split_targets[idx] != self.ignore_index)
+
             loss = entropy.float().sum()
             total_loss = loss if total_loss is None else total_loss + loss
 
         if self.ignore_index is None:
             return (total_loss / len(targets)).type_as(weight)
         else:
-            return (total_loss / (torch.sum(targets != self.ignore_index).float() + 1e-8)).type_as(weight)
+            return (total_loss / ((targets != self.ignore_index).float().sum() + 1e-8)).type_as(weight)
 
 
 if __name__ == '__main__':
@@ -191,6 +193,7 @@ if __name__ == '__main__':
 
     embed = torch.nn.Embedding(V, H)
     crit = SplitCrossEntropyLoss(hidden_size=H, splits=[V // 2], ignore_index=0)
+    gt_crit = torch.nn.CrossEntropyLoss(ignore_index=0)
     bias = torch.nn.Parameter(torch.ones(V))
     optimizer = torch.optim.SGD(list(embed.parameters()) + list(crit.parameters()), lr=1)
 
@@ -198,8 +201,12 @@ if __name__ == '__main__':
         prev = torch.autograd.Variable((torch.rand(N, 1) * 0.999 * V).int().long())
         x = torch.autograd.Variable((torch.rand(N, 1) * 0.999 * V).int().long())
         y = embed(prev).squeeze()
+        # print(x)
+        with torch.no_grad():
+            c = gt_crit(y, x.view(N))
+            print('GT_Crit', c.data[0])
         c = crit(embed.weight, bias, y, x.view(N))
-        print('Crit', c.exp().data[0])
+        print('Crit', c.data[0])
 
         logprobs = crit.logprob(embed.weight, bias, y[:2]).exp()
         print(logprobs)
