@@ -36,8 +36,11 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     model = BiLanguageModelWrapper(from_fp=args.checkpoint)
+    # patch to fix adasoft on older checkpoint file
+    model.config['use_adasoft'] = False
     # model = BiLanguageModelWrapper()
     model.init_model()
+    model.save(args.checkpoint)
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
     if not path.exists(SAVE_PATH):

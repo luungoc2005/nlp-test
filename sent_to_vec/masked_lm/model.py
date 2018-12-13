@@ -233,12 +233,12 @@ class BiRNNLanguageModel(nn.Module):
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training == False:
-            logprob = self.adasoft.\
-                logprob(
-                    self.decoder.weight, 
-                    self.decoder.bias, 
-                    output.view(output.size(0) * output.size(1), output.size(2))
-                )
+            # logprob = self.adasoft.\
+            #     logprob(
+            #         self.decoder.weight, 
+            #         self.decoder.bias, 
+            #         output.view(output.size(0) * output.size(1), output.size(2))
+            #     )
             decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
             return decoded, raw_hiddens
         else:
