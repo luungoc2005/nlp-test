@@ -7,7 +7,8 @@ from common.metrics import accuracy, recall, precision, f1
 from sklearn.utils import class_weight
 from common.utils import to_categorical
 
-from pyro.infer import SVI, Trace_ELBO
+import pyro
+from pyro.infer import SVI, TraceGraph_ELBO
 from pyro.optim import Adam
 # from common.smooth_topk.svm import SmoothSVM
 
@@ -39,18 +40,16 @@ class FastTextLearner(ILearner):
 
         if current_epoch > total_epochs * self.emb_train_epochs:
             if not self.start_finetune:
+                pyro.clear_param_store()
                 print('Switching to pyro')
                 self.start_finetune = True
-                self.optimizer = Adam({"lr": 1e-3})
-                self.svi = SVI(self.model_wrapper.pyro_model, self.model_wrapper.pyro_guide, self.optimizer, loss=Trace_ELBO())
+                self.optimizer = Adam({"lr": 1e-4})
+                self.svi = SVI(self.model_wrapper.pyro_model, self.model_wrapper.pyro_guide, self.optimizer, loss=TraceGraph_ELBO())
         else:
             if self.optimizer is None:
                 self.optimizer = torch.optim.Adam(self.model_wrapper.model.parameters())
 
     def on_epoch(self, X, y):
-        total_epochs = self._n_epochs
-        current_epoch = self._current_epoch
-
         if not self.start_finetune:
             logits = self.model_wrapper.model(X)
             loss = self.criterion(logits, y)
@@ -65,9 +64,10 @@ class FastTextLearner(ILearner):
                 'loss': loss.detach().item()
             }
         else:
+            batch_size = X.size(0)
             loss = self.svi.step(X, y)
             return {
-                'loss': loss
+                'loss': loss / batch_size
             }
 
     def calculate_metrics(self, logits, y):

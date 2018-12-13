@@ -135,6 +135,7 @@ class SplitCrossEntropyLoss(nn.Module):
         ###
         all_head_res = torch.nn.functional.linear(combo, head_weight, bias=head_bias)
         softmaxed_all_head_res = torch.nn.functional.log_softmax(all_head_res, dim=-1)
+        
         if self.verbose or verbose:
             self.stats[0].append(combo.size()[0] * head_weight.size()[0])
 
@@ -208,9 +209,12 @@ if __name__ == '__main__':
         c = crit(embed.weight, bias, y, x.view(N))
         print('Crit', c.data[0])
 
+        with torch.no_grad():
+            logprobs = torch.nn.functional.log_softmax(y[:2]).exp()
+            print('GT_Logprobs', logprobs)
         logprobs = crit.logprob(embed.weight, bias, y[:2]).exp()
-        print(logprobs)
-        print(logprobs.sum(dim=1))
+        print('Logprobs', logprobs)
+        # print(logprobs.sum(dim=1))
 
         optimizer.zero_grad()
         c.backward()

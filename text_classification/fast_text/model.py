@@ -23,7 +23,7 @@ class FastText(nn.Module):
 
         self.max_features = config.get('max_features', MAX_NUM_WORDS)
         self.emb_dropout_prob = config.get('emb_dropout_prob', 0.)
-        self.hidden_size = config.get('hidden_size', 100)
+        self.hidden_size = config.get('hidden_size', 50)
         self.h_dropout_prob = config.get('h_dropout_prob', 0.)
         self.n_classes = config.get('num_classes', 10)
         self.embedding_matrix = config.get('embedding_matrix', None)
@@ -72,7 +72,7 @@ class FastTextWrapper(IModel):
         self.config = config
         self.topk = config.get('top_k', 5)
         self.label_encoder = LabelEncoder()
-        self.num_samples = config.get('num_samples', 100)
+        self.num_samples = config.get('num_samples', 10)
 
     def get_state_dict(self):
         return {
@@ -95,25 +95,18 @@ class FastTextWrapper(IModel):
 
         model = self.model
 
+        self.pyro_init = False
+
+        def normal(target):
+            return Normal(
+                loc=torch.zeros_like(target), 
+                scale=torch.ones_like(target)
+            )
+
         def pyro_model(X_data, y_data):
-            # model.embedding.requires_grad = False
-            scale = 1.
-            i2h_w_prior = Normal(
-                loc=torch.zeros_like(model.i2h.weight), 
-                scale=torch.ones_like(model.i2h.weight) * scale
-            )
-            # i2h_b_prior = Normal(
-            #     loc=torch.zeros_like(model.i2h.bias), 
-            #     scale=torch.ones_like(model.i2h.bias)
-            # )
-            h2o_w_prior = Normal(
-                loc=torch.zeros_like(model.h2o.weight), 
-                scale=torch.ones_like(model.h2o.weight) * scale
-            )
-            h2o_b_prior = Normal(
-                loc=torch.zeros_like(model.h2o.bias), 
-                scale=torch.ones_like(model.h2o.bias) * scale
-            )
+            i2h_w_prior = normal(model.i2h.weight)
+            h2o_w_prior = normal(model.h2o.weight).independent(1)
+            h2o_b_prior = normal(model.h2o.bias)
             priors = {
                 'i2h.weight': i2h_w_prior, 
                 # 'i2h.bias': i2h_b_prior,  
@@ -126,39 +119,31 @@ class FastTextWrapper(IModel):
             lhat = F.log_softmax(lifted_reg_model(X_data), dim=1)
             pyro.sample('obs', Categorical(logits=lhat), obs=y_data)
 
-        def pyro_guide(X_data, y_data):
+        def vnormal(name, target):
             softplus = nn.Softplus()
+            return Normal(
+                loc=pyro.param(name + '_m', torch.randn_like(target)),
+                scale=softplus(pyro.param(name + '_s', torch.randn_like(target)))
+            )
 
+        def pyro_guide(X_data, y_data):
             # First layer weight distribution priors
-            i2h_w_mu = torch.randn_like(model.i2h.weight)
-            i2h_w_sigma = torch.randn_like(model.i2h.weight)
-            i2h_w_mu_param = pyro.param("i2h_mu", i2h_w_mu)
-            i2h_w_sigma_param = softplus(pyro.param("i2h_sigma", i2h_w_sigma))
-            # i2h_w_sigma_param = pyro.param("i2h_sigma", i2h_w_sigma)
-            i2h_w_prior = Normal(loc=i2h_w_mu_param, scale=i2h_w_sigma_param)
+            i2h_w_prior = vnormal(
+                'w1',
+                model.i2h.weight
+            )
 
-            # First layer bias distribution priors
-            # i2h_b_mu = torch.randn_like(model.i2h.bias)
-            # i2h_b_sigma = torch.randn_like(model.i2h.bias)
-            # i2h_b_mu_param = pyro.param("i2h_b_mu", i2h_b_mu)
-            # i2h_b_sigma_param = softplus(pyro.param("i2h_b_sigma", i2h_b_sigma))
-            # i2h_b_prior = Normal(loc=i2h_b_mu_param, scale=i2h_b_sigma_param)
-            
             # Output layer weight distribution priors
-            h2o_w_mu = torch.randn_like(model.h2o.weight)
-            h2o_w_sigma = torch.randn_like(model.h2o.weight)
-            h2o_w_mu_param = pyro.param("h2o_w_mu", h2o_w_mu)
-            h2o_w_sigma_param = softplus(pyro.param("h2o_w_sigma", h2o_w_sigma))
-            # h2o_w_sigma_param = pyro.param("h2o_w_sigma", h2o_w_sigma)
-            h2o_w_prior = Normal(loc=h2o_w_mu_param, scale=h2o_w_sigma_param)
+            h2o_w_prior = vnormal(
+                'w2',
+                model.h2o.weight
+            ).independent(1)
 
             # Output layer bias distribution priors
-            h2o_b_mu = torch.randn_like(model.h2o.bias)
-            h2o_b_sigma = torch.randn_like(model.h2o.bias)
-            h2o_b_mu_param = pyro.param("h2o_b_mu", h2o_b_mu)
-            h2o_b_sigma_param = softplus(pyro.param("h2o_b_sigma", h2o_b_sigma))
-            # h2o_b_sigma_param = pyro.param("h2o_b_sigma", h2o_b_sigma)
-            h2o_b_prior = Normal(loc=h2o_b_mu_param, scale=h2o_b_sigma_param)
+            h2o_b_prior = vnormal(
+                'b2',
+                model.h2o.bias
+            )
             
             priors = {
                 'i2h.weight': i2h_w_prior, 
@@ -198,7 +183,7 @@ class FastTextWrapper(IModel):
 
     def predict(self, X):
         sampled_models = [self.pyro_guide(None, None) for _ in range(self.num_samples)]
-        yhats = [model(X).data for model in sampled_models]
+        yhats = [F.softmax(model(X), dim=-1).data for model in sampled_models]
         mean = torch.mean(torch.stack(yhats), 0)
         return mean
 

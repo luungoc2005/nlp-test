@@ -8,24 +8,34 @@ from config import BASE_PATH
 from os import path
 from tqdm import trange
 import torch
+import argparse
 
-def pad_sents(first_array, second_array):
+parser = argparse.ArgumentParser()
+parser.add_argument("--checkpoint", type=str, default='masked-lm-checkpoint.bin')
+
+args = parser.parse_args()
+
+def pad_sents(first_array, second_array, third_array):
     first_res = []
     second_res = []
+    third_res = []
     for ix, token in enumerate(first_array):
         token2 = second_array[ix]
-        word_len = max(len(token), len(token2))
+        token3 = third_array[ix]
+
+        word_len = max(len(token), len(token2), len(token3))
 
         first_res.append(token.ljust(word_len))
         second_res.append(token2.ljust(word_len))
+        third_res.append(token3.ljust(word_len))
 
-    return first_res, second_res
+    return first_res, second_res, third_res
 
 
 if __name__ == '__main__':
     dataset = WikiTextDataset()
 
-    model = BiLanguageModelWrapper(from_fp='masked-lm-checkpoint.bin')
+    model = BiLanguageModelWrapper(from_fp=args.checkpoint)
     # model = BiLanguageModelWrapper()
     model.init_model()
 
@@ -54,7 +64,9 @@ if __name__ == '__main__':
     )
 
     TEST_EPOCHS = 100
-    total_accuracy = 0.
+    # total_accuracy = 0.
+    total_correct = 0
+    total_count = 0
 
     print(model)
     for _ in trange(TEST_EPOCHS):
@@ -66,10 +78,13 @@ if __name__ == '__main__':
         result, hidden = model(inputs)
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         
-        total_accuracy += accuracy(result, outputs)
+        mask = (outputs != 0)
+        total_count += mask.sum().item()
+        total_correct += (result.masked_select(mask) == outputs.masked_select(mask)).sum().item()
+        # total_accuracy += accuracy(result.masked_select(mask), outputs.masked_select(mask))
     
-    total_accuracy /= TEST_EPOCHS
-    total_accuracy = (total_accuracy - .85) / .15
+    # total_accuracy /= TEST_EPOCHS
+    total_accuracy = total_correct / total_count
     print('Accuracy over %s test sentences: %4f' % (
         TEST_EPOCHS * BATCH_SIZE,
         total_accuracy * 100
@@ -80,8 +95,8 @@ if __name__ == '__main__':
     y_decoded = model.featurizer.inverse_transform(result.cpu().t().contiguous())
 
     for ix in range(BATCH_SIZE):
-        y_t, y = pad_sents(y_t_decoded[ix], y_decoded[ix])
-        print('ST: {}'.format(' '.join(X_decoded[ix])))
+        x, y_t, y = pad_sents(X_decoded[ix], y_t_decoded[ix], y_decoded[ix])
+        print('ST: {}'.format(' '.join(x)))
         print('GT: {}'.format(' '.join(y_t)))
         print('RT: {}'.format(' '.join(y)))
         print('---')
