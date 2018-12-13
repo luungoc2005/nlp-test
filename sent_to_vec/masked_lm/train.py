@@ -58,11 +58,13 @@ class LanguageModelLearner(ILearner):
 
             print('Cross Entropy Splits: Using', splits)
 
-            self.criterion = SplitCrossEntropyLoss(
+            self.model_wrapper.model.adasoft = SplitCrossEntropyLoss(
                 hidden_dim, 
                 splits,
                 ignore_index=0
             )
+
+            self.criterion = self.model_wrapper.model.adasoft
         else:
             self.criterion = nn.CrossEntropyLoss(ignore_index=0)
 

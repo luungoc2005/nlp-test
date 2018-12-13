@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
 from common.modules import LockedDropout, WeightDrop
+from common.splitcross import SplitCrossEntropyLoss
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
@@ -104,6 +105,13 @@ class BiRNNLanguageModel(nn.Module):
             self.embedding_dim if self.tie_weights else self.hidden_dim, 
             self.num_words
         )
+        self.adasoft = None
+        if self.use_adasoft:
+            self.adasoft = SplitCrossEntropyLoss(
+                self.hidden_dim, 
+                self.adasoft_cutoffs,
+                ignore_index=0
+            )
 
         # Weight tying
         if self.tie_weights:
@@ -225,14 +233,12 @@ class BiRNNLanguageModel(nn.Module):
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training == False:
-            # logprob = to_gpu(SplitCrossEntropyLoss(
-            #     self.embedding_dim if self.tie_weights else self.hidden_dim, 
-            #     self.adasoft_cutoffs)
-            # ).logprob(
-            #     self.decoder.weight, 
-            #     self.decoder.bias, 
-            #     output.view(output.size(0) * output.size(1), output.size(2))
-            # )
+            logprob = self.adasoft.\
+                logprob(
+                    self.decoder.weight, 
+                    self.decoder.bias, 
+                    output.view(output.size(0) * output.size(1), output.size(2))
+                )
             decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
             return decoded, raw_hiddens
         else:
