@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
     if args.export_onnx:
         dummy_input = torch.LongTensor(70, 1).random_(1, 10)
-        model.export_onnx(dummy_input, 'masked-lm.onnx', print_graph=True)
+        model.export_onnx(dummy_input, 'masked-lm.onnx')
 
     for _ in trange(TEST_EPOCHS):
         inputs, outputs = next(iter(loader))

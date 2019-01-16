@@ -13,7 +13,7 @@ from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
 from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
 from common.utils import wordpunct_space_tokenize
-from config import START_TAG, STOP_TAG
+from config import START_TAG, STOP_TAG, EMPTY_TAG
 
 import argparse
 from datetime import datetime
@@ -48,7 +48,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
             if len(examples) > 0:
                 for example in examples:
                     if example['entities']:
-                        text = ''.join([entity['text'] for entity in example['entities']])
+                        text = ' '.join([entity['text'].strip() for entity in example['entities']])
                         example_tags = []
                         training_data.append((text, intent['name']))
 
@@ -59,16 +59,22 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                         ]
 
                         if len(entities) > 0:
-                            for entity in example['entities']:
-                                if entity.get('nlpEntityId', 0) != 0 and \
-                                   entity.get('name', '') != '':
+                            for e_idx, entity in enumerate(example['entities']):
+                                if entity.get('nlpEntityId', 0) != 0 and entity.get('name', '') != '':
+                                    b_tag = 'B-' + entity.get('name')
+                                    i_tag = 'I-' + entity.get('name')
                                     example_tags.extend([
-                                        'B-' + entity.get('name') if idx == 0 else 'I-' + entity.get('name')
+                                        b_tag if idx == 0 else i_tag
                                         for idx, _ in enumerate(wordpunct_space_tokenize(entity.get('text', '')))
                                     ])
-                                    tag_names.append(entity.get('name'))
+                                    tag_names.append(b_tag)
+                                    tag_names.append(i_tag)
                                 else:
-                                    example_tags.extend(['-' for _ in wordpunct_space_tokenize(entity.get('text'))])
+                                    example_tags.extend([EMPTY_TAG for _ in wordpunct_space_tokenize(entity.get('text'))])
+                                # add a tag for space
+                                if (e_idx < len(example['entities']) - 1):
+                                    example_tags.append(EMPTY_TAG)
+
                             entities_data.append((text, ' '.join(example_tags)))
 
     num_entities = len(set(tag_names))
@@ -90,11 +96,14 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     CLF_MODEL[model_id].save(clf_model_path)
 
     if num_entities > 0:
-        tag_names = list(set([START_TAG, STOP_TAG] + tag_names))
+        tag_names = [EMPTY_TAG, START_TAG, STOP_TAG] + list(set(tag_names))
         tag_to_ix = {tag: idx for idx, tag in enumerate(tag_names)}
+        print(tag_to_ix)
+        print(entities_data)
 
         ent_model_path = ent_model_path or save_path+'.ent.bin'
 
+        # print(entities_data)
         print('Training entities recognition model')
         ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
         ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])

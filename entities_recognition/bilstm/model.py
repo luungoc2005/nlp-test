@@ -16,7 +16,7 @@ class SequenceTagger(nn.Module):
         super(SequenceTagger, self).__init__()
         self.config = config
 
-        print(config)
+        # print(config)
 
         self.embedding_dim = config.get('input_shape', (EMBEDDING_DIM,))[-1]
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
@@ -97,8 +97,8 @@ class SequenceTagger(nn.Module):
         score = to_gpu(torch.Tensor([0]))
         tags = to_gpu(torch.cat([torch.LongTensor([self.tag_to_ix[START_TAG]]), tags]))
 
+        # print((len(feats), len(self.transitions), len(tags)))
         for i, feat in enumerate(feats):
-            # print((len(feats), len(self.transitions), len(tags)))
             score = score + \
                     self.transitions[tags[i + 1], tags[i]] + feat[tags[i + 1]]
         score = score + self.transitions[self.tag_to_ix[STOP_TAG], tags[-1]]
