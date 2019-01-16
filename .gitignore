@@ -87,6 +87,7 @@ text_classification/crnn/model/
 text_classification/fast_text/logs/
 text_classification/fast_text/model/
 fastText/
+onnx/
 
 *.json
 *.bin

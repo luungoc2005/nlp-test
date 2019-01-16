@@ -74,3 +74,12 @@ class DoubleClassificationHeadWrapper(IModel):
 
         self.seq_len = config.get('seq_len', LM_SEQ_LEN)
         self.config = config
+        self.encoder = None
+
+    def set_encoder(self, encoder):
+        self.encoder = encoder
+        
+    def on_model_init(self):
+        super().on_model_init()
+        if self.encoder is not None:
+            self.model.set_encoder(self.encoder)

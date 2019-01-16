@@ -51,7 +51,11 @@ class OvrClassifier(nn.Module):
         for idx in range(self.n_classes):
             cls_target = (targets == idx).float()
             cls_tokens = tokens[:,idx]
-            cls_loss = F.binary_cross_entropy_with_logits(cls_tokens, cls_target)
+            cls_loss = F.binary_cross_entropy_with_logits(
+                cls_tokens, 
+                cls_target,
+                reduction='sum'
+            )
             
             if loss is None:
                 loss = cls_loss

@@ -38,13 +38,13 @@ def quantize_model(model):
 
     for n, p in model.state_dict().items():
         qp = quantize_tensor(p)
-        qparams[n + '.quantization.scale'] = torch.FloatTensor([qp.scale])
+        qparams[n + '/quantization/scale'] = torch.FloatTensor([qp.scale])
         qparams[
-            n + '.quantization.zero_point'] = torch.ByteTensor([qp.zero_point])
+            n + '/quantization/zero_point'] = torch.ByteTensor([qp.zero_point])
         p.copy_(qp.tensor)
     model.type('torch.ByteTensor')
     for n, p in qparams.items():
-        model.register_buffer(n, p)
+        model.register_buffer(n.replace('.', '_'), p)
     model.quantized = True
 
 
@@ -53,10 +53,11 @@ def dequantize_model(model):
     params = model.state_dict()
     for n, p in params.items():
         if 'quantization' not in n:
+            n = n.replace('.', '_')
             qp = QTensor(tensor=p,
-                         scale=params[n + '.quantization.scale'][0],
-                         zero_point=params[n + '.quantization.zero_point'][0])
+                         scale=params[n + '/quantization/scale'][0],
+                         zero_point=params[n + '/quantization/zero_point'][0])
             p.copy_(dequantize_tensor(qp))
-            model.register_buffer(n + '.quantization.scale', None)
-            model.register_buffer(n + '.quantization.zero_point', None)
+            model.register_buffer(n + '/quantization/scale', None)
+            model.register_buffer(n + '/quantization/zero_point', None)
     model.quantized = None

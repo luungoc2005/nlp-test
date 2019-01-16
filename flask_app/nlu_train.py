@@ -69,7 +69,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                                     tag_names.append(entity.get('name'))
                                 else:
                                     example_tags.extend(['-' for _ in wordpunct_space_tokenize(entity.get('text'))])
-                            entities_data.append(text, ' '.join(example_tags))
+                            entities_data.append((text, ' '.join(example_tags)))
 
     num_entities = len(set(tag_names))
     print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
@@ -120,15 +120,15 @@ if __name__ == '__main__':
     print(args)
 
     if args.model_id == '':
-        logging.error('Training failed: model_id is null')
+        print('Training failed: model_id is null')
         exit()
 
     if not path.exists(args.save_path):
-        logging.error('Training failed: save_path does not exist')
+        print('Training failed: save_path does not exist')
         exit()
 
     if args.clf_model_path == '' or args.ent_model_path == '':
-        logging.error('Training failed: model path is null')
+        print('Training failed: model path is null')
         exit()
 
     print('Training started at %s' % str(datetime.now()))

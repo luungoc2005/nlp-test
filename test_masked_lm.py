@@ -12,6 +12,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, default='masked-lm-checkpoint.bin')
+parser.add_argument("--show_raws", action='store_true')
+parser.add_argument("--quantize", action='store_true')
+parser.add_argument("--export_onnx", action='store_true')
 
 args = parser.parse_args()
 
@@ -37,10 +40,9 @@ if __name__ == '__main__':
 
     model = BiLanguageModelWrapper(from_fp=args.checkpoint)
     # patch to fix adasoft on older checkpoint file
-    model.config['use_adasoft'] = False
     # model = BiLanguageModelWrapper()
-    model.init_model()
-    model.save(args.checkpoint)
+    model.init_model(update_configs={'use_adasoft': False})
+    # model.save(args.checkpoint)
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
     if not path.exists(SAVE_PATH):
@@ -72,6 +74,15 @@ if __name__ == '__main__':
     total_count = 0
 
     print(model)
+
+    if args.quantize:
+        model.quantize()
+        model.save('masked-lm-quantized.bin')
+
+    if args.export_onnx:
+        dummy_input = torch.LongTensor(70, 1).random_(1, 10)
+        model.export_onnx(dummy_input, 'masked-lm.onnx', print_graph=True)
+
     for _ in trange(TEST_EPOCHS):
         inputs, outputs = next(iter(loader))
         inputs, outputs = to_gpu(inputs), to_gpu(outputs)
@@ -96,6 +107,12 @@ if __name__ == '__main__':
     X_decoded = model.featurizer.inverse_transform(inputs.cpu().t().contiguous())
     y_t_decoded = model.featurizer.inverse_transform(outputs.cpu().t().contiguous())
     y_decoded = model.featurizer.inverse_transform(result.cpu().t().contiguous())
+
+    if args.show_raws == False:
+        y_decoded = [
+            [token if y_t_decoded[sent_ix][ix].strip() != '' else '' for ix, token in enumerate(sent)] 
+            for sent_ix, sent in enumerate(y_decoded)
+        ]
 
     for ix in range(BATCH_SIZE):
         x, y_t, y = pad_sents(X_decoded[ix], y_t_decoded[ix], y_decoded[ix])

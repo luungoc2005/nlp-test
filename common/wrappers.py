@@ -9,6 +9,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
 from typing import Iterable, Union, Callable, Tuple
+from common.quantize import quantize_model, dequantize_model
 import inspect
 
 class IFeaturizer(object):
@@ -44,8 +45,10 @@ class IModel(object):
         self._predict_fn = predict_fn
         self._featurizer = featurizer
         self.config = config or dict()
+        self._quantized = False
+        self._onnx = ''
 
-    def init_model(self, fp16: bool = False):
+    def init_model(self, fp16: bool = False, update_configs: dict = {}):
         if self._from_fp is None:
             model_state = None
         else:
@@ -61,6 +64,8 @@ class IModel(object):
         else:
             config = model_state.get('config', dict())
             self.config = config
+
+        self.config.update(update_configs)
 
         if self.is_pytorch_module():
             # re-initialize model with loaded config
@@ -131,6 +136,29 @@ class IModel(object):
     def infer_predict(self, logits: Union[object, torch.Tensor]): return logits
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
+
+    def quantize(self):
+        if self.is_pytorch_module():
+            if self.model is None:
+                self.init_model()
+            quantize_model(self.model)
+
+    def dequantize(self):
+        if self.is_pytorch_module():
+            if self.model is None:
+                self.init_model()
+            dequantize_model(self.model)
+
+    def export_onnx(self, dummy_input, path, print_graph=True):
+        if self.is_pytorch_module():
+            if self.model is None:
+                self.init_model()
+            torch.onnx.export(self.model, dummy_input, path, verbose=print_graph)
+            self._onnx = path
+            # if print_graph:
+            #     import onnx
+            #     onnx_model = onnx.load(path)
+            #     onnx.helper.printable_graph(onnx_model.graph)
 
     def transform(self, X, interpret_fn:Callable = None, return_logits:bool = False):
         if self._model is None: return

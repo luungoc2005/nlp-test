@@ -198,13 +198,17 @@ class BiRNNLanguageModel(nn.Module):
         x_input:Union[torch.LongTensor, torch.cuda.LongTensor], 
         hidden:Union[torch.FloatTensor, torch.cuda.FloatTensor] = None, 
         training:bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        
-        emb = self.embedded_dropout(
-            self.encoder, 
-            x_input, 
-            self.dropout_emb if self.training else 0
-        )
-        emb = self.lockdrop(emb, self.dropout_i)
+        training = training or self.training
+
+        if training:
+            emb = self.embedded_dropout(
+                self.encoder, 
+                x_input, 
+                self.dropout_emb if self.training else 0
+            )
+            emb = self.lockdrop(emb, self.dropout_i)
+        else:
+            emb = self.encoder(x_input)
 
         if hidden is None:
             # Try to determine batch size and generate hidden from input
@@ -224,10 +228,16 @@ class BiRNNLanguageModel(nn.Module):
             raw_outputs.append(raw_output)
 
             if idx != self.n_layers - 1:
-                raw_output = self.lockdrop(raw_output, self.dropout_h)
+                if training:
+                    raw_output = self.lockdrop(raw_output, self.dropout_h)
+                
                 outputs.append(raw_output)
 
-        output = self.lockdrop(raw_output, self.dropout_h)
+        if training:
+            output = self.lockdrop(raw_output, self.dropout_h)
+        else:
+            output = raw_output
+
         outputs.append(output)
 
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
