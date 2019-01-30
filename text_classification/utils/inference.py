@@ -6,7 +6,7 @@ def infer_classification_output(
     model, 
     logits: torch.Tensor, 
     topk: int = None, 
-    context: List[str] = []):
+    contexts: List[str] = []):
     # - model: the ModelWrapper class
     # - logits: torch.Tensor of size (batch_size, n_classes)
     # - context: [optional]: string
@@ -34,17 +34,18 @@ def infer_classification_output(
 
     config = model.config
 
-    if isinstance(context, list) and len(context) > 1 and 'contexts' in config:
+    if isinstance(contexts, list) and len(contexts) > 1 and 'contexts' in config:
         assert len(config.contexts) == logits.size(1), \
             'Length of contexts array must equal the number of classes'
-        context = set(context)
+        contexts = set(contexts)
 
         mul = [
-            len(context.intersection(cls_context)) >=1 
+            len(contexts.intersection(cls_context)) >=1 
             for cls_context in model.contexts
         ]
         mul = torch.Tensor(mul).long()
         mul = torch.unsqueeze(0).expand_as(logits)
+        print(mul)
         logits = torch.mul(logits, mul)
 
     top_probs, top_idxs = torch.topk(logits, topk)

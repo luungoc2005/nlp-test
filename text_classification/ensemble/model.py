@@ -15,6 +15,7 @@ from text_classification.utils.inference import infer_classification_output
 import numpy as np
 import torch
 
+from typing import List
 
 class EnsembleWrapper(IModel):
 
@@ -93,6 +94,9 @@ class EnsembleWrapper(IModel):
         
         return torch.from_numpy(self.label_encoder.transform(y)).long()
 
-    def infer_predict(self, logits, topk=None, context = []):
+    def infer_predict(self, 
+        logits,
+        topk: int = None, 
+        contexts: List[str] = None):
         logits = torch.from_numpy(logits).float()
-        return infer_classification_output(self, logits, topk, context)
+        return infer_classification_output(self, logits, topk, contexts)

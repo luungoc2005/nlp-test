@@ -214,7 +214,7 @@ class IModel(object):
         if return_logits or logits is None:
             return logits
         elif interpret_fn is not None:
-            return interpret_fn(logits)
+            return interpret_fn(logits, *args, **kwargs)
         else:
             return self.infer_predict(logits, *args, **kwargs)
     

@@ -44,8 +44,12 @@ def nlu_init_model(model_id, filename, ent_file_name):
     # sum1 = summary.summarize(all_objects)
     # summary.print_(sum1)
     
-def nlu_predict(model_id, query, context):
-    ret_intents = CLF_MODEL.get(model_id)([query], context)
+def nlu_predict(model_id, query, contexts = None):
+    if contexts is None:
+        ret_intents = CLF_MODEL.get(model_id)([query])
+    else:
+        ret_intents = CLF_MODEL.get(model_id)([query], contexts=contexts)
+
     intents_result = {
         "intents": ret_intents[0] if ret_intents is not None else None
     }
