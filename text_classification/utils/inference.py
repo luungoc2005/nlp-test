@@ -40,7 +40,7 @@ def infer_classification_output(
         context = set(context)
 
         mul = [
-            len(set(cls_context).intersection(context)) >=1 
+            len(context.intersection(cls_context)) >=1 
             for cls_context in model.contexts
         ]
         mul = torch.Tensor(mul).long()

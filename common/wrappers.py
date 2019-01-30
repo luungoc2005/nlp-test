@@ -64,11 +64,10 @@ class IModel(object):
             config = self.config or dict()
         else:
             config = model_state.get('config', dict())
+            self._onnx = model_state.get('onnx', None)
             self.config = config
 
         self.config.update(update_configs)
-
-        self._onnx = model_state.get('onnx', None)
 
         if self.is_pytorch_module():
             # re-initialize model with loaded config
@@ -176,7 +175,7 @@ class IModel(object):
             #     onnx_model = onnx.load(path)
             #     onnx.helper.printable_graph(onnx_model.graph)
 
-    def transform(self, X, interpret_fn:Callable = None, return_logits:bool = False):
+    def transform(self, X, interpret_fn:Callable = None, return_logits:bool = False, *args, **kwargs):
         if self._model is None and self._onnx_model is None: return
         is_pytorch = self.is_pytorch_module()
 
@@ -217,7 +216,7 @@ class IModel(object):
         elif interpret_fn is not None:
             return interpret_fn(logits)
         else:
-            return self.infer_predict(logits)
+            return self.infer_predict(logits, *args, **kwargs)
     
     def freeze_to(self, n:int):
         c = self.get_layer_groups()
