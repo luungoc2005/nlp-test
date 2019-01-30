@@ -117,7 +117,7 @@ class CNNWordEncoder(nn.Module):
         hidden_dim: Optional[int] = None,
         letters_dim: Optional[int] = None,
         *args,
-        **kwargs,
+        **kwargs
     ) -> None:
         super(CNNWordEncoder, self).__init__()
 
