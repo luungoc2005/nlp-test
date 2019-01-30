@@ -106,3 +106,4 @@ DEBUG
 third_party/
 
 flask_app/config.cfg
+*.onnx

@@ -15,6 +15,7 @@ parser.add_argument("--checkpoint", type=str, default='masked-lm-checkpoint.bin'
 parser.add_argument("--show_raws", action='store_true')
 parser.add_argument("--quantize", action='store_true')
 parser.add_argument("--export_onnx", action='store_true')
+parser.add_argument("--disable_tqdm", action='store_true')
 
 args = parser.parse_args()
 
@@ -59,7 +60,7 @@ if __name__ == '__main__':
         dataset.save()
 
     # print(dataset.get_sent(4))
-    BATCH_SIZE = 16
+    BATCH_SIZE = 16 if model._onnx is None else 1
     loader = DataLoader(
         dataset, 
         batch_size=BATCH_SIZE, 
@@ -68,27 +69,43 @@ if __name__ == '__main__':
         num_workers=0
     )
 
-    TEST_EPOCHS = 100
+    TEST_EPOCHS = 100 if model._onnx is None else 1600
     # total_accuracy = 0.
     total_correct = 0
     total_count = 0
 
     print(model)
 
+    EXPORT_SIZE = (50, 1)
+
     if args.quantize:
         model.quantize()
         model.save('masked-lm-quantized.bin')
 
     if args.export_onnx:
-        dummy_input = torch.LongTensor(70, 1).random_(1, 10)
+        dummy_input = torch.LongTensor(*EXPORT_SIZE).random_(1, 10)
         model.export_onnx(dummy_input, 'masked-lm.onnx')
+        exit()
 
-    for _ in trange(TEST_EPOCHS):
+    for epoch in range(TEST_EPOCHS) if args.disable_tqdm else trange(TEST_EPOCHS):
+        if args.disable_tqdm:
+            print('Running epoch %s' % str(epoch))
         inputs, outputs = next(iter(loader))
-        inputs, outputs = to_gpu(inputs), to_gpu(outputs)
 
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
+        if model._onnx is not None:
+            padded_input = torch.zeros(EXPORT_SIZE).long()
+            padded_output = torch.zeros(EXPORT_SIZE).long()
+
+            padded_input[:inputs.size(0)] = inputs
+            padded_output[:outputs.size(0)] = outputs
+
+            inputs = padded_input
+            outputs = padded_output
+
+        # print(inputs.size())
+        inputs, outputs = to_gpu(inputs), to_gpu(outputs)
         result, hidden = model(inputs)
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         

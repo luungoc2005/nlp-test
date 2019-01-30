@@ -46,7 +46,8 @@ class IModel(object):
         self._featurizer = featurizer
         self.config = config or dict()
         self._quantized = False
-        self._onnx = ''
+        self._onnx = None
+        self._onnx_model = None
 
     def init_model(self, fp16: bool = False, update_configs: dict = {}):
         if self._from_fp is None:
@@ -67,6 +68,8 @@ class IModel(object):
 
         self.config.update(update_configs)
 
+        self._onnx = model_state.get('onnx', None)
+
         if self.is_pytorch_module():
             # re-initialize model with loaded config
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
@@ -74,7 +77,8 @@ class IModel(object):
             self._model = to_gpu(self._model)
         else:
             # initialize model normally
-            self._model = self._model_class(*self._args, **self._kwargs)
+            if self._onnx is None:
+                self._model = self._model_class(*self._args, **self._kwargs)
 
         if model_state is not None:
             featurizer = model_state.get('featurizer', None)
@@ -87,8 +91,13 @@ class IModel(object):
                 self._featurizer = featurizer
             state_dict = model_state.get('state_dict', None)
 
-            if self.is_pytorch_module() and state_dict is not None:
-                self._model.load_state_dict(state_dict)
+            if self.is_pytorch_module():
+                if state_dict is not None:
+                    self._model.load_state_dict(state_dict)
+            elif self._onnx is not None:
+                import onnx
+                self._onnx_model = onnx.load(self._onnx)
+                print('Loaded ONNX model')
 
             self.load_state_dict(model_state)
 
@@ -116,10 +125,13 @@ class IModel(object):
             model_state = self.get_state_dict()
         except NotImplementedError:
             model_state = {}
-            warnings.warn('get_state_dict() is not implemented.')
+            warnings.warn('get_state_dict() is not implemented. Using default implementation')
 
         if self.is_pytorch_module():
-            model_state['state_dict'] = self._model.state_dict()
+            if self._model is not None:
+                model_state['state_dict'] = self._model.state_dict()
+        else:
+            model_state['onnx'] = self._onnx
         
         if self.config is not None:
             model_state['config'] = self.config
@@ -135,7 +147,7 @@ class IModel(object):
 
     def infer_predict(self, logits: Union[object, torch.Tensor]): return logits
 
-    def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module)
+    def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module) and self._onnx is None
 
     def quantize(self):
         if self.is_pytorch_module():
@@ -149,23 +161,31 @@ class IModel(object):
                 self.init_model()
             dequantize_model(self.model)
 
-    def export_onnx(self, dummy_input, path, print_graph=True):
+    def export_onnx(self, dummy_input, path, print_graph=True, preserve_state=False):
         if self.is_pytorch_module():
             if self.model is None:
                 self.init_model()
             torch.onnx.export(self.model, dummy_input, path, verbose=print_graph)
             self._onnx = path
+            if not preserve_state:
+                self.model = None
+                self.config['state_dict'] = None
+                self.save(path + '.bin')
             # if print_graph:
             #     import onnx
             #     onnx_model = onnx.load(path)
             #     onnx.helper.printable_graph(onnx_model.graph)
 
     def transform(self, X, interpret_fn:Callable = None, return_logits:bool = False):
-        if self._model is None: return
+        if self._model is None and self._onnx_model is None: return
         is_pytorch = self.is_pytorch_module()
 
+        rep = None
         if is_pytorch:
             self._model.eval()
+        elif self._onnx_model is not None:
+            import caffe2.python.onnx.backend as backend
+            rep = backend.prepare(self._onnx_model, device='CPU')
 
         with torch.no_grad():
             if not torch.is_tensor(X) and self._featurizer is not None:
@@ -177,7 +197,15 @@ class IModel(object):
                 logits = None
             else:
                 if self._predict_fn is None:
-                    logits = self._model(X)
+                    if self._onnx_model is None:
+                        logits = self._model(X)
+                    else:
+                        if torch.is_tensor(X):
+                            X = X.numpy()
+
+                        warnings.warn('Running inference as onnx model')
+                        rep.run(X)
+                        logits = torch.from_numpy(logits)
                 else:
                     logits = self._predict_fn(X)
         
@@ -261,7 +289,7 @@ class IModel(object):
         return self.transform(*args, **kwargs)
 
     def __str__(self) -> str:
-        return self._model.__str__()
+        return self._model.__str__() if self._model is not None else '<non-pytorch model>'
 
 
 class ILearner(object):

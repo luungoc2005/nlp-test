@@ -1,7 +1,12 @@
 import torch
 import warnings
+from typing import List
 
-def infer_classification_output(model, logits, topk=None, context=''):
+def infer_classification_output(
+    model, 
+    logits: torch.Tensor, 
+    topk: int = None, 
+    context: List[str] = []):
     # - model: the ModelWrapper class
     # - logits: torch.Tensor of size (batch_size, n_classes)
     # - context: [optional]: string
@@ -27,10 +32,17 @@ def infer_classification_output(model, logits, topk=None, context=''):
     n_classes = model.model.n_classes if model.is_pytorch_module() else model.n_classes
     topk = min(topk, n_classes) # Maximum will be the number of classes
 
-    if context != '' and hasattr(model, 'contexts') and model.contexts is not None:
-        assert len(model.contexts) == logits.size(1), \
+    config = model.config
+
+    if isinstance(context, list) and len(context) > 1 and 'contexts' in config:
+        assert len(config.contexts) == logits.size(1), \
             'Length of contexts array must equal the number of classes'
-        mul = [cls_context == context for cls_context in model.contexts]
+        context = set(context)
+
+        mul = [
+            len(set(cls_context).intersection(context)) >=1 
+            for cls_context in model.contexts
+        ]
         mul = torch.Tensor(mul).long()
         mul = torch.unsqueeze(0).expand_as(logits)
         logits = torch.mul(logits, mul)

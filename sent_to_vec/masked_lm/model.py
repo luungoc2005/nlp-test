@@ -242,17 +242,17 @@ class BiRNNLanguageModel(nn.Module):
 
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
-        if training == False:
+        if training:
             # logprob = self.adasoft.\
             #     logprob(
             #         self.decoder.weight, 
             #         self.decoder.bias, 
             #         output.view(output.size(0) * output.size(1), output.size(2))
             #     )
+            return output, raw_hiddens, raw_outputs, outputs
+        else:
             decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
             return decoded, raw_hiddens
-        else:
-            return output, raw_hiddens, raw_outputs, outputs
 
 class BiLanguageModelWrapper(IModel):
 
@@ -273,7 +273,7 @@ class BiLanguageModelWrapper(IModel):
 
     def on_model_init(self):
         model = self._model
-        if model.rnn_type != 'QRNN':
+        if model is not None and model.rnn_type != 'QRNN':
             for rnn in model.rnns:
                 if issubclass(type(rnn), nn.RNNBase):
                     rnn.flatten_parameters()

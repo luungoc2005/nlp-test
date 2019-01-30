@@ -17,7 +17,7 @@ class DoubleClassificationHead(nn.Module):
         self.fc_dim = config.get('fc_dim', 512)
         self.nonlinear_fc = config.get('nonlinear_fc', False)
         self.dropout_fc = config.get('dropout_fc', .5)
-        self.fc_output_dim = config.get('fc_output_dim', 1)
+        self.fc_output_dim = config.get('n_classes', 2)
         self.fc_dist_features = config.get('fc_dist_features', False)
         self.fc_input_dim = config.get(
             'fc_input_dim', 
@@ -59,20 +59,66 @@ class DoubleClassificationHead(nn.Module):
         
         return self.classifier(features)
 
-class DoubleClassificationHeadWrapper(IModel):
+class SingleClassificationHead(nn.Module):
+
+    def __init__(self, config):
+        super(SingleClassificationHead, self).__init__()
+        self.config = config
+
+        self.fc_dim = config.get('fc_dim', 512)
+        self.nonlinear_fc = config.get('nonlinear_fc', False)
+        self.dropout_fc = config.get('dropout_fc', .5)
+        self.fc_output_dim = config.get('n_classes', 2)
+        self.fc_dist_features = config.get('fc_dist_features', False)
+        self.fc_input_dim = config.get(
+            'fc_input_dim', 
+            config.get('embedding_dim', LM_HIDDEN_DIM)
+        )
+        self.encoder = None
+
+        if self.nonlinear_fc:
+            self.classifier = nn.Sequential(
+                nn.Dropout(p=self.dropout_fc),
+                nn.Linear(self.fc_input_dim, self.fc_dim),
+                nn.Tanh(),
+                nn.Dropout(p=self.dropout_fc),
+                nn.Linear(self.fc_dim, self.fc_dim),
+                nn.Tanh(),
+                nn.Dropout(p=self.dropout_fc),
+                nn.Linear(self.fc_dim, self.fc_output_dim),
+            )
+        else:
+            self.classifier = nn.Sequential(
+                nn.Linear(self.fc_input_dim, self.fc_dim),
+                nn.Linear(self.fc_dim, self.fc_dim),
+                nn.Linear(self.fc_dim, self.fc_output_dim)
+            )
+
+    def set_encoder(self, encoder):
+        self.encoder = encoder
+
+    def forward(self, sent):
+        assert self.encoder is not None, 'set_encoder must be called before forward()'
+    
+        feats = self.encoder(sent)
+        
+        return self.classifier(feats)
+
+class ClassificationHeadWrapper(IModel):
 
     def __init__(self, config=dict(), *args, **kwargs):
         featurizer_config = config
         featurizer_config['append_sos_eos'] = True
 
-        super(DoubleClassificationHeadWrapper, self).__init__(
-            model_class=DoubleClassificationHead, 
+        super(ClassificationHeadWrapper, self).__init__(
+            model_class=ClassificationHeadWrapper, 
             config=config, 
             featurizer=BasicFeaturizer(featurizer_config),
             *args, **kwargs
         )
 
         self.seq_len = config.get('seq_len', LM_SEQ_LEN)
+        self.n_classes = config.get('n_classes', 2)
         self.config = config
         self.encoder = None
 

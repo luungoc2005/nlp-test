@@ -33,10 +33,19 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     print('Loaded %s intents' % len(data))
 
     classes = list(set([
-        intent['name']
+        (intent['name'])
         for intent in data
-        if (not IGNORE_CONTEXT or len(intent['inContexts']) == 0)
+        # if (not IGNORE_CONTEXT or len(intent['inContexts']) == 0)
     ]))
+    contexts = []
+    if not IGNORE_CONTEXT:
+        for class_name in classes:
+            class_contexts = []
+            class_intents = [intent for intent in data if intent['name'] == class_name]
+            for intent in class_intents:
+                if 'inContexts' in intent and isinstance(intent['inContexts'], list):
+                    class_contexts.extend(intent['inContexts'])
+            contexts.append(class_contexts)
 
     entities_data = []
     tag_names = []
@@ -81,11 +90,10 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     print('Loaded %s examples; %s unique entities' % (len(training_data), num_entities))
 
     clf_model_path = clf_model_path or save_path+'.clf.bin'
-    ent_model_path = ent_model_path or ''
 
     print('Training classification model')
 
-    CLF_MODEL[model_id] = EnsembleWrapper()
+    CLF_MODEL[model_id] = EnsembleWrapper({'contexts': contexts})
     clf_learner = EnsembleLearner(CLF_MODEL[model_id])
     clf_learner.fit(
         training_data=training_data,
