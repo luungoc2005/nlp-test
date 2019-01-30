@@ -106,12 +106,6 @@ class BiRNNLanguageModel(nn.Module):
             self.num_words
         )
         self.adasoft = None
-        if self.use_adasoft:
-            self.adasoft = SplitCrossEntropyLoss(
-                self.hidden_dim, 
-                self.adasoft_cutoffs,
-                ignore_index=0
-            )
 
         # Weight tying
         if self.tie_weights:

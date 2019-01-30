@@ -58,13 +58,11 @@ class LanguageModelLearner(ILearner):
 
             print('Cross Entropy Splits: Using', splits)
 
-            self.model_wrapper.model.adasoft = SplitCrossEntropyLoss(
+            self.criterion = SplitCrossEntropyLoss(
                 hidden_dim, 
                 splits,
                 ignore_index=0
             )
-
-            self.criterion = self.model_wrapper.model.adasoft
         else:
             self.criterion = nn.CrossEntropyLoss(ignore_index=0)
 
@@ -82,6 +80,13 @@ class LanguageModelLearner(ILearner):
         self.use_adasoft = use_adasoft
 
     def on_model_init(self):
+        config = self.model_wrapper.config or dict()
+
+        use_adasoft = config.get('use_adasoft', True)
+
+        if use_adasoft and self.model_wrapper.model.adasoft is None:
+            self.model_wrapper.model.adasoft = self.criterion
+        
         print(self.model_wrapper.model)
 
     def on_epoch(self, X, y, loss_scale:float = 1., gradient_accumulation_steps:int = 1.):
