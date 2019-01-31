@@ -25,14 +25,25 @@ class StarspaceClassifierLearner(ILearner):
         
 
         self.model_wrapper.label_encoder.fit(y)
-        n_classes = self.model_wrapper.label_encoder.classes_.shape[0]
+
+        n_classes = len(self.model_wrapper.label_encoder.classes_)
+        self.model_wrapper.config['num_classes'] = self.model_wrapper.n_classes
 
         self.neg_sampling = to_gpu(NegativeSampling(
             n_output=n_classes, 
             n_negative=self.n_negative
         ))
-        self.model_wrapper._kwargs['config']['num_classes'] = n_classes
         # self.class_weights = class_weight.compute_class_weight('balanced', np.unique(y), y)
+
+        config = self.model_wrapper.config
+        if 'contexts' in config:
+            contexts = config['contexts']
+            contexts_list = [
+                contexts[label] if label in contexts else []
+                for label in self.model_wrapper.label_encoder.classes_
+            ]
+            self.model_wrapper.config['contexts'] = contexts_list
+            # print('number of contexts: %s' % str(len(contexts_list)))
 
     def on_model_init(self):
         self.criterion = to_gpu(MarginRankingLoss(margin=self.model_wrapper.loss_margin))

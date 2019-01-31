@@ -20,7 +20,18 @@ class FastTextLearner(ILearner):
 
     def init_on_data(self, X, y):
         self.model_wrapper.label_encoder.fit(y)
-        self.model_wrapper.config['num_classes'] = self.model_wrapper.label_encoder.classes_.shape[0]
+        self.model_wrapper.n_classes = len(self.model_wrapper.label_encoder.classes_)
+        self.model_wrapper.config['num_classes'] = self.model_wrapper.n_classes
+
+        config = self.model_wrapper.config
+        if 'contexts' in config:
+            contexts = config['contexts']
+            contexts_list = [
+                contexts[label] if label in contexts else []
+                for label in self.model_wrapper.label_encoder.classes_
+            ]
+            self.model_wrapper.config['contexts'] = contexts_list
+            # print('number of contexts: %s' % str(len(contexts_list)))
 
         y_labels = self.model_wrapper.label_encoder.transform(y)
         class_weights = class_weight.compute_class_weight('balanced', np.unique(y_labels), y_labels)
