@@ -37,7 +37,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
         for intent in data
         # if (not IGNORE_CONTEXT or len(intent['inContexts']) == 0)
     ]))
-    contexts = []
+    contexts = {}
     if not IGNORE_CONTEXT:
         for class_name in classes:
             class_contexts = []
@@ -52,7 +52,7 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
                         for context in intent['inContexts']
                         if 'name' in context
                     ])
-            contexts.append(list(set(class_contexts)))
+            contexts[intent['name']] = class_contexts
 
     entities_data = []
     tag_names = []

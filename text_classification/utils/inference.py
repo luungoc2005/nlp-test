@@ -34,18 +34,17 @@ def infer_classification_output(
 
     config = model.config
 
-    if isinstance(contexts, list) and len(contexts) > 1 and 'contexts' in config:
-        assert len(config.contexts) == logits.size(1), \
+    if isinstance(contexts, list) and len(contexts) > 0 and 'contexts' in config:
+        assert len(config['contexts']) == logits.size(1), \
             'Length of contexts array must equal the number of classes'
         contexts = set(contexts)
 
         mul = [
             len(contexts.intersection(cls_context)) >=1 
-            for cls_context in model.contexts
+            for cls_context in config['contexts']
         ]
-        mul = torch.Tensor(mul).long()
-        mul = torch.unsqueeze(0).expand_as(logits)
-        print(mul)
+        mul = torch.Tensor(mul).float()
+        mul = mul.unsqueeze(0).expand_as(logits)
         logits = torch.mul(logits, mul)
 
     top_probs, top_idxs = torch.topk(logits, topk)
@@ -59,5 +58,6 @@ def infer_classification_output(
         [{
             'intent': top_classes[sent_idx][idx],
             'confidence': top_probs[sent_idx][idx].item()
-        } for idx in range(topk)]
+        } for idx in range(topk)
+        if top_probs[sent_idx][idx].item() != 0]
         for sent_idx in range(batch_size)]
