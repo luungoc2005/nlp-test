@@ -83,9 +83,9 @@ class StarSpaceClassifier(nn.Module):
         super(StarSpaceClassifier, self).__init__(*args, **kwargs)
 
         self.input_dim = config.get('input_dim', EMBEDDING_DIM)
-        self.input_hidden_sizes = config.get('input_hidden_sizes', [300])
+        self.input_hidden_sizes = config.get('input_hidden_sizes', [300, 300])
         self.input_dropout_prob = config.get('input_dropout_prob', .2)
-        self.output_hidden_sizes = config.get('output_hidden_sizes', [])
+        self.output_hidden_sizes = config.get('output_hidden_sizes', [300, 300])
         self.output_dropout_prob = config.get('output_dropout_prob', .2)
         self.output_emb_matrix = config.get('output_emb_matrix', None)
         self.n_classes = config.get('num_classes', 10)
@@ -97,7 +97,7 @@ class StarSpaceClassifier(nn.Module):
             if len(self.input_hidden_sizes) > 1:
                 for idx, layer_size in enumerate(self.input_hidden_sizes[1:]):
                     input_emb_list.append(nn.Linear(self.input_hidden_sizes[idx], layer_size))
-                    input_emb_list.append(nn.ReLU())
+                    # input_emb_list.append(nn.ReLU())
                     input_emb_list.append(nn.Dropout(self.input_dropout_prob))
 
             self.input_emb = nn.Sequential(*input_emb_list)
@@ -116,7 +116,7 @@ class StarSpaceClassifier(nn.Module):
             if len(self.output_hidden_sizes) > 1:
                 for idx, layer_size in enumerate(self.output_hidden_sizes[1:]):
                     output_emb_list.append(nn.Linear(self.output_hidden_sizes[idx], layer_size))
-                    output_emb_list.append(nn.ReLU())
+                    # output_emb_list.append(nn.ReLU())
                     output_emb_list.append(nn.Dropout(self.output_dropout_prob))
             self.output_emb = nn.Sequential(*output_emb_list)
         else:

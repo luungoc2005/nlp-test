@@ -245,8 +245,8 @@ def initialize(app):
                 model_config['CLF_MODEL_PATH'],
                 model_config['ENT_MODEL_PATH']
             )
-            context = content['contexts'] if 'contexts' in content else None
-            result = nlu_predict(model_id, content['query'], context)
+            contexts = content['contexts'] if 'contexts' in content else None
+            result = nlu_predict(model_id, content['query'], contexts)
             return jsonify(result)
         except:
             traceback.print_exc(limit=2, file=sys.stdout)

@@ -8,7 +8,6 @@ from text_classification.sif_starspace.model import MarginRankingLoss, NegativeS
 from sklearn.utils import class_weight
 from common.utils import to_categorical
 from config import EMBEDDING_DIM
-import lightgbm as lgb
 
 class StarspaceClassifierLearner(ILearner):
 
@@ -27,7 +26,7 @@ class StarspaceClassifierLearner(ILearner):
         self.model_wrapper.label_encoder.fit(y)
 
         n_classes = len(self.model_wrapper.label_encoder.classes_)
-        self.model_wrapper.config['num_classes'] = self.model_wrapper.n_classes
+        self.model_wrapper.config['num_classes'] = n_classes
 
         self.neg_sampling = to_gpu(NegativeSampling(
             n_output=n_classes, 
