@@ -34,15 +34,22 @@ def infer_classification_output(
 
     config = model.config
 
-    if isinstance(contexts, list) and len(contexts) > 0 and 'contexts' in config:
-        assert len(config['contexts']) == logits.size(1), \
-            'Length of contexts array must equal the number of classes'
-        contexts = set(contexts)
+    if 'contexts' in config:
+        if isinstance(contexts, list) and len(contexts) > 0:
+            assert len(config['contexts']) == logits.size(1), \
+                'Length of contexts array must equal the number of classes'
+            contexts = set(contexts)
 
-        mul = [
-            len(contexts.intersection(cls_context)) >=1 
-            for cls_context in config['contexts']
-        ]
+            mul = [
+                len(contexts.intersection(cls_context)) >=1 
+                for cls_context in config['contexts']
+            ]
+        else:
+            mul = [
+                len(cls_context) == 0
+                for cls_context in config['contexts']
+            ]
+
         mul = torch.Tensor(mul).float()
         mul = mul.unsqueeze(0).expand_as(logits)
         logits = torch.mul(logits, mul)

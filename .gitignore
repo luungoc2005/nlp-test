@@ -72,6 +72,7 @@ data/wikitext103raw/
 data/glove
 data/GloVe
 data/bookcorpus/
+data/fb_test/
 data/*.zip
 output/
 flask_app/uploads/
