@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
-from typing import Optional, List
+from typing import Optional, List, Union
 from config import EMBEDDING_DIM, UNK_TAG
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from common.torch_utils import to_gpu
@@ -442,8 +442,8 @@ class CRF(nn.Module):
 
     def forward(
         self,
-        emissions: torch.FloatTensor,
-        tags: torch.LongTensor,
+        emissions: Union[torch.FloatTensor, torch.cuda.FloatTensor],
+        tags: Union[torch.LongTensor, torch.cuda.LongTensor],
         ignore_index: Optional[int] = 0,
         reduce: bool = True,
     ) -> torch.Tensor:
@@ -466,7 +466,9 @@ class CRF(nn.Module):
         return llh if not reduce else torch.mean(llh)
 
     def decode(
-        self, emissions: torch.FloatTensor, seq_lens: torch.LongTensor
+        self, 
+        emissions: Union[torch.FloatTensor, torch.cuda.FloatTensor], 
+        seq_lens: Union[torch.LongTensor, torch.cuda.LongTensor]
     ) -> torch.Tensor:
         """
         Given a set of emission probabilities, return the predicted tags.
@@ -481,9 +483,9 @@ class CRF(nn.Module):
 
     def _compute_joint_llh(
         self,
-        emissions: torch.FloatTensor,
-        tags: torch.LongTensor,
-        mask: torch.FloatTensor,
+        emissions: Union[torch.FloatTensor, torch.cuda.FloatTensor],
+        tags: Union[torch.LongTensor, torch.cuda.LongTensor],
+        mask: Union[torch.FloatTensor, torch.cuda.FloatTensor],
     ) -> torch.Tensor:
         seq_len = emissions.shape[1]
 
@@ -517,7 +519,9 @@ class CRF(nn.Module):
         return llh.squeeze(1)
 
     def _compute_log_partition_function(
-        self, emissions: torch.FloatTensor, mask: torch.FloatTensor
+        self, 
+        emissions: Union[torch.FloatTensor, torch.cuda.FloatTensor], 
+        mask: Union[torch.FloatTensor, torch.cuda.FloatTensor]
     ) -> torch.Tensor:
         seq_len = emissions.shape[1]
 
@@ -541,7 +545,9 @@ class CRF(nn.Module):
         return torch.logsumexp(log_prob.squeeze(1), 1)
 
     def _viterbi_decode(
-        self, emissions: torch.FloatTensor, mask: torch.FloatTensor
+        self, 
+        emissions: Union[torch.FloatTensor, torch.cuda.FloatTensor], 
+        mask: Union[torch.FloatTensor, torch.cuda.FloatTensor]
     ) -> torch.Tensor:
         seq_len = emissions.shape[1]
         mask = mask.to(torch.uint8)
