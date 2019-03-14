@@ -23,7 +23,7 @@ class SequenceTagger(nn.Module):
         self.emb_dropout_prob = config.get('emb_dropout_prob', .2)
         self.hidden_size = config.get('hidden_size', HIDDEN_DIM)
         self.num_layers = config.get('num_layers', NUM_LAYERS)
-        self.h_dropout_prob = config.get('h_dropout_prob', .2)
+        self.h_dropout_prob = config.get('h_dropout_prob', .5)
 
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
         self.tagset_size = len(self.tag_to_ix)

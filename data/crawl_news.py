@@ -35,7 +35,30 @@ news_sites = [
     'http://tapchitaichinh.vn/',
     'http://danviet.vn/',
     'https://vietbao.com/',
-    'https://tintuconline.com.vn/'
+    'https://tintuconline.com.vn/',
+    'https://baodautu.vn/',
+    'http://www.sggp.org.vn/',
+    'http://www.nhandan.com.vn/',
+    'https://vtv.vn/',
+    'https://laodong.vn/',
+    'http://bongdaplus.vn/',
+    'http://www.qdnd.vn/',
+    'http://kinhtedothi.vn/',
+    'http://cand.com.vn/',
+    'https://vnanet.vn/',
+    'http://www.baobinhphuoc.com.vn/',
+    'http://baobinhdinh.com.vn/',
+    'http://baoangiang.com.vn/',
+    'http://thegioivanhoa.com.vn/',
+    'http://baobinhduong.vn/',
+    'http://www.baobaclieu.vn/',
+    'http://www.baobackan.org.vn/',
+    'http://baobacninh.com.vn/',
+    'https://vn.yahoo.com/',
+    'http://baolamdong.vn/',
+    'https://tintaynguyen.com/topic/da-lat/',
+
+    'https://toidicodedao.com/',
 ]
 existing_urls = []
 with open('news_urls.txt', 'r') as infile:
