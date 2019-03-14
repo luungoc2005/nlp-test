@@ -9,6 +9,8 @@ from text_classification.ensemble.train import EnsembleLearner
 from entities_recognition.bilstm.model import SequenceTaggerWrapper
 from entities_recognition.bilstm.train import SequenceTaggerLearner
 
+from flask_app.visualize import visualize_inputs
+
 import logging
 consoleHandler = logging.StreamHandler()
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -67,6 +69,9 @@ def nlu_predict(model_id, query, contexts = None):
     # summary.print_(sum1)
 
     return result
+
+def nlu_visualize(model_id, query, n_clusters=None):
+    return visualize_inputs(CLF_MODEL.get(model_id), query, n_clusters)
 
 def nlu_release_model(model_id):
     global CLF_MODEL, ENT_MODEL

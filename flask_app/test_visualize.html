@@ -1,0 +1,100 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Visualization test</title>
+  <meta name="description" content="Visualization test">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+</head>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="col-4">
+        <div class="row">
+          <h5>Examples</h5>
+        </div>
+        <div class="row">
+          <textarea id="txtExamples" onchange="countlines()" style="min-height: 400px; width: 100%"></textarea>
+        </div>
+        <div class="row">
+          <div id="lblLines" style="margin-left: auto; margin-right: 0px"></div>
+        </div>
+        <div class="row">
+          <h5>Clusters</h5>
+        </div>
+        <div class="row">
+          <input type="number" id="txtClusters" value="5"></input>
+        </div>
+        <div class="row">
+          <button onclick="postexamples();">Submit</button>
+        </div>
+      </div>
+      <div class="col-8" id="chart_container">
+        <div id="chart_div"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script type="text/javascript">
+    function drawChart(json) {
+      let data = new google.visualization.DataTable();
+      data.addColumn('string', 'text')
+      data.addColumn('number', 'x');
+      data.addColumn('number', 'y');
+      data.addColumn('string', 'group');
+      data.addColumn('number', 'size')
+      const rowsData = json.map(
+        item => [item.text, item.x, item.y, "" + item.group, 1]
+      )
+      console.log(rowsData)
+      data.addRows(rowsData)
+
+      // const maxWidth = document.getElementById("chart_container").getBoundingClientRect().width;
+      const options = {
+        title: 'Groups of examples',
+        hAxis: {minValue: 0, maxValue: 1},
+        vAxis: {minValue: 0, maxValue: 1},
+        sizeAxis: {minValue: 0, maxValue: 2048},
+        // chartArea: {width: maxWidth + 'px', height: '80%'},
+        chartArea: {width: '100%', height: '80%'},
+        legend: 'none',
+        width: 1024,
+        height: 1024,
+      };
+
+      const chart = new google.visualization.BubbleChart(document.getElementById('chart_div'));
+
+      chart.draw(data, options);
+    }
+
+    const countlines = () => {
+      const lines = document.getElementById('txtExamples').value.split("\n").filter(item => item.trim() !== "").length
+      document.getElementById("lblLines").innerText = `${lines} lines`
+    }
+
+    const postexamples = () => $.ajax({
+      type: "POST",
+      url: "http://127.0.0.1:5000/visualize",
+      data: JSON.stringify({
+        "model_id": "a7770070-bec1-4c00-9f10-91307b34dd67",
+        "items": document.getElementById('txtExamples').value.split("\n").filter(item => item.trim() !== ""),
+        n_clusters: parseInt(document.getElementById('txtClusters').value),
+      }),
+      contentType: 'application/json',
+      success: (json) => {
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(() => drawChart(json));
+      }
+    })
+  </script>
+</body>
+
+</html>

@@ -1,4 +1,4 @@
-from flask_app.nlu_main import nlu_init_model, nlu_predict, nlu_release_model
+from flask_app.nlu_main import nlu_init_model, nlu_predict, nlu_release_model, nlu_visualize
 from flask_app.nlu_train import nlu_train_file
 from config import UPLOAD_FOLDER, LOGS_FOLDER, CONFIG_PATH, BASE_PATH, PYTHON_PATH
 from flask import request, flash, redirect, jsonify
@@ -16,6 +16,16 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
 TRAIN_PROCESSES = dict()
+
+def get_json(request):
+    content = request.get_json()
+    if content is None:
+        try:
+            import json
+            content = json.loads(content, 'utf8')
+        except:
+            pass
+    return content
 
 def allowed_file(filename, allowed_exts=['json']):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_exts
@@ -162,7 +172,7 @@ def initialize(app):
     @app.route("/delete", methods=['POST'])
     def flask_delete_model():
         try:
-            content = request.get_json()
+            content = get_json(request)
 
             if 'model_id' not in content:
                 return jsonerror('Missing model_id argument in request')
@@ -176,7 +186,7 @@ def initialize(app):
     @app.route("/status", methods=['POST'])
     def flask_get_status():
         try:
-            content = request.get_json()
+            content = get_json(request)
 
             if 'model_id' not in content:
                 return jsonerror('Model ID must be provided')
@@ -218,7 +228,7 @@ def initialize(app):
     @app.route("/predict", methods=['POST'])
     def flask_predict():
         try:
-            content = request.get_json()
+            content = get_json(request)
 
             if 'query' not in content:
                 return jsonerror('Invalid JSON object')
@@ -246,7 +256,45 @@ def initialize(app):
                 model_config['ENT_MODEL_PATH']
             )
             contexts = content['contexts'] if 'contexts' in content else None
-            result = nlu_predict(model_id, content['query'], contexts)
+            result = nlu_visualize(model_id, content['query'], contexts)
+            return jsonify(result)
+        except:
+            traceback.print_exc(limit=2, file=sys.stdout)
+            return jsonerror('Runtime exception encountered when handling request')
+
+
+    @app.route("/visualize", methods=['POST'])
+    def flask_visualize():
+        try:
+            content = get_json(request)
+
+            if 'items' not in content:
+                return jsonerror('Invalid JSON object')
+            elif 'model_id' not in content:
+                return jsonerror('Model ID must be provided')
+            
+            get_config(app)
+            
+            model_count = len(list(app.config['MODELS'].keys())) \
+                if 'MODELS' in app.config \
+                else 0
+
+            if model_count == 0:
+                return jsonerror('No model trained')
+            
+            model_id = content['model_id'].strip()
+
+            if model_id not in app.config['MODELS']:
+                return jsonerror('Model ID not found')
+            
+            model_config = app.config['MODELS'][model_id]
+            nlu_init_model(
+                model_id,
+                model_config['CLF_MODEL_PATH'],
+                model_config['ENT_MODEL_PATH']
+            )
+            n_clusters = content.get('n_clusters', None)
+            result = nlu_visualize(model_id, content.get('items', []), n_clusters)
             return jsonify(result)
         except:
             traceback.print_exc(limit=2, file=sys.stdout)

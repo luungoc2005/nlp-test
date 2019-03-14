@@ -59,11 +59,13 @@ news_sites = [
     'https://tintaynguyen.com/topic/da-lat/',
 
     'https://toidicodedao.com/',
+    'https://triethocduongpho.net/',
 ]
 existing_urls = []
 with open('news_urls.txt', 'r') as infile:
     existing_urls = infile.readlines()
     infile.close()
+existing_urls = [url.strip() for url in existing_urls]
 print('Found %s URLs previously crawled' % str(len(existing_urls)))
 
 urls = []
@@ -79,7 +81,7 @@ for site in news_sites:
     count = 0
     added_count = 0
     for article in news_site.articles:
-        current_url = article.url
+        current_url = article.url.strip()
         if current_url not in existing_urls:
             urls.append(current_url)
             added_count += 1

@@ -1,6 +1,5 @@
 
 import json
-import torch
 from os import path
 
 # from text_classification.fast_text.model import FastTextWrapper
