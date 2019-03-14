@@ -42,22 +42,19 @@ class SequenceTagger(nn.Module):
         # Matrix of transition parameters.  Entry i,j is the score of
         # transitioning *to* i *from* j.
         self.transitions = torch.randn(self.tagset_size, self.tagset_size)
-        torch.nn.init.xavier_normal_(self.transitions)
+        torch.nn.init.uniform_(self.transitions, -0.1, 0.1)
 
         # These two statements enforce the constraint that we never transfer
         # to the start tag and we never transfer from the stop tag
         self.transitions[self.tag_to_ix[START_TAG], :] = -10000
         self.transitions[:, self.tag_to_ix[STOP_TAG]] = -10000
-
-        self.transitions = to_gpu(self.transitions)
-
         self.transitions = nn.Parameter(self.transitions)
 
         self.hidden = self.init_hidden()
 
     def init_hidden(self):
-        hidden_0 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
-        hidden_1 = torch.randn(self.num_layers * 2, 1, self.hidden_size // 2)
+        hidden_0 = torch.zeros(self.num_layers * 2, 1, self.hidden_size // 2)
+        hidden_1 = torch.zeros(self.num_layers * 2, 1, self.hidden_size // 2)
 
         return to_gpu(hidden_0), to_gpu(hidden_1)
 
