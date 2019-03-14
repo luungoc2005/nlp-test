@@ -263,7 +263,8 @@ class SequenceTaggerWrapper(IModel):
                     else:
                         buffer.append(tokens_in[idx])
 
-            return [entities]
+            # return [entities]
+            return [{ 'name': key, 'values': value } for key, value in entities.items()]
         elif self.task == 'pos':
             ret_list = [(token, tag_seq[idx]) for idx, token in tokens_in]
             return ret_list

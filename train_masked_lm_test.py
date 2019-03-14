@@ -1,4 +1,4 @@
-from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
+from sent_to_vec.masked_lm.pervasive_model import PervasiveAttnLanguageModelWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.data import WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
@@ -8,25 +8,18 @@ from config import BASE_PATH
 from common.modules import BertAdam
 
 if __name__ == '__main__':
-    MODEL_PATH = 'masked-lm-checkpoint.bin'
+    MODEL_PATH = 'masked-lm-test.bin'
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
-        model = BiLanguageModelWrapper(from_fp=MODEL_PATH)
+        model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
     else:
-        model = BiLanguageModelWrapper({
-            'rnn_type': 'LSTM',
-            'n_layers': 2,
+        model = PervasiveAttnLanguageModelWrapper({
+            'n_layers': 6,
             'tie_weights': True,
-            'embedding_dim': 2048,
-            'hidden_dim': 2048,
-            'alpha': 2,
-            'beta': 1,
-            'emb_dropout': .1,
-            'h_dropout': .25,
-            'w_dropout': .5,
-            'rnn_dropout': 0,
+            'embedding_dim': 300,
+            'hidden_dim': 300,
             'use_adasoft': True,
-            'num_words': 30000
+            'num_words': 50000
         }) # large model
 
     dataset = WikiTextDataset()
@@ -81,7 +74,7 @@ if __name__ == '__main__':
         epochs=100,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
         ]

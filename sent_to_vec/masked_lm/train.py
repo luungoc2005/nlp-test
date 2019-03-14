@@ -66,16 +66,14 @@ class LanguageModelLearner(ILearner):
         else:
             self.criterion = nn.CrossEntropyLoss(ignore_index=0)
 
-        if self.fp16:
-            self.criterion.half()
         self.criterion = to_gpu(self.criterion)
         
         self.model_wrapper.config['num_words'] = num_words
 
         # regularization
         self.clip_grad = config.get('clip_grad', 5.)
-        self.alpha = config.get('alpha', 2)
-        self.beta = config.get('beta', 1)
+        self.alpha = config.get('alpha', 0)
+        self.beta = config.get('beta', 0)
         self.batch_size = 0
         self.use_adasoft = use_adasoft
 
@@ -89,13 +87,19 @@ class LanguageModelLearner(ILearner):
         
         print(self.model_wrapper.model)
 
-    def on_epoch(self, X, y, loss_scale:float = 1., gradient_accumulation_steps:int = 1.):
+    def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
         batch_size = X.size(1)
-        hidden = self.model_wrapper.model.init_hidden(batch_size)
 
-        logits, hidden, rnn_hs, dropped_rnn_hs = self.model_wrapper.model(X, hidden, training=True)
+        model = self.model_wrapper.model
 
-        decoder = self.model_wrapper.model.decoder
+        if hasattr(model, 'init_hidden'):
+            hidden = model.init_hidden(batch_size)
+        else:
+            hidden = None
+
+        logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
+
+        decoder = model.decoder
         if self.use_adasoft:
             loss = self.criterion(
                 decoder.weight,
@@ -115,22 +119,17 @@ class LanguageModelLearner(ILearner):
         # Temporal Activation Regularization (slowness)
         if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in rnn_hs[-1:])
         
-        if loss_scale != 1.:
-            loss = loss * loss_scale
-
         if gradient_accumulation_steps > 1:
             loss = loss / gradient_accumulation_steps
-        
-        loss.backward()
 
         if self.clip_grad > 0:
             torch.nn.utils.clip_grad_norm_(
-                self.model_wrapper.model.parameters(), 
+                model.parameters(), 
                 self.clip_grad
             )
         
         return {
-            'loss': loss.detach().cpu().item()
+            'loss': loss
         }
 
     def calculate_metrics(self, logits, y):

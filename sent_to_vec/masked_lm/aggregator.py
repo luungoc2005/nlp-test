@@ -23,16 +23,16 @@ class Aggregator(nn.Module):
         else:
             raise ValueError('Unknown mode %s' % mode)
         self.add_lin = 0
-        print('Aggregator:')
+        # print('Aggregator:')
         if force_output_channels is not None:
             self.add_lin = 1
             # Map the final output to the requested dimension
             # for when tying the embeddings with the final projection layer
             assert self.output_channels > force_output_channels, "Avoid decompressing the channels" #FIXME
-            print(self.output_channels, end='')
+            # print(self.output_channels, end='')
             if num_fc == 1:
                 lin = nn.Linear(self.output_channels, force_output_channels)
-                print(">", force_output_channels)
+                # print(">", force_output_channels)
             elif num_fc == 2:
                 # IDEA: ~ https://arxiv.org/pdf/1808.10681.pdf Beyond weight-tying.
                 interm = (self.output_channels + force_output_channels ) // 2

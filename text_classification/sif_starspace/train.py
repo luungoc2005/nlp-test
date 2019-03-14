@@ -67,10 +67,9 @@ class StarspaceClassifierLearner(ILearner):
         similarity = model(X)
 
         loss = self.criterion(positive_similarity, negative_similarity)
-        loss.backward()
 
         return {
-            'loss': loss.detach().item(), 
+            'loss': loss, 
             'logits': torch.max(similarity, dim=-1)[1]
         }
 

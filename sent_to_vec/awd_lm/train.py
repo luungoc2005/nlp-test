@@ -97,8 +97,6 @@ class LanguageModelLearner(ILearner):
         # Temporal Activation Regularization (slowness)
         if self.beta: loss = loss + sum(self.beta * (rnn_h[1:] - rnn_h[:-1]).pow(2).mean() for rnn_h in rnn_hs[-1:])
         
-        loss.backward()
-
         if self.clip_grad > 0:
             torch.nn.utils.clip_grad_norm_(
                 self.model_wrapper.model.parameters(), 
@@ -106,7 +104,7 @@ class LanguageModelLearner(ILearner):
             )
         
         return {
-            'loss': loss.detach().cpu().item()
+            'loss': loss
         }
 
     def calculate_metrics(self, logits, y):

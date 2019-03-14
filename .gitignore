@@ -74,6 +74,7 @@ data/GloVe
 data/bookcorpus/
 data/fb_test/
 data/*.zip
+data/*.txt
 output/
 flask_app/uploads/
 

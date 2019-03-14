@@ -17,10 +17,8 @@ class SequenceTaggerLearner(ILearner):
     def on_epoch(self, X, y):
         logits, loss = self.criterion(X, y)
 
-        loss.backward()
-
         return {
-            'loss': loss.item(),
+            'loss': loss,
             'logits': logits.detach()
         }
 

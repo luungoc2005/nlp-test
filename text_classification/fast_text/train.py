@@ -65,14 +65,8 @@ class FastTextLearner(ILearner):
             logits = self.model_wrapper.model(X)
             loss = self.criterion(logits, y)
 
-            loss.backward()
-
-            # optimize
-            self.optimizer.step()
-            self.model_wrapper.model.zero_grad()
-
             return {
-                'loss': loss.detach().item()
+                'loss': loss
             }
         else:
             batch_size = X.size(0)

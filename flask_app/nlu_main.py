@@ -57,7 +57,9 @@ def nlu_predict(model_id, query, contexts = None):
     entities_result = {}
     if ENT_MODEL.get(model_id, None) is not None:
         ret_entities = ENT_MODEL[model_id]([query])
-        entities_result = {"entities": ret_entities[0] if ret_entities is not None else None}
+        entities_result = {
+            "entities": ret_entities[0] if ret_entities is not None else None
+        }
 
     result = {**intents_result, **entities_result}
 

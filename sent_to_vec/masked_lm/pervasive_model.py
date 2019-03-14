@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
 from common.modules import LockedDropout, WeightDrop
 from common.splitcross import SplitCrossEntropyLoss
@@ -37,10 +38,10 @@ class PervasiveAttnLanguageModel(nn.Module):
             self.input_channels,
             {
                 'growth_rate': 32,
-                'num_layers': 20,
+                'num_layers': [20],
+                'kernels': [3],
                 'divde_channels': 2,
                 'normalize_channels': 0,
-                'kernels': 3,
                 'dilation': 1,
                 'groups': 1,
                 'layer_type': 'regular',
@@ -100,65 +101,41 @@ class PervasiveAttnLanguageModel(nn.Module):
         else:
             raise NotImplementedError
 
+    def _forward(self, X, src_lengths=None, track=False):
+        X = X.permute(0, 3, 1, 2)
+        X = self.net(X)
+        if track:
+            X, attn = self.aggregator(X, src_lengths, track=True)
+            return X, attn
+        X = self.aggregator(X, src_lengths, track=track)
+        return X
+
     def forward(self, 
         x_input:Union[torch.LongTensor, torch.cuda.LongTensor], 
         hidden:Union[torch.FloatTensor, torch.cuda.FloatTensor] = None, 
         training:bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         training = training or self.training
 
-        if training:
-            emb = self.embedded_dropout(
-                self.encoder, 
-                x_input, 
-                self.dropout_emb if self.training else 0
-            )
-            emb = self.lockdrop(emb, self.dropout_i)
-        else:
-            emb = self.encoder(x_input)
+        src_emb = self.encoder(x_input).permute(1, 0, 2)
+        trg_emb = src_emb.clone()
+        # trg_emb = self.trg_embedding(data_trg)
+        Ts = src_emb.size(1)  # source sequence length
+        # Tt = trg_emb.size(1)  # target sequence length
+        # 2d grid:
+        # src_emb = self._expand(src_emb.unsqueeze(1), 1, Tt)
+        # trg_emb = self._expand(trg_emb.unsqueeze(2), 2, Ts)
 
-        if hidden is None:
-            # Try to determine batch size and generate hidden from input
-            batch_size = x_input.size(1)
-            hidden = self.init_hidden(batch_size)
+        src_emb = self._expand(src_emb.unsqueeze(1), 1, Ts)
+        trg_emb = self._expand(trg_emb.unsqueeze(2), 2, Ts)
 
-        raw_output = emb
+        X = self.merge(src_emb, trg_emb)
+        # del src_emb, trg_emb
+        # X = self._forward(X, data_src['lengths'])
+        X = self._forward(X, None)
+        logits = self.decoder(X).permute(1, 0, 2)
+        # return logits
+        return logits, None, None, None
 
-        raw_hiddens = []
-        raw_outputs = []
-        outputs = []
-
-        for idx, rnn in enumerate(self.rnns):
-            raw_output, current_h = rnn(raw_output, hidden[idx])
-            
-            raw_hiddens.append(current_h)
-            raw_outputs.append(raw_output)
-
-            if idx != self.n_layers - 1:
-                if training:
-                    raw_output = self.lockdrop(raw_output, self.dropout_h)
-                
-                outputs.append(raw_output)
-
-        if training:
-            output = self.lockdrop(raw_output, self.dropout_h)
-        else:
-            output = raw_output
-
-        outputs.append(output)
-
-        # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
-
-        if training:
-            # logprob = self.adasoft.\
-            #     logprob(
-            #         self.decoder.weight, 
-            #         self.decoder.bias, 
-            #         output.view(output.size(0) * output.size(1), output.size(2))
-            #     )
-            return output, raw_hiddens, raw_outputs, outputs
-        else:
-            decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
-            return decoded, raw_hiddens
 
 class PervasiveAttnLanguageModelWrapper(IModel):
 
@@ -179,10 +156,6 @@ class PervasiveAttnLanguageModelWrapper(IModel):
 
     def on_model_init(self):
         model = self._model
-        if model is not None and model.rnn_type != 'QRNN':
-            for rnn in model.rnns:
-                if issubclass(type(rnn), nn.RNNBase):
-                    rnn.flatten_parameters()
 
     # def repackage_hidden(self, h) -> Union[torch.Tensor, Tuple]:
     #     if torch.is_tensor(h):

@@ -5,6 +5,8 @@ DenseNet architecture
 from math import sqrt
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import itertools
 
 import time
 
@@ -290,11 +292,11 @@ class _MainDenseLayer(nn.Module):
                  params
                 ):
         super().__init__()
-        self.kernel_size = kernel_size
+        self.kernel_size = params.get('max_kernel_size', 3)
         self.bn_size = params.get('bn_size', 4)
         self.growth_rate = params.get('growth_rate', 32)
         self.drop_rate = params.get('conv_dropout', 0.)
-        
+
     def forward(self, x):
         new_features = self.seq(x)
         if self.drop_rate > 0:
@@ -344,7 +346,7 @@ class DenseLayer(_MainDenseLayer):
             nn.BatchNorm2d(self.bn_size * self.growth_rate),
             nn.ReLU(inplace=True),
             conv2
-            )
+        )
 
 
 class DenseLayer_midDP(_MainDenseLayer):
@@ -525,15 +527,15 @@ class DenseBlock(nn.Sequential):
             LayerModule = DenseLayer_Dil
         else:
             raise ValueError('Unknown type: %d' % layer_type)
-        print('Dense channels:', num_input_features, end='')
+        # print('Dense channels: ', num_input_features, end='')
         for i in range(num_layers):
-            print(">", num_input_features + (i + 1) * growth_rate, end='')
+            # print(">", num_input_features + (i + 1) * growth_rate, end='')
             layer = LayerModule(
                 num_input_features + i * growth_rate,
                 kernels[i],
                 params,
                 first=i==0,
-                )
+            )
             self.add_module('denselayer%d' % (i + 1), layer)
         
     def update(self, x):
@@ -558,14 +560,29 @@ class DenseBlock(nn.Sequential):
 class DenseNet(nn.Module):
     def __init__(self, num_init_features, params):
         super(DenseNet, self).__init__()
-        block_layers = params.get('num_layers', (24))
-        block_kernels = params['kernels']
+        block_layers = params.get('num_layers', [24])
+        block_kernels = params.get('kernels', [3])
         growth_rate = params.get('growth_rate', 32)
         divide_channels = params.get('divide_channels', 2)
         init_weights = params.get('init_weights', 0)
         normalize_channels = params.get('normalize_channels', 0)
         transition_type = params.get('transition_type', 1)
         skip_last_trans = params.get('skip_last_trans', 0)
+
+        if len(block_kernels) == 1 :
+            block_kernels = [block_kernels * n for n in block_layers]
+        else:
+            assert len(block_kernels) == sum(block_layers), "The number of kernel sizes must match that of the network layers"
+            batched_kernels = []
+            left = 0 
+            for layer_size in block_layers:
+                batched_kernels.append(block_kernels[left:left+layer_size])
+                left += layer_size
+            block_kernels = batched_kernels
+
+        params['max_kernel_size'] = max(list(itertools.chain.from_iterable(
+            block_kernels
+        )))
 
         if transition_type == 1:
             TransitionLayer = Transition
@@ -589,10 +606,16 @@ class DenseNet(nn.Module):
             self.features.add_module('initial_transition', trans)
             num_features = num_features // divide_channels
         # Each denseblock
-        for i, (num_layers, kernels) in enumerate(zip(block_layers,
-                                                      block_kernels)):
-            block = DenseBlock(num_layers, num_features,
-                                kernels, params)
+        # print('block_layers %s' % str(block_layers))
+        for i, (num_layers, kernels) in enumerate(
+            zip(block_layers, block_kernels)
+        ):
+            block = DenseBlock(
+                num_layers,
+                num_features,
+                kernels,
+                params
+            )
             self.features.add_module('denseblock%d' % (i + 1), block)
             num_features = num_features + num_layers * growth_rate
             # In net2: Only between blocks
@@ -603,7 +626,7 @@ class DenseNet(nn.Module):
                     init_weights=init_weights)
                 self.features.add_module('transition%d' % (i + 1), trans)
                 num_features = num_features // 2
-                print("> (trans) ", num_features, end='')
+                # print("> (trans) ", num_features, end='')
         print()
         self.output_channels = num_features
         # Final batch norm

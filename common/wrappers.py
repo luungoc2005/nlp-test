@@ -49,7 +49,7 @@ class IModel(object):
         self._onnx = None
         self._onnx_model = None
 
-    def init_model(self, fp16: bool = False, update_configs: dict = {}):
+    def init_model(self, update_configs: dict = {}):
         if self._from_fp is None:
             model_state = None
         else:
@@ -72,7 +72,7 @@ class IModel(object):
         if self.is_pytorch_module():
             # re-initialize model with loaded config
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
-            if fp16: self._model.half()
+            # if fp16: self._model.half()
             self._model = to_gpu(self._model)
         else:
             # initialize model normally
@@ -374,8 +374,7 @@ class ILearner(object):
     # Returns: (loss, logits) loss and raw results of the model
     
     def on_epoch(self, 
-        X, y, 
-        fp16_loss_scale: float = 1., 
+        X, y,
         gradient_accumulation_steps: int = 1) -> dict: return dict()
 
     def calculate_metrics(self, logits, y): pass
@@ -437,20 +436,12 @@ class ILearner(object):
         shuffle: bool = True,
         optimize_on_cpu: bool = False,
         fp16: bool = False,
-        loss_scale: float = 128,
         gradient_accumulation_steps: int = 1,
         callbacks: Iterable[object] = []):
 
         if self._uneven_batch_size: batch_size = 1
 
         self._batch_size = batch_size
-
-        if fp16 and 'loss_scale' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
-            print('FP16 is supported by this class')
-            self.fp16 = True
-        else:
-            fp16 = False
-            self.fp16 = False
 
         if gradient_accumulation_steps and 'gradient_accumulation_steps' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
             print('Gradient accumulation is supported by this class')
@@ -547,11 +538,8 @@ class ILearner(object):
         if self.model_wrapper._featurizer is not None:
             self.model_wrapper.config['input_shape'] = self.model_wrapper._featurizer.get_output_shape()
 
-        if self.model_wrapper.model is None: 
-            if fp16:
-                self.model_wrapper.init_model(fp16)
-            else:
-                self.model_wrapper.init_model()
+        if self.model_wrapper.model is None:
+            self.model_wrapper.init_model()
         self.on_model_init()
 
         model = self.model_wrapper._model
@@ -563,13 +551,7 @@ class ILearner(object):
                 if param.requires_grad
             ]
 
-            if fp16:
-                optim_params = [
-                    (n, param.clone().detach().to('cpu').float().requires_grad_()) \
-                    for n, param in optim_params
-                ]
-
-            elif self._optimize_on_cpu:
+            if self._optimize_on_cpu:
                 optim_params = [
                     (n, param.clone().detach().to('cpu').requires_grad_()) \
                     for n, param in optim_params
@@ -582,6 +564,17 @@ class ILearner(object):
 
         if self.model_wrapper.is_pytorch_module() and not hasattr(self, 'criterion'):
             raise ValueError('Criterion must be set for the Learner class before training')
+
+        # fp16
+        if fp16:
+            try:
+                from apex import amp, optimizers
+                from apex.multi_tensor_apply import multi_tensor_applier
+
+                model, self.optimizer = amp.initialize(model, self.optimizer, opt_level="O1")
+                self.model_wrapper._model = model
+            except ImportError:
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
         # Main training loop
         try:
@@ -609,8 +602,6 @@ class ILearner(object):
 
                     args = to_gpu(X_batch), to_gpu(y_batch)
                     kwargs = {}
-                    if fp16:
-                        kwargs['loss_scale'] = loss_scale
                     if gradient_accumulation_steps > 1:
                         kwargs['gradient_accumulation_steps'] = self.gradient_accumulation_steps
 
@@ -624,6 +615,16 @@ class ILearner(object):
                             batch_metrics = {}
 
                         if 'loss' in epoch_ret:
+                            epoch_loss = epoch_ret['loss']
+
+                            # backward
+                            if fp16:
+                                with amp.scale_loss(epoch_loss, self.optimizer) as scaled_loss:
+                                    scaled_loss.backward()
+                            else:
+                                epoch_loss.backward()
+
+                            epoch_ret['loss'] = epoch_loss.detach().cpu().item()
                             batch_metrics['loss'] = epoch_ret['loss']
                         
                         self._batch_metrics = batch_metrics
@@ -635,21 +636,11 @@ class ILearner(object):
 
                     if self.model_wrapper.is_pytorch_module() and self._auto_optimize: 
                         if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
-                            if fp16 or self._optimize_on_cpu:
-                                if fp16 and loss_scale != 1.0:
-                                    # scale down gradients for fp16 training
-                                    for param in model.parameters():
-                                        if param.grad is not None:
-                                            param.grad.data = param.grad.data / loss_scale
-
+                            if self._optimize_on_cpu:
                                 is_nan = set_optimizer_params_grad(optim_params, model.named_parameters(), test_nan=True)
-                                if is_nan:
-                                    print('FP16 TRAINING: Nan in gradients, reducing loss scaling')
-                                    loss_scale = loss_scale / 2
-                                    model.zero_grad()
-                                else:
-                                    self.optimizer.step()
-                                    copy_optimizer_params_to_model(model.named_parameters(), optim_params)
+
+                                self.optimizer.step()
+                                copy_optimizer_params_to_model(model.named_parameters(), optim_params)
 
                             else:
                                 self.optimizer.step()

@@ -31,10 +31,8 @@ class OvrClassifierLearner(ILearner):
         logits = self.model_wrapper.model(X)
         loss = self.criterion(logits, y)
 
-        loss.backward()
-
         return {
-            'loss': loss.detach().item(), 
+            'loss': loss, 
             'logits': logits.detach()
         }
 
