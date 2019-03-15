@@ -8,6 +8,7 @@ from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_EMBEDDING_DIM
 from common.splitcross import SplitCrossEntropyLoss
 from sent_to_vec.masked_lm.data import collate_seq_lm_fn
+from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from typing import Union, Tuple, Iterable
 
 class LanguageModelLearner(ILearner):
@@ -84,20 +85,31 @@ class LanguageModelLearner(ILearner):
 
         if use_adasoft and self.model_wrapper.model.adasoft is None:
             self.model_wrapper.model.adasoft = self.criterion
+
+        if isinstance(self.model_wrapper.model, BertLMWrapper):
+            self.bert_mode = True
         
         print(self.model_wrapper.model)
 
     def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
+        bert_mode = hasattr(self, 'bert_mode') and self.ber_mode
+        if bert_mode:
+            X, bert_mask = X
+            
         batch_size = X.size(1)
 
         model = self.model_wrapper.model
 
         if hasattr(model, 'init_hidden'):
             hidden = model.init_hidden(batch_size)
-        else:
-            hidden = None
+            logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
 
-        logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
+        else:
+            if bert_mode:
+                hidden = torch.zeros(X.size()).long()
+            else:
+                hidden = None
+            logits, hidden, _, _ = model(X, hidden, training=True)
 
         decoder = model.decoder
         if self.use_adasoft:

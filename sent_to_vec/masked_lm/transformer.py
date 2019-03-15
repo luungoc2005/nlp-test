@@ -91,7 +91,7 @@ class BertConfig(object):
             for key, value in json_config.items():
                 self.__dict__[key] = value
         elif isinstance(vocab_size_or_config_json_file, int):
-            self.vocab_size = vocab_size_or_config_json_file
+            self.num_words = vocab_size_or_config_json_file
             self.hidden_size = hidden_size
             self.num_hidden_layers = num_hidden_layers
             self.num_attention_heads = num_attention_heads
@@ -157,7 +157,7 @@ class BertEmbeddings(nn.Module):
     """
     def __init__(self, config):
         super(BertEmbeddings, self).__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=0)
+        self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size, padding_idx=0)
 
@@ -409,7 +409,7 @@ class BertPreTrainedModel(nn.Module):
     """
     def __init__(self, config, *inputs, **kwargs):
         super(BertPreTrainedModel, self).__init__()
-        if not isinstance(config, BertConfig):
+        if not isinstance(config, object):
             raise ValueError(
                 "Parameter config in `{}(config)` should be an instance of class `BertConfig`. "
                 "To create a model from a Google pretrained model use "
@@ -578,7 +578,7 @@ class BertForPreTraining(BertPreTrainedModel):
 
         if masked_lm_labels is not None and next_sentence_label is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)
-            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
             next_sentence_loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_label.view(-1))
             total_loss = masked_lm_loss + next_sentence_loss
             return total_loss
@@ -634,17 +634,27 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask,
-                                       output_all_encoded_layers=False)
-        prediction_scores = self.cls(sequence_output)
+        # For compatibility with QRNNLanguageModel
+        self.decoder = self.cls.predictions.decoder
+        self.adasoft = None
 
-        if masked_lm_labels is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-1)
-            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
-            return masked_lm_loss
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=False, training=False):
+        # Transform to batch-first format
+        input_ids = input_ids.transpose(1, 0, 2)
+        if attention_mask is not None: attention_mask = attention_mask.transpose(1, 0, 2)
+        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+            output_all_encoded_layers=output_all_encoded_layers)
+        # if masked_lm_labels is not None:
+            # loss_fct = CrossEntropyLoss(ignore_index=-1)
+            # masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
+            # return masked_lm_loss
+        # else:
+        if training:
+            return sequence_output, pooled_output, None, None
         else:
-            return prediction_scores
+            prediction_scores = self.cls(sequence_output)
+            return prediction_scores, pooled_output, None, None
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):

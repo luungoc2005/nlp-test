@@ -7,12 +7,12 @@ from common.splitcross import SplitCrossEntropyLoss
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
-from typing import Union, Iterable, Tuple
 from common.splitcross import SplitCrossEntropyLoss
-from typing import Union, List, Iterable
 
 from sent_to_vec.masked_lm.densenet import DenseNet
 from sent_to_vec.masked_lm.aggregator import Aggregator
+
+from typing import Union, Iterable, Tuple
 
 class PervasiveAttnLanguageModel(nn.Module):
 
@@ -110,10 +110,10 @@ class PervasiveAttnLanguageModel(nn.Module):
         X = self.aggregator(X, src_lengths, track=track)
         return X
 
-    def forward(self, 
-        x_input:Union[torch.LongTensor, torch.cuda.LongTensor], 
-        hidden:Union[torch.FloatTensor, torch.cuda.FloatTensor] = None, 
-        training:bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self,
+        x_input: Union[torch.LongTensor, torch.cuda.LongTensor], 
+        hidden: Union[torch.FloatTensor, torch.cuda.FloatTensor] = None, 
+        training: bool = False) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         training = training or self.training
 
         src_emb = self.encoder(x_input).permute(1, 0, 2)

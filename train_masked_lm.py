@@ -81,7 +81,7 @@ if __name__ == '__main__':
         epochs=100,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
         ]
