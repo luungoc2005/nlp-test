@@ -8,12 +8,11 @@ import time
 import uuid
 import json
 import subprocess
-import logging
 import sys, traceback
 
-consoleHandler = logging.StreamHandler()
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler())
+# consoleHandler = logging.StreamHandler()
+# logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+# logging.getLogger().addHandler(logging.StreamHandler())
 
 TRAIN_PROCESSES = dict()
 
@@ -116,7 +115,7 @@ def initialize(app):
 
                 # This deletes the model before training is complete so...
 
-                # print('Deleting previous model', prev_model_id)
+                app.logger.info('Deleting previous model', prev_model_id)
                 # delete_model(app, prev_model_id)
 
             model_id = str(uuid.uuid4())
@@ -125,7 +124,7 @@ def initialize(app):
             save_path = path.join(app.config['UPLOAD_FOLDER'], filename)
             u_file.save(save_path)
 
-            print('Upload complete. Beginning training model', model_id)
+            app.logger.info('Upload complete. Beginning training model', model_id)
 
             clf_model_path = save_path + '.cls.bin'
             ent_model_path = save_path + '.ent.bin'
