@@ -95,7 +95,8 @@ class LanguageModelLearner(ILearner):
     def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
         bert_mode = hasattr(self, 'bert_mode') and self.bert_mode
         # TODO: implement masking for BERT
-        # if bert_mode:
+        if bert_mode:
+            y = y.t()
         #     X, bert_mask = X
             
         batch_size = X.size(1)
