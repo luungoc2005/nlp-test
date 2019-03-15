@@ -105,11 +105,8 @@ class LanguageModelLearner(ILearner):
             logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
 
         else:
-            if bert_mode:
-                hidden = torch.zeros(X.size()).long()
-            else:
-                hidden = None
-            logits, hidden, _, _ = model(X, hidden, training=True)
+            hidden = None
+            logits, hidden, _, _ = model(X, attention_mask=bert_mask, training=True)
 
         decoder = model.decoder
         if self.use_adasoft:
