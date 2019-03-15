@@ -110,7 +110,7 @@ class LanguageModelLearner(ILearner):
             logits, hidden, _, _ = model(X, training=True)
 
         if bert_mode:
-            logits = logits.permute(1, 0, 2)
+            logits = logits.permute(1, 0, 2).contiguous()
             logits = logits.view(logits.size(0) * logits.size(1), logits.size(2))
 
         decoder = model.decoder
