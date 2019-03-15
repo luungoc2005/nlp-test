@@ -24,11 +24,11 @@ if __name__ == '__main__':
         #     'num_words': 50000
         # }) # large model
         model = BertLMWrapper({
-            'num_words': 10000,
-            'hidden_size': 256,
-            'num_hidden_layers': 8,
-            'num_attention_heads': 8,
-            'intermediate_size': 1024,
+            'num_words': 30000,
+            'hidden_size': 512,
+            'num_hidden_layers': 12,
+            'num_attention_heads': 10,
+            'intermediate_size': 2048,
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
@@ -87,8 +87,8 @@ if __name__ == '__main__':
             # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
-        ]
+        ],
         # gradient_accumulation_steps=3,
         # optimize_on_cpu=True,
-        # fp16=True
+        fp16=True
     )
