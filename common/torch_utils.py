@@ -34,7 +34,7 @@ def lr_schedule_slanted_triangular(step, n_epochs, max_lr=0.01, cut_frac=0.1, ra
         p = 1 - (step - cut) / (cut * (1 / cut_frac - 1))
     return max_lr * (1 + p * (ratio - 1)) / ratio
 
-USE_GPU = os.environ.get('USE_GPU', None)
+USE_GPU = os.environ.get('USE_GPU', '').lower()
 if USE_GPU is None:
     USE_GPU = torch.cuda.is_available()
 else:
@@ -43,14 +43,16 @@ else:
 
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
-    if USE_GPU is not None:
-        try:
-            return x.cuda(USE_GPU, *args, **kwargs)
-        except:
+    if USE_GPU != '':
+        if USE_GPU == 'true':
             return x.cuda(*args, **kwargs)
+        else:
+            try:
+                return x.cuda(USE_GPU, *args, **kwargs)
+            except:
+                return x.cuda(*args, **kwargs)
     else:
         return x
-
 
 def copy_optimizer_params_to_model(named_params_model, named_params_optimizer):
     """ Utility function for optimize_on_cpu and 16-bits training.
