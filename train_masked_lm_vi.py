@@ -32,7 +32,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 100
+    BATCH_SIZE = 80
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')

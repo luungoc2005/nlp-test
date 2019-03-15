@@ -32,8 +32,8 @@ if __name__ == '__main__':
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
-            'max_position_embeddings': 256,
-            'featurizer_seq_len': 256, # same as above
+            'max_position_embeddings': 128,
+            'featurizer_seq_len': 128, # same as above
             'type_vocab_size': 2,
             'initializer_range': 0.02,
             'use_adasoft': True,
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 100
+    BATCH_SIZE = 80
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
