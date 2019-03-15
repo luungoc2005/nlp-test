@@ -88,11 +88,12 @@ class LanguageModelLearner(ILearner):
 
         if isinstance(self.model_wrapper.model, BertLMWrapper):
             self.bert_mode = True
+            print('Training in BERT mode')
         
         print(self.model_wrapper.model)
 
     def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
-        bert_mode = hasattr(self, 'bert_mode') and self.ber_mode
+        bert_mode = hasattr(self, 'bert_mode') and self.bert_mode
         if bert_mode:
             X, bert_mask = X
             
