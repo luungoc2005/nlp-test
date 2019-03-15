@@ -111,7 +111,7 @@ class LanguageModelLearner(ILearner):
 
         if bert_mode:
             logits = logits.permute(1, 0, 2)
-            logits = logits.view(output.size(0) * output.size(1), output.size(2))
+            logits = logits.view(logits.size(0) * logits.size(1), logits.size(2))
 
         decoder = model.decoder
         if self.use_adasoft:
