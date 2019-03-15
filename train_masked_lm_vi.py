@@ -1,5 +1,4 @@
-# from sent_to_vec.masked_lm.pervasive_model import PervasiveAttnLanguageModelWrapper
-from sent_to_vec.masked_lm.bert_model import BertLMWrapper
+from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.data import WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
@@ -9,35 +8,26 @@ from config import BASE_PATH
 from common.modules import BertAdam
 
 if __name__ == '__main__':
-    MODEL_PATH = 'vi-masked-lm-test.bin'
+    MODEL_PATH = 'masked-lm-checkpoint.bin'
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
-        # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
-        model = BertLMWrapper(from_fp=MODEL_PATH)
+        model = BiLanguageModelWrapper(from_fp=MODEL_PATH)
     else:
-        # model = PervasiveAttnLanguageModelWrapper({
-        #     'n_layers': 6,
-        #     'tie_weights': True,
-        #     'embedding_dim': 300,
-        #     'hidden_dim': 300,
-        #     'use_adasoft': True,
-        #     'num_words': 50000
-        # }) # large model
-        model = BertLMWrapper({
-            'num_words': 50000,
-            'hidden_size': 432,
-            'num_hidden_layers': 10,
-            'num_attention_heads': 12,
-            'intermediate_size': 2048,
-            'hidden_act': 'gelu',
-            'hidden_dropout_prob': 0.1,
-            'attention_probs_dropout_prob': 0.1,
-            'max_position_embeddings': 256,
-            'featurizer_seq_len': 256, # same as above
-            'type_vocab_size': 2,
-            'initializer_range': 0.02,
+        model = BiLanguageModelWrapper({
+            'rnn_type': 'LSTM',
+            'n_layers': 3,
+            'tie_weights': True,
+            'embedding_dim': 400,
+            'hidden_dim': 1150,
+            'alpha': 2,
+            'beta': 1,
+            'emb_dropout': .1,
+            'h_dropout': .25,
+            'w_dropout': .5,
+            'rnn_dropout': 0,
             'use_adasoft': True,
-        })
+            'num_words': 50000
+        }) # large model
 
     dataset = WikiTextDataset()
 
@@ -89,7 +79,8 @@ if __name__ == '__main__':
             # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
-        ],
+        ]
         # gradient_accumulation_steps=3,
         # optimize_on_cpu=True,
+        # fp16=True
     )
