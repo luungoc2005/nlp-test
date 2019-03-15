@@ -92,7 +92,10 @@ class DualFeaturizer(IFeaturizer):
                 if _return_mask:
                     mask[idx, :seq_len] = 1
 
-            return res, mask
+            if _return_mask:
+                return res, mask
+            else:
+                return res
         else:
             return tokens
 
