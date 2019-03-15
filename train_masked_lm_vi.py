@@ -32,7 +32,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 120
+    BATCH_SIZE = 100
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -45,7 +45,7 @@ if __name__ == '__main__':
             path.join(BASE_PATH, 'vi-corpus/vi_corpus_2.txt'),
         ]
         dataset.initialize(model, data_path=paths)
-        dataset.save()
+        dataset.save(SAVE_PATH)
 
     # learner = LanguageModelLearner(model, 
     #     optimizer_fn='sgd', 

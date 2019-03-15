@@ -76,11 +76,11 @@ class WikiTextDataset(Dataset):
         else:
             return 'wikitext-maskedlm-data-{}.bin'.format(num_words)
 
-    def save(self):
+    def save(self, save_path = ''):
         torch.save({
             'featurizer': self.featurizer,
             'raw_sents': self.raw_sents
-        }, self.get_save_name())
+        }, save_path if save_path != '' else self.get_save_name())
         print('Finished saving preprocessed dataset')
 
     def load(self, fp, model_wrapper, get_next_sent=False):
