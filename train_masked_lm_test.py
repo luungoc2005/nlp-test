@@ -9,7 +9,7 @@ from config import BASE_PATH
 from common.modules import BertAdam
 
 if __name__ == '__main__':
-    MODEL_PATH = 'masked-lm-test.bin'
+    MODEL_PATH = 'vi-masked-lm-test.bin'
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
         # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     dataset = WikiTextDataset()
 
-    SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
+    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
     BATCH_SIZE = 160
 
     if path.exists(SAVE_PATH):
