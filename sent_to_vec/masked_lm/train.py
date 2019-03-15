@@ -85,12 +85,12 @@ class LanguageModelLearner(ILearner):
 
         if use_adasoft and self.model_wrapper.model.adasoft is None:
             self.model_wrapper.model.adasoft = self.criterion
-
-        if isinstance(self.model_wrapper.model, BertLMWrapper):
-            self.bert_mode = True
-            print('Training in BERT mode')
         
         print(self.model_wrapper.model)
+
+        if isinstance(self.model_wrapper, BertLMWrapper):
+            self.bert_mode = True
+            print('Training in BERT mode')
 
     def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
         bert_mode = hasattr(self, 'bert_mode') and self.bert_mode
