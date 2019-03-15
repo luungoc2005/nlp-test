@@ -26,7 +26,7 @@ if __name__ == '__main__':
             'w_dropout': .5,
             'rnn_dropout': 0,
             'use_adasoft': True,
-            'num_words': 50000
+            'num_words': 30000
         }) # large model
 
     dataset = WikiTextDataset()

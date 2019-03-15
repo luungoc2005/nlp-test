@@ -24,7 +24,7 @@ if __name__ == '__main__':
         #     'num_words': 50000
         # }) # large model
         model = BertLMWrapper({
-            'num_words': 50000,
+            'num_words': 30000,
             'hidden_size': 432,
             'num_hidden_layers': 10,
             'num_attention_heads': 12,

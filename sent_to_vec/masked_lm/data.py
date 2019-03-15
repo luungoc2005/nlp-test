@@ -143,6 +143,14 @@ def collate_sent(data):
         ret_val[ix, :seq_len] = seq
     return ret_val.long().t().contiguous()
 
+def collate_sent_batch_first(data):
+    max_seq_len = max([len(item) for item in data])
+    ret_val = torch.zeros(len(data), max_seq_len)
+    for ix, seq in enumerate(data):
+        seq_len = min(max_seq_len, len(seq))
+        ret_val[ix, :seq_len] = seq
+    return ret_val.long().contiguous()
+
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
