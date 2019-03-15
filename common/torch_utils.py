@@ -38,11 +38,18 @@ USE_GPU = os.environ.get('USE_GPU', None)
 if USE_GPU is None:
     USE_GPU = torch.cuda.is_available()
 else:
-    USE_GPU = (USE_GPU == '1')
+    # USE_GPU = (USE_GPU == 'True')
+    pass
 
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
-    return x.cuda(*args, **kwargs) if USE_GPU else x
+    if USE_GPU is not None:
+        try:
+            return x.cuda(USE_GPU, *args, **kwargs)
+        except:
+            return x.cuda(*args, **kwargs)
+    else:
+        return x
 
 
 def copy_optimizer_params_to_model(named_params_model, named_params_optimizer):
