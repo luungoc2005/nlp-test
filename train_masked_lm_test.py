@@ -24,7 +24,7 @@ if __name__ == '__main__':
         #     'num_words': 50000
         # }) # large model
         model = BertLMWrapper({
-            'num_words': 30000,
+            'num_words': 50000,
             'hidden_size': 512,
             'num_hidden_layers': 10,
             'num_attention_heads': 8,
@@ -33,15 +33,16 @@ if __name__ == '__main__':
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
             'max_position_embeddings': 256,
+            'featurizer_seq_len': 256, # same as above
             'type_vocab_size': 2,
             'initializer_range': 0.02,
-            'use_adasoft': False,
+            'use_adasoft': True,
         })
 
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
-    BATCH_SIZE = 80
+    BATCH_SIZE = 160
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')

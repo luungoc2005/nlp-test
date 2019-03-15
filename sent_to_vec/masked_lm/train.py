@@ -42,15 +42,15 @@ class LanguageModelLearner(ILearner):
                 splits = self.model_wrapper.config['adasoft_cutoffs']
             else:
                 splits = []
-                if num_words > 500000:
+                if num_words >= 500000:
                     # One Billion
                     # This produces fairly even matrix mults for the buckets:
                     # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
                     splits = [4200, 35000, 180000]
-                elif num_words > 75000:
+                elif num_words >= 75000:
                     # WikiText-103
                     splits = [2800, 20000, 76000]
-                elif num_words > 20000:
+                elif num_words >= 20000:
                     splits = [2000, 4000, 10000]
                 else:
                     splits = [num_words // 3, num_words // 3]
