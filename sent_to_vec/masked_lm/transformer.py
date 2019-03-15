@@ -641,9 +641,9 @@ class BertForMaskedLM(BertPreTrainedModel):
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=False, training=False):
         # Transform to batch-first format
-        input_ids = input_ids.transpose()
-        if attention_mask is not None: attention_mask = attention_mask.transpose()
-        if token_type_ids is not None: token_type_ids = token_type_ids.transpose()
+        input_ids = input_ids.t()
+        if attention_mask is not None: attention_mask = attention_mask.t()
+        if token_type_ids is not None: token_type_ids = token_type_ids.t()
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
             output_all_encoded_layers=output_all_encoded_layers)
         # if masked_lm_labels is not None:
