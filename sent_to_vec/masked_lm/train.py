@@ -36,7 +36,10 @@ class LanguageModelLearner(ILearner):
             hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
             embedding_dim = config.get('embedding_dim', LM_EMBEDDING_DIM)
 
-            hidden_dim = embedding_dim if tie_weights else hidden_dim
+            if self.bert_mode:
+                hidden_dim = config.get('hidden_size', hidden_dim)
+            else:
+                hidden_dim = embedding_dim if tie_weights else hidden_dim
 
             if 'adasoft_cutoffs' in self.model_wrapper.config:
                 splits = self.model_wrapper.config['adasoft_cutoffs']
