@@ -24,6 +24,10 @@ class LanguageModelLearner(ILearner):
             collate_fn=collate_seq_lm_fn,
             **kwargs)
 
+        if isinstance(model, BertLMWrapper):
+            self.bert_mode = True
+            print('Training in BERT mode')
+
     def on_training_start(self):
         config = self.model_wrapper.config or dict()
 
@@ -90,10 +94,6 @@ class LanguageModelLearner(ILearner):
             self.model_wrapper.model.adasoft = self.criterion
         
         print(self.model_wrapper.model)
-
-        if isinstance(self.model_wrapper, BertLMWrapper):
-            self.bert_mode = True
-            print('Training in BERT mode')
 
     def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
         bert_mode = hasattr(self, 'bert_mode') and self.bert_mode
