@@ -25,9 +25,9 @@ if __name__ == '__main__':
         # }) # large model
         model = BertLMWrapper({
             'num_words': 30000,
-            'hidden_size': 432,
-            'num_hidden_layers': 10,
-            'num_attention_heads': 12,
+            'hidden_size': 400,
+            'num_hidden_layers': 8,
+            'num_attention_heads': 10,
             'intermediate_size': 2048,
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-3, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={'lr': 3e-4, 'weight_decay_rate': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
