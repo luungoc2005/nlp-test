@@ -26,7 +26,7 @@ class BertLMWrapper(IModel):
         featurizer_config['append_sos_eos'] = True
         featurizer_config['featurizer_reserved_tokens'] = [START_TAG, STOP_TAG, UNK_TAG, MASK_TAG]
 
-        super(BertForMaskedLM, self).__init__(
+        super(BertLMWrapper, self).__init__(
             model_class=BertForMaskedLM, 
             config=config, 
             featurizer=BasicFeaturizer(featurizer_config),

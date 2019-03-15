@@ -48,15 +48,10 @@ if __name__ == '__main__':
     else:
         paths = [
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
-            path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
+            path.join(BASE_PATH, '../vi-corpus/vi.all'),
+            path.join(BASE_PATH, '../vi-corpus/vi_corpus_1.txt'),
+            path.join(BASE_PATH, '../vi-corpus/vi_corpus_2.txt'),
         ]
-        bookcorpus_path = path.join(BASE_PATH, 'data/bookcorpus')
-        if path.exists(bookcorpus_path):
-            paths.extend([
-                path.join(bookcorpus_path, filename)
-                for filename in listdir(bookcorpus_path)
-                if filename.lower().endswith('txt')
-            ])
         dataset.initialize(model, data_path=paths)
         dataset.save()
 
