@@ -90,5 +90,4 @@ if __name__ == '__main__':
         ],
         # gradient_accumulation_steps=3,
         # optimize_on_cpu=True,
-        fp16=True
     )
