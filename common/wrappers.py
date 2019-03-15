@@ -7,9 +7,10 @@ import pickle
 import os
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
+from common.utils import dotdict
 from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
-from typing import Iterable, Union, Callable, Tuple
 from common.quantize import quantize_model, dequantize_model
+from typing import Iterable, Union, Callable, Tuple
 import inspect
 
 class IFeaturizer(object):
@@ -65,6 +66,11 @@ class IModel(object):
         else:
             config = model_state.get('config', dict())
             self._onnx = model_state.get('onnx', None)
+            self.config = config
+
+        # convert to dotdict
+        if isinstance(config, dict):
+            config = dotdict(config)
             self.config = config
 
         self.config.update(update_configs)
@@ -131,9 +137,12 @@ class IModel(object):
                 model_state['state_dict'] = self._model.state_dict()
         else:
             model_state['onnx'] = self._onnx
-        
+
         if self.config is not None:
-            model_state['config'] = self.config
+            if isinstance(self.config, dotdict):
+                model_state['config'] = self.config.content
+            else:
+                model_state['config'] = self.config
         else:
             model_state['config'] = dict() # default to empty object
         

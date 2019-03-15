@@ -1,4 +1,4 @@
-# https://github.com/keras-team/keras/blob/a69008527787c387be7d7d4f6de91f9f08396dbc/keras/preprocessing/text.py
+# Based on https://github.com/keras-team/keras/blob/a69008527787c387be7d7d4f6de91f9f08396dbc/keras/preprocessing/text.py
 # -*- coding: utf-8 -*-
 """Utilities for text input preprocessing.
 """
@@ -13,8 +13,8 @@ from collections import OrderedDict
 from hashlib import md5
 
 import numpy as np
-from six.moves import range
-from six.moves import zip
+# from six.moves import range
+# from six.moves import zip
 
 from config import START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
 from common.utils import all_letters

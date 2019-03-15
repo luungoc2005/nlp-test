@@ -274,6 +274,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
+    content = dict
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__

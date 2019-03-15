@@ -1,4 +1,4 @@
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from common.wrappers import IModel
 from sent_to_vec.sif.encoder import SIF_embedding
 from common.utils import word_to_vec

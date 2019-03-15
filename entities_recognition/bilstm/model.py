@@ -6,7 +6,7 @@ import warnings
 from common.wrappers import IModel
 from common.utils import prepare_vec_sequence, wordpunct_space_tokenize, word_to_vec, argmax
 from common.torch_utils import to_gpu
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, START_TAG, STOP_TAG
 from common.modules import BRNNWordEncoder
 

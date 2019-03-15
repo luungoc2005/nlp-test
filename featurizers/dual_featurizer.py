@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from common.wrappers import IFeaturizer
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from nltk.tokenize import wordpunct_tokenize
 from common.utils import n_letters, all_letters
@@ -18,6 +18,7 @@ class DualFeaturizer(IFeaturizer):
         self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
         self.reserved_tokens = config.get('featurizer_reserved_tokens', [START_TAG, STOP_TAG, UNK_TAG])
         self.to_tensor = config.get('to_tensor', True) # pad sequences and return tensors
+        self.return_mask = config.get('return_mask', False)
 
         self.tokenize_fn = wordpunct_tokenize
         
@@ -64,7 +65,7 @@ class DualFeaturizer(IFeaturizer):
         
         self.tokenizer.fit_on_texts(self.tokenize(data))
 
-    def transform(self, data, to_tensor=None):
+    def transform(self, data, to_tensor=None, return_mask=None):
         try:
             _ = (it for it in data)
             if len(data) < 1: return # Must have at least 1 item
@@ -72,6 +73,7 @@ class DualFeaturizer(IFeaturizer):
             return # data is not an iterable
 
         tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
+        _return_mask = return_mask if return_mask is not None else self.return_mask
 
         if to_tensor if to_tensor is not None else self.to_tensor:
             lengths = [len(seq) for seq in tokens]
@@ -80,11 +82,17 @@ class DualFeaturizer(IFeaturizer):
                 max_seq_len = min(max_seq_len, self.featurizer_seq_len)
 
             res = torch.zeros(len(tokens), max_seq_len).long()
+            if _return_mask:
+                mask = torch.zeros(len(tokens), max_seq_len).long()
+
             for idx, seq in enumerate(tokens):
                 seq_len = min(max_seq_len, len(seq))
                 res[idx, :seq_len] = torch.LongTensor(seq[:seq_len])
 
-            return res
+                if _return_mask:
+                    mask[idx, :seq_len] = 1
+
+            return res, mask
         else:
             return tokens
 

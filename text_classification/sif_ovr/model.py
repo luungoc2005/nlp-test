@@ -1,4 +1,4 @@
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from sent_to_vec.sif.encoder import SIF_embedding

@@ -9,7 +9,7 @@ from config import BASE_PATH, UNK_TAG
 from common.langs.vi_VN.tokenizer.model import BiLSTMTagger
 from common.langs.vi_VN.tokenizer import data_utils
 from common.langs.vi_VN.utils import remove_tone_marks, random_remove_marks
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from common.utils import get_datetime_hostname, asMinutes
 from tensorboardX import SummaryWriter
 

@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from common.wrappers import IFeaturizer
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from common.utils import pad_sequences, word_to_vec
 from common.torch_utils import to_gpu
 from nltk.tokenize import wordpunct_tokenize

@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F
 from nltk.tokenize import WhitespaceTokenizer
 from common.wrappers import IModel
-from common.keras_preprocessing import Tokenizer
+from common.preprocessing.keras import Tokenizer
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import EMBEDDING_DIM, CHAR_EMBEDDING_DIM, HIDDEN_DIM, NUM_LAYERS, UNK_TAG
 from featurizers.basic_featurizer import BasicFeaturizer
