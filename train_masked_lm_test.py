@@ -26,9 +26,9 @@ if __name__ == '__main__':
         model = BertLMWrapper({
             'num_words': 30000,
             'hidden_size': 400,
-            'num_hidden_layers': 6,
+            'num_hidden_layers': 4,
             'num_attention_heads': 8,
-            'intermediate_size': 1024,
+            'intermediate_size': 720,
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
@@ -36,7 +36,7 @@ if __name__ == '__main__':
             'featurizer_seq_len': 128, # same as above
             'type_vocab_size': 2,
             'initializer_range': 0.02,
-            'use_adasoft': True,
+            'use_adasoft': False,
         })
 
     dataset = WikiTextDataset()
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 3e-4, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
