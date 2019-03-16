@@ -653,6 +653,7 @@ class BertForMaskedLM(BertPreTrainedModel):
             # return masked_lm_loss
         # else:
         if training:
+            sequence_output = sequence_output.permute(1, 0, 2).contiguous()
             return sequence_output, pooled_output, None, None
         else:
             prediction_scores = self.cls(sequence_output)

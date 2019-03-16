@@ -112,16 +112,12 @@ class LanguageModelLearner(ILearner):
             hidden = None
             logits, hidden, _, _ = model(X, training=True)
 
-        if bert_mode:
-            logits = logits.permute(1, 0, 2).contiguous()
-            logits = logits.view(logits.size(0) * logits.size(1), logits.size(2))
-
         decoder = model.decoder
         if self.use_adasoft:
             loss = self.criterion(
                 decoder.weight,
                 decoder.bias,
-                logits,
+                logits.view(logits.size(0) * logits.size(1), logits.size(2)),
                 y
             )
         else:
