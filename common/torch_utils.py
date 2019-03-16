@@ -51,7 +51,7 @@ def to_gpu(x, *args, **kwargs):
             return x.cuda(*args, **kwargs)
         else:
             try:
-                return x.cuda(USE_GPU, *args, **kwargs)
+                return x.cuda(*args, device=USE_GPU, **kwargs)
             except:
                 return x.cuda(*args, **kwargs)
     else:
