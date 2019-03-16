@@ -49,6 +49,7 @@ class IModel(object):
         self._quantized = False
         self._onnx = None
         self._onnx_model = None
+        self._use_data_parallel = use_data_parallel()
 
     def init_model(self, update_configs: dict = {}):
         if self._from_fp is None:
@@ -78,7 +79,7 @@ class IModel(object):
         if self.is_pytorch_module():
             # re-initialize model with loaded config
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
-            if use_data_parallel():
+            if self._use_data_parallel:
                 self._model = nn.DataParallel(self._model)
             # if fp16: self._model.half()
             self._model = to_gpu(self._model)
@@ -263,7 +264,7 @@ class IModel(object):
         raise NotImplementedError
 
     @property
-    def model(self): return self._model
+    def model(self): return self._model.module if self._use_data_parallel == True else self._model
 
     @property
     def training(self): return self._model.training if hasattr(self._model, 'training') else False
