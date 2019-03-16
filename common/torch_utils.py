@@ -59,6 +59,7 @@ def to_gpu(x, *args, **kwargs):
                 device = USE_GPU
         else:
             device = "cpu"
+        device = torch.device(device)
     return x.to(device, *args, **kwargs)
 
 def copy_optimizer_params_to_model(named_params_model, named_params_optimizer):
