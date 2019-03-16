@@ -8,7 +8,7 @@ import os
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from common.utils import dotdict
-from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad
+from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad, use_data_parallel
 from common.quantize import quantize_model, dequantize_model
 from typing import Iterable, Union, Callable, Tuple
 import inspect
@@ -80,6 +80,8 @@ class IModel(object):
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
             # if fp16: self._model.half()
             self._model = to_gpu(self._model)
+            if use_data_parallel():
+                self._model = nn.DataParallel(self._model)
         else:
             # initialize model normally
             if self._onnx is None:

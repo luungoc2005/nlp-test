@@ -41,6 +41,9 @@ else:
     # USE_GPU = (USE_GPU == 'True')
     pass
 
+def use_data_parallel():
+    return USE_GPU != '' and torch.cuda.device_count() > 1
+
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
     if USE_GPU != '':
