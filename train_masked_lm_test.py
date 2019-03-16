@@ -26,9 +26,9 @@ if __name__ == '__main__':
         model = BertLMWrapper({
             'num_words': 30000,
             'hidden_size': 400,
-            'num_hidden_layers': 8,
-            'num_attention_heads': 10,
-            'intermediate_size': 2048,
+            'num_hidden_layers': 6,
+            'num_attention_heads': 8,
+            'intermediate_size': 1024,
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
