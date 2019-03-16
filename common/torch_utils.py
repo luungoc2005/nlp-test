@@ -42,7 +42,10 @@ else:
     pass
 
 def use_data_parallel():
-    return USE_GPU != '' and torch.cuda.device_count() > 1
+    result = USE_GPU != '' and torch.cuda.device_count() > 1
+    if result:
+        print('Using data parallel, number of GPUs: %s, devices: "%s"' % (str(torch.cuda.device_count()), str(USE_GPU)))
+    return result
 
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
