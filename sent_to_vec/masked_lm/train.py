@@ -112,7 +112,10 @@ class LanguageModelLearner(ILearner):
             hidden = None
             logits, hidden, _, _ = model(X, training=True)
 
-        decoder = model.decoder
+        if self.bert_mode:
+            decoder = model.cls.predictions.decoder
+        else:
+            decoder = model.decoder
         if self.use_adasoft:
             loss = self.criterion(
                 decoder.weight,
