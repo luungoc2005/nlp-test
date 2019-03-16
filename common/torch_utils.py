@@ -47,18 +47,18 @@ def use_data_parallel():
         print('Using data parallel, number of GPUs: %s, devices: "%s"' % (str(torch.cuda.device_count()), str(USE_GPU)))
     return result
 
+device = None
 def to_gpu(x, *args, **kwargs):
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
-    if USE_GPU != '':
-        if USE_GPU == True or USE_GPU == 'true':
-            return x.cuda(*args, **kwargs)
+    if device is None:
+        if USE_GPU != '':
+            if USE_GPU == True or USE_GPU == 'true':
+                device = "cuda:0"
+            else:
+                device = USE_GPU
         else:
-            try:
-                return x.cuda(*args, device=USE_GPU, **kwargs)
-            except:
-                return x.cuda(*args, **kwargs)
-    else:
-        return x
+            device = "cpu"
+    return x.to(device, *args, **kwargs)
 
 def copy_optimizer_params_to_model(named_params_model, named_params_optimizer):
     """ Utility function for optimize_on_cpu and 16-bits training.
