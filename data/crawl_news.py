@@ -107,6 +107,9 @@ news_sites = [
     'http://www.phuyen.gov.vn/',
     'http://bariavungtau.com/',
     'http://baotuyenquang.com.vn/',
+    'http://genk.vn/',
+    'http://gamek.vn/game-thu.htm',
+    'http://game4v.com/',
 
     'https://toidicodedao.com/',
     'https://triethocduongpho.net/',

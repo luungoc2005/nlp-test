@@ -67,14 +67,14 @@ class IModel(object):
         else:
             config = model_state.get('config', dict())
             self._onnx = model_state.get('onnx', None)
-            self.config = config
 
         # convert to dotdict
-        if isinstance(config, dict):
-            config = dotdict(config)
-            self.config = config
-
-        self.config.update(update_configs)
+        # if config is dict and not isinstance(config, dotdict):
+        #     config = dotdict(config)
+        #     self.config = config
+        # TODO: this is temporary hack to fix transformer model bug
+        config = dotdict(dict())
+        config.update(update_configs)
 
         if self.is_pytorch_module():
             # re-initialize model with loaded config
@@ -101,7 +101,7 @@ class IModel(object):
 
             if self.is_pytorch_module():
                 if state_dict is not None:
-                    self._model.load_state_dict(state_dict)
+                    self._model.load_state_dict(state_dict, strict=False)
             elif self._onnx is not None:
                 import onnx
                 self._onnx_model = onnx.load(self._onnx)
@@ -109,6 +109,7 @@ class IModel(object):
 
             self.load_state_dict(model_state)
 
+        self.config = config
         self.on_model_init()
 
     def on_model_init(self): pass
@@ -142,10 +143,7 @@ class IModel(object):
             model_state['onnx'] = self._onnx
 
         if self.config is not None:
-            if isinstance(self.config, dotdict):
-                model_state['config'] = self.config.content
-            else:
-                model_state['config'] = self.config
+            model_state['config'] = self.config
         else:
             model_state['config'] = dict() # default to empty object
         

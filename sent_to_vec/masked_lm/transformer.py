@@ -652,12 +652,12 @@ class BertForMaskedLM(BertPreTrainedModel):
             # masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
             # return masked_lm_loss
         # else:
+        sequence_output = sequence_output.permute(1, 0, 2).contiguous()
         if training:
-            sequence_output = sequence_output.permute(1, 0, 2).contiguous()
             return sequence_output, pooled_output, None, None
         else:
-            prediction_scores = self.cls(sequence_output)
-            return prediction_scores, pooled_output, None, None
+            prediction_scores = self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2)))
+            return prediction_scores, pooled_output, sequence_output, None
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):

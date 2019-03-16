@@ -26,9 +26,9 @@ if __name__ == '__main__':
         model = BertLMWrapper({
             'num_words': 30000,
             'hidden_size': 400,
-            'num_hidden_layers': 4,
+            'num_hidden_layers': 5,
             'num_attention_heads': 8,
-            'intermediate_size': 720,
+            'intermediate_size': 1140,
             'hidden_act': 'gelu',
             'hidden_dropout_prob': 0.1,
             'attention_probs_dropout_prob': 0.1,
@@ -36,13 +36,13 @@ if __name__ == '__main__':
             'featurizer_seq_len': 128, # same as above
             'type_vocab_size': 2,
             'initializer_range': 0.02,
-            'use_adasoft': True,
+            'use_adasoft': False,
         })
 
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 80
+    BATCH_SIZE = 256
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')

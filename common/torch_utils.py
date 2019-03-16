@@ -56,6 +56,8 @@ def to_gpu(x, *args, **kwargs):
         if USE_GPU != '':
             if USE_GPU == True or USE_GPU == 'true':
                 device = "cuda:0"
+            elif USE_GPU == False or USE_GPU == 'false':
+                device = "cpu"
             else:
                 device = USE_GPU
         else:
