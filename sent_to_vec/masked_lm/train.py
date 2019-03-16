@@ -90,7 +90,7 @@ class LanguageModelLearner(ILearner):
 
         use_adasoft = config.get('use_adasoft', True)
 
-        if use_adasoft and self.model_wrapper.model.adasoft is None:
+        if use_adasoft and (not hasattr(self.model_wrapper.model, 'adasoft') or self.model_wrapper.model.adasoft is None):
             self.model_wrapper.model.adasoft = self.criterion
         
         print(self.model_wrapper.model)
