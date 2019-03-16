@@ -78,10 +78,10 @@ class IModel(object):
         if self.is_pytorch_module():
             # re-initialize model with loaded config
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
-            # if fp16: self._model.half()
-            self._model = to_gpu(self._model)
             if use_data_parallel():
                 self._model = nn.DataParallel(self._model)
+            # if fp16: self._model.half()
+            self._model = to_gpu(self._model)
         else:
             # initialize model normally
             if self._onnx is None:
