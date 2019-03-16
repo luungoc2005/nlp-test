@@ -49,6 +49,7 @@ def use_data_parallel():
 
 device = None
 def to_gpu(x, *args, **kwargs):
+    global device
     '''puts pytorch variable to gpu, if cuda is available and USE_GPU is set to true. '''
     if device is None:
         if USE_GPU != '':
