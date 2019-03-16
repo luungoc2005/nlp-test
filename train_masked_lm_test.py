@@ -36,7 +36,7 @@ if __name__ == '__main__':
             'featurizer_seq_len': 128, # same as above
             'type_vocab_size': 2,
             'initializer_range': 0.02,
-            'use_adasoft': False,
+            'use_adasoft': True,
         })
 
     dataset = WikiTextDataset()

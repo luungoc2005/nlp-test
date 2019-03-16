@@ -636,7 +636,7 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
         # For compatibility with QRNNLanguageModel
-        self.decoder = self.cls.predictions.decoder
+        # self.decoder = self.cls.predictions.decoder
         self.adasoft = None
 
 
