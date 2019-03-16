@@ -80,7 +80,7 @@ class IModel(object):
             # re-initialize model with loaded config
             self._model = self._model_class(config=config, *self._args, **self._kwargs)
             if self._use_data_parallel:
-                self._model = nn.DataParallel(self._model, device_ids=[0, 1])
+                self._model = nn.DataParallel(self._model)
             # if fp16: self._model.half()
             self._model = to_gpu(self._model)
         else:
