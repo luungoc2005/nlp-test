@@ -7,10 +7,11 @@ from os import path, listdir
 from config import BASE_PATH
 # from torch.optim import RMSprop
 from common.modules import BertAdam
+from common.utils import dotdict
 
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
-    model_config = {
+    model_config = dotdict({
         'num_words': 30000,
         'hidden_size': 400,
         'num_hidden_layers': 5,
@@ -24,7 +25,7 @@ if __name__ == '__main__':
         'type_vocab_size': 2,
         'initializer_range': 0.02,
         'use_adasoft': True,
-    }
+    })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
         # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={'lr': 1e-3, 'weight_decay_rate': 1.2e-6}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))

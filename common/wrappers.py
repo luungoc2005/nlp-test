@@ -72,6 +72,7 @@ class IModel(object):
         if config is dict and not isinstance(config, dotdict):
             config = dotdict(config)
             self.config = config
+
         config.update(update_configs)
 
         if self.is_pytorch_module():
