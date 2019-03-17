@@ -76,13 +76,13 @@ class LanguageModelLearner(ILearner):
                 decoder.weight,
                 decoder.bias,
                 logits.view(logits.size(0) * logits.size(1), logits.size(2)),
-                y
+                y.view(-1)
             )
         else:
             decoded = decoder(logits.view(logits.size(0) * logits.size(1), logits.size(2)))
             loss = self.criterion(
                 decoded, 
-                y
+                y.view(-1)
             )
         
         # Activiation Regularization
