@@ -12,7 +12,7 @@ from common.utils import dotdict
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 30000,
+        'num_words': 20000,
         'hidden_size': 400,
         'num_hidden_layers': 3,
         'num_attention_heads': 8,
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         'featurizer_seq_len': 128, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
-        'use_adasoft': True,
+        'use_adasoft': False,
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
