@@ -69,11 +69,9 @@ class IModel(object):
             self._onnx = model_state.get('onnx', None)
 
         # convert to dotdict
-        # if config is dict and not isinstance(config, dotdict):
-        #     config = dotdict(config)
-        #     self.config = config
-        # TODO: this is temporary hack to fix transformer model bug
-        config = dotdict(dict())
+        if config is dict and not isinstance(config, dotdict):
+            config = dotdict(config)
+            self.config = config
         config.update(update_configs)
 
         if self.is_pytorch_module():
