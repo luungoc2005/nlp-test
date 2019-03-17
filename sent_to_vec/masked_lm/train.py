@@ -41,7 +41,7 @@ class LanguageModelLearner(ILearner):
 
         print('Number of tokens', num_words)
         
-        self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0)) if self.use_adasoft else None
+        self.criterion = to_gpu(nn.CrossEntropyLoss(ignore_index=0)) if not self.use_adasoft else None
         
         self.model_wrapper.config['num_words'] = num_words
 
