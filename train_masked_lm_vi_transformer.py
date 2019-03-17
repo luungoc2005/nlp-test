@@ -14,7 +14,7 @@ if __name__ == '__main__':
     model_config = dotdict({
         'num_words': 30000,
         'hidden_size': 400,
-        'num_hidden_layers': 5,
+        'num_hidden_layers': 3,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
         'hidden_act': 'gelu',
