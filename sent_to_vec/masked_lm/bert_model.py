@@ -25,6 +25,7 @@ class BertLMWrapper(IModel):
         featurizer_config = config
         featurizer_config['append_sos_eos'] = True
         featurizer_config['featurizer_reserved_tokens'] = [START_TAG, STOP_TAG, UNK_TAG, MASK_TAG]
+        featurizer_config['featurizer_seq_len'] = config.get('max_position_embeddings', LM_SEQ_LEN)
         # featurizer_config['return_mask'] = True # TODO: correctly implement masking
 
         super(BertLMWrapper, self).__init__(
@@ -34,5 +35,4 @@ class BertLMWrapper(IModel):
             *args, **kwargs
         )
 
-        self.seq_len = config.get('seq_len', LM_SEQ_LEN)
         self.config = config
