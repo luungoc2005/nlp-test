@@ -170,7 +170,7 @@ class IModel(object):
                 self.init_model()
             dequantize_model(self.model)
 
-    def export_onnx(self, dummy_input, path, print_graph=True, preserve_state=False):
+    def export_onnx(self, dummy_input, path='', print_graph=True, preserve_state=False):
         if self.is_pytorch_module():
             if self.model is None:
                 self.init_model()

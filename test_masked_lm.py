@@ -45,6 +45,19 @@ if __name__ == '__main__':
     model.init_model(update_configs={'use_adasoft': False})
     # model.save(args.checkpoint)
 
+    print(model)
+
+    EXPORT_SIZE = (128, 1)
+
+    if args.quantize:
+        model.quantize()
+        model.save('masked-lm-quantized.bin')
+
+    if args.export_onnx:
+        dummy_input = torch.LongTensor(*EXPORT_SIZE).random_(1, 10)
+        model.export_onnx(dummy_input, 'masked-lm.onnx')
+        exit()
+
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
@@ -73,19 +86,6 @@ if __name__ == '__main__':
     # total_accuracy = 0.
     total_correct = 0
     total_count = 0
-
-    print(model)
-
-    EXPORT_SIZE = (50, 1)
-
-    if args.quantize:
-        model.quantize()
-        model.save('masked-lm-quantized.bin')
-
-    if args.export_onnx:
-        dummy_input = torch.LongTensor(*EXPORT_SIZE).random_(1, 10)
-        model.export_onnx(dummy_input, 'masked-lm.onnx')
-        exit()
 
     for epoch in range(TEST_EPOCHS) if args.disable_tqdm else trange(TEST_EPOCHS):
         if args.disable_tqdm:

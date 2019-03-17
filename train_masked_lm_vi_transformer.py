@@ -10,10 +10,26 @@ from common.modules import BertAdam
 
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
+    model_config = {
+        'num_words': 30000,
+        'hidden_size': 400,
+        'num_hidden_layers': 5,
+        'num_attention_heads': 8,
+        'intermediate_size': 1140,
+        'hidden_act': 'gelu',
+        'hidden_dropout_prob': 0.1,
+        'attention_probs_dropout_prob': 0.1,
+        'max_position_embeddings': 128,
+        'featurizer_seq_len': 128, # same as above
+        'type_vocab_size': 2,
+        'initializer_range': 0.02,
+        'use_adasoft': True,
+    }
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
         # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
         model = BertLMWrapper(from_fp=MODEL_PATH)
+        model.init_model(update_configs=model_config)
     else:
         # model = PervasiveAttnLanguageModelWrapper({
         #     'n_layers': 6,
@@ -23,21 +39,7 @@ if __name__ == '__main__':
         #     'use_adasoft': True,
         #     'num_words': 50000
         # }) # large model
-        model = BertLMWrapper({
-            'num_words': 30000,
-            'hidden_size': 400,
-            'num_hidden_layers': 5,
-            'num_attention_heads': 8,
-            'intermediate_size': 1140,
-            'hidden_act': 'gelu',
-            'hidden_dropout_prob': 0.1,
-            'attention_probs_dropout_prob': 0.1,
-            'max_position_embeddings': 128,
-            'featurizer_seq_len': 128, # same as above
-            'type_vocab_size': 2,
-            'initializer_range': 0.02,
-            'use_adasoft': False,
-        })
+        model = BertLMWrapper(model_config)
 
     dataset = WikiTextDataset()
 

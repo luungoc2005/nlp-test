@@ -26,6 +26,7 @@ import os
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
+from common.splitcross import SplitCrossEntropyLoss
 
 logger = logging.getLogger(__name__)
 
@@ -637,12 +638,43 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         # For compatibility with QRNNLanguageModel
         # self.decoder = self.cls.predictions.decoder
-        self.adasoft = None
+        
+        # Adaptive softmax
+        self.num_words = config.num_words
+        self.use_adasoft = config.get('use_adasoft', True)
 
+        if self.use_adasoft:
+            if 'adasoft_cutoffs' in config:
+                splits = config['adasoft_cutoffs']
+            else:
+                splits = []
+                if self.num_words >= 500000:
+                    # One Billion
+                    # This produces fairly even matrix mults for the buckets:
+                    # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
+                    splits = [4200, 35000, 180000]
+                elif self.num_words >= 75000:
+                    # WikiText-103
+                    splits = [2800, 20000, 76000]
+                elif self.num_words >= 20000:
+                    splits = [2000, 4000, 10000]
+                else:
+                    splits = [self.num_words // 3, self.num_words // 3]
+            
+                config['adasoft_cutoffs'] = splits
+
+            # print('Cross Entropy Splits: Using', splits)
+
+            self.adasoft = SplitCrossEntropyLoss(
+                config.hidden_size, 
+                splits,
+                ignore_index=0
+            )
+        else:
+            self.adasoft = None
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=False, training=False):
         # Transform to batch-first format
-        input_ids = input_ids.t()
         if attention_mask is not None: attention_mask = attention_mask.t()
         if token_type_ids is not None: token_type_ids = token_type_ids.t()
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
@@ -656,8 +688,17 @@ class BertForMaskedLM(BertPreTrainedModel):
         if training:
             return sequence_output, pooled_output, None, None
         else:
-            prediction_scores = self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2)))
-            return prediction_scores, pooled_output, sequence_output, None
+            if self.use_adasoft:
+                decoder = self.cls.predictions.decoder
+                prediction_scores = self.adasoft.\
+                    logprob(
+                        decoder.weight, 
+                        decoder.bias, 
+                        sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))
+                    )
+            else:
+                prediction_scores = self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2)))
+            return prediction_scores, sequence_output
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):
@@ -712,7 +753,7 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, next_sentence_label=None):
         _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
                                      output_all_encoded_layers=False)
-        seq_relationship_score = self.cls( pooled_output)
+        seq_relationship_score = self.cls(pooled_output)
 
         if next_sentence_label is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_CHAR_SEQ_LEN, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
 from common.modules import LockedDropout, WeightDrop
-from common.splitcross import SplitCrossEntropyLoss
 from common.wrappers import IModel
 from common.torch_utils import to_gpu
 from featurizers.basic_featurizer import BasicFeaturizer
@@ -105,7 +104,39 @@ class BiRNNLanguageModel(nn.Module):
             self.embedding_dim if self.tie_weights else self.hidden_dim, 
             self.num_words
         )
-        self.adasoft = None
+        
+        # Adaptive softmax
+        self.use_adasoft = config.get('use_adasoft', True)
+
+        if self.use_adasoft:
+            if 'adasoft_cutoffs' in config:
+                splits = config['adasoft_cutoffs']
+            else:
+                splits = []
+                if self.num_words >= 500000:
+                    # One Billion
+                    # This produces fairly even matrix mults for the buckets:
+                    # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
+                    splits = [4200, 35000, 180000]
+                elif self.num_words >= 75000:
+                    # WikiText-103
+                    splits = [2800, 20000, 76000]
+                elif self.num_words >= 20000:
+                    splits = [2000, 4000, 10000]
+                else:
+                    splits = [self.num_words // 3, self.num_words // 3]
+            
+                config['adasoft_cutoffs'] = splits
+
+            # print('Cross Entropy Splits: Using', splits)
+
+            self.adasoft = SplitCrossEntropyLoss(
+                self.hidden_dim, 
+                splits,
+                ignore_index=0
+            )
+        else:
+            self.adasoft = None
 
         # Weight tying
         if self.tie_weights:
@@ -237,15 +268,18 @@ class BiRNNLanguageModel(nn.Module):
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training:
-            # logprob = self.adasoft.\
-            #     logprob(
-            #         self.decoder.weight, 
-            #         self.decoder.bias, 
-            #         output.view(output.size(0) * output.size(1), output.size(2))
-            #     )
             return output, raw_hiddens, raw_outputs, outputs
         else:
-            decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+            if self.use_adasoft:
+                decoded = self.adasoft.\
+                    logprob(
+                        self.decoder.weight, 
+                        self.decoder.bias, 
+                        output.view(output.size(0) * output.size(1), output.size(2))
+                    )
+            else:
+                decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
+
             return decoded, raw_hiddens
 
 class BiLanguageModelWrapper(IModel):

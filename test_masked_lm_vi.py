@@ -55,9 +55,22 @@ if __name__ == '__main__':
         'featurizer_seq_len': 128, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
-        'use_adasoft': False,
+        'use_adasoft': True,
     })
     model.save('bert-vi-fixed.bin')
+
+    print(model)
+
+    EXPORT_SIZE = (50, 1)
+
+    if args.quantize:
+        model.quantize()
+        model.save('masked-lm-quantized.bin')
+
+    if args.export_onnx:
+        dummy_input = torch.LongTensor(*EXPORT_SIZE).random_(1, 10)
+        model.export_onnx(dummy_input, 'masked-lm-vi.onnx')
+        exit()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
     if not path.exists(SAVE_PATH):
@@ -88,19 +101,6 @@ if __name__ == '__main__':
     total_correct = 0
     total_count = 0
 
-    print(model)
-
-    EXPORT_SIZE = (50, 1)
-
-    if args.quantize:
-        model.quantize()
-        model.save('masked-lm-quantized.bin')
-
-    if args.export_onnx:
-        dummy_input = torch.LongTensor(*EXPORT_SIZE).random_(1, 10)
-        model.export_onnx(dummy_input, 'masked-lm.onnx')
-        exit()
-
     for epoch in range(TEST_EPOCHS) if args.disable_tqdm else trange(TEST_EPOCHS):
         if args.disable_tqdm:
             print('Running epoch %s' % str(epoch))
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
         # print(inputs.size())
         inputs, outputs = to_gpu(inputs), to_gpu(outputs)
-        result, hidden, _, _ = model(inputs)
+        result, hidden = model(inputs)
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         
         mask = (outputs != 0)
