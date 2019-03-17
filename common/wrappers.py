@@ -101,7 +101,7 @@ class IModel(object):
 
             if self.is_pytorch_module():
                 if state_dict is not None:
-                    self._model.load_state_dict(state_dict, strict=False)
+                    self._model.load_state_dict(state_dict)
             elif self._onnx is not None:
                 import onnx
                 self._onnx_model = onnx.load(self._onnx)
