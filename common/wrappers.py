@@ -619,7 +619,7 @@ class ILearner(object):
                     if epoch_ret is not None:
                         if 'logits' in epoch_ret:
                             with torch.no_grad():
-                                batch_metrics = self.calculate_metrics(epoch_ret['logits'].detach(), y_batch) or {}
+                                batch_metrics = self.calculate_metrics(epoch_ret['logits'], y_batch) or {}
                         else:
                             batch_metrics = {}
 

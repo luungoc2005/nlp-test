@@ -68,7 +68,7 @@ class PrintLoggerCallback(PeriodicCallback):
     def __init__(self, 
         log_every:int = 5, 
         log_every_batch:int = -1, 
-        metrics:Iterable[str] = ['loss', 'accuracy'], 
+        metrics:Iterable[str] = ['loss', 'accuracy', 'f1', 'recall', 'precision'], 
         logging_fn:Callable = print):
 
         super(PrintLoggerCallback, self).__init__(

@@ -33,11 +33,21 @@ def accuracy_multi(preds, targs, thresh):
 def accuracy_multi_np(preds, targs, thresh):
     return ((preds>thresh)==targs).mean()
 
-def recall(log_preds, targs, thresh=0.5, epsilon=1e-8):
+# def recall(log_preds, targs, thresh=0.5, epsilon=1e-8):
+#     targs = to_long_tensor(targs)
+#     preds = torch.exp(log_preds)
+#     pred_pos = torch.max(preds > thresh, dim=1)[1]
+#     tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
+#     return tpos.sum()/(targs.sum() + epsilon)
+
+def recall(preds, targs, thresh=0.5, epsilon=1e-8):
     targs = to_long_tensor(targs)
-    preds = torch.exp(log_preds)
-    pred_pos = torch.max(preds > thresh, dim=1)[1]
-    tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
+    if preds.ndimension() == 2 and \
+        (preds.dtype == torch.float32 or preds.dtype == torch.float64):
+        preds = torch.max(preds > thresh, dim=-1)[1]
+    else:
+        preds = preds.long()
+    tpos = torch.mul((targs.byte() == preds.byte()), targs.byte())
     return tpos.sum()/(targs.sum() + epsilon)
 
 def recall_np(preds, targs, thresh=0.5, epsilon=1e-8):
@@ -45,12 +55,22 @@ def recall_np(preds, targs, thresh=0.5, epsilon=1e-8):
     tpos = torch.mul((targs.byte() == pred_pos), targs.byte())
     return tpos.sum()/(targs.sum() + epsilon)
 
-def precision(log_preds, targs, thresh=0.5, epsilon=1e-8):
+# def precision(log_preds, targs, thresh=0.5, epsilon=1e-8):
+#     targs = to_long_tensor(targs)
+#     preds = torch.exp(log_preds)
+#     pred_pos = torch.max(preds > thresh, dim=1)[1]
+#     tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
+#     return tpos.sum()/(pred_pos.sum() + epsilon)
+
+def precision(preds, targs, thresh=0.5, epsilon=1e-8):
     targs = to_long_tensor(targs)
-    preds = torch.exp(log_preds)
-    pred_pos = torch.max(preds > thresh, dim=1)[1]
-    tpos = torch.mul((targs.byte() == pred_pos.byte()), targs.byte())
-    return tpos.sum()/(pred_pos.sum() + epsilon)
+    if preds.ndimension() == 2 and \
+        (preds.dtype == torch.float32 or preds.dtype == torch.float64):
+        preds = torch.max(preds > thresh, dim=-1)[1]
+    else:
+        preds = preds.long()
+    tpos = torch.mul((targs.byte() == preds.byte()), targs.byte())
+    return tpos.sum()/(preds.sum() + epsilon)
 
 def precision_np(preds, targs, thresh=0.5, epsilon=1e-8):
     pred_pos = preds > thresh

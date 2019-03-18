@@ -1,4 +1,11 @@
+import os
+import warnings
 from os import path
+
+LANGUAGE = os.environ.get('BOTBOT_LANGUAGE', 'en').lower()
+def set_default_language(lang='en'):
+    global LANGUAGE
+    LANGUAGE = lang.lower()
 
 CACHE_DATA = False
 
@@ -8,8 +15,13 @@ GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 MAGNITUDE_PATH = {
-    'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude')
+    'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude'),
+    'vi': path.join(BASE_PATH, 'data/fasttext/vi-wiki-news-300d-60K.magnitude')
 }
+
+if LANGUAGE not in MAGNITUDE_PATH.keys():
+    warnings.warn('Configuration or data does not exist for the specified language. Exiting')
+    exit()
 
 VN_TREEBANK_PATH = path.join(BASE_PATH, 'data/vn_treebank')
 # GLOVE_PATH = path.join(BASE_PATH, 'data/glove/glove.840B.300d.txt')

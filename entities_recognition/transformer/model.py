@@ -13,14 +13,14 @@ from typing import List, Optional
 DEFAULT_CONFIG = dotdict({
     'char_embedding_dim': 100,
     'hidden_size': 400,
-    'num_hidden_layers': 2,
+    'num_hidden_layers': 4,
     'num_attention_heads': 10,
-    'intermediate_size': 366,
+    'intermediate_size': 1024,
     'hidden_act': 'gelu',
     'hidden_dropout_prob': 0.1,
     'attention_probs_dropout_prob': 0.1,
-    'max_position_embeddings': 128,
-    'featurizer_seq_len': 128, # same as above
+    'max_position_embeddings': 256,
+    'featurizer_seq_len': 256, # same as above
     'initializer_range': 0.02,
     'use_adasoft': False,
 })
@@ -29,6 +29,7 @@ class TransformerPretrainedDualEmbedding(nn.Module):
 
     def __init__(self, config=DEFAULT_CONFIG):
         super(TransformerPretrainedDualEmbedding, self).__init__()
+        self.config = config
 
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
         self.word_embedding_dim = config.hidden_size - self.char_embedding_dim
@@ -42,7 +43,7 @@ class TransformerPretrainedDualEmbedding(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, sent_batch: List[List[str]]):
-        max_length = max([len(sent) for sent in sent_batch])
+        max_length = min(max([len(sent) for sent in sent_batch]), self.config.max_position_embeddings)
 
         words_embeddings = to_gpu(torch.FloatTensor(
             word_to_vec(sent_batch, pad_to_length=max_length)
@@ -51,6 +52,8 @@ class TransformerPretrainedDualEmbedding(nn.Module):
         chars_embeddings = to_gpu(torch.stack([
             torch.cat((self.char_encoder(sent), torch.zeros(max_length - len(sent), self.char_embedding_dim)), dim=0)
             if len(sent) < max_length
+            else self.char_encoder(sent)[:max_length]
+            if len(sent) > max_length
             else self.char_encoder(sent)
             for sent in sent_batch
         ], 0))
@@ -82,11 +85,11 @@ class TransformerSequenceTagger(nn.Module):
         self.crf = CRF(self.tagset_size)
 
     def forward(self, sent_batch: List[List[str]], output_all_encoded_layers: bool = False, decode_tags: Optional[bool] = None):
-        max_length = max([len(sent) for sent in sent_batch])
+        max_length = min(max([len(sent) for sent in sent_batch]), self.config.max_position_embeddings)
 
         attention_mask = torch.zeros(len(sent_batch), max_length).long()
         for ix, sent in enumerate(sent_batch):
-            attention_mask[ix, :len(sent)] = 1
+            attention_mask[ix, :min(len(sent), max_length)] = 1
 
         # See BertModel class
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)

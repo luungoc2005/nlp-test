@@ -1,6 +1,7 @@
 import torch
 import torch.autograd as autograd
 import numpy as np
+from common.langs.vi_VN.utils import remove_tone_marks
 from config import EMBEDDING_DIM  # FASTTEXT_BIN
 from nltk.tokenize import RegexpTokenizer
 # from glove_utils import get_word_vector
@@ -32,6 +33,9 @@ def letterToIndex(letter):
     Find letter index from all_letters, e.g. "a" = 1
     0 will be the OOV index
     """
+    if letter not in all_letters:
+        letter = remove_tone_marks(letter)
+
     return all_letters.find(letter) + 1
 
 

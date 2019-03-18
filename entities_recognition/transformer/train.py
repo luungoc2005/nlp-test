@@ -32,13 +32,19 @@ class TransformerSequenceTaggerLearner(ILearner):
 
         return {
             'loss': loss,
-            'logits': tags_output.detach()
+            'logits': (tags_output.detach(), X)
         }
 
     def calculate_metrics(self, logits, y):
+        tags_output, sent_batch = logits
+        if self.model_wrapper.model.use_crf:
+            seq_lens = torch.LongTensor([len(sent) for sent in sent_batch])
+            tags_output = self.model_wrapper.model.crf.decode(tags_output, seq_lens)
+        else:
+            tags_output = torch.max(tags_output, -1)[1]
         return {
-            'accuracy': accuracy(torch.max(logits, -1)[1], y)
-            # 'f1': f1(logits, y),
-            # 'precision': precision(logits, y),
-            # 'recall': recall(logits, y)
+            'accuracy': accuracy(tags_output, y)
+            # 'f1': f1(tags_output, y),
+            # 'precision': precision(tags_output, y)
+            # 'recall': recall(tags_output, y)
         }
