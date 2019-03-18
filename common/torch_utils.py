@@ -63,7 +63,11 @@ def to_gpu(x, *args, **kwargs):
         else:
             device = "cpu"
         device = torch.device(device)
-    return x.to(device, *args, **kwargs)
+    
+    if hasattr(x, 'to'):
+        return x.to(device, *args, **kwargs)
+    else:
+        return x
 
 def copy_optimizer_params_to_model(named_params_model, named_params_optimizer):
     """ Utility function for optimize_on_cpu and 16-bits training.

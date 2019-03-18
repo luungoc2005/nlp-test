@@ -42,22 +42,8 @@ if __name__ == '__main__':
     model = BertLMWrapper(from_fp=args.checkpoint)
     # patch to fix adasoft on older checkpoint file
     # model = BiLanguageModelWrapper()
-    model.init_model(update_configs={
-        'num_words': 30000,
-        'hidden_size': 400,
-        'num_hidden_layers': 5,
-        'num_attention_heads': 8,
-        'intermediate_size': 1140,
-        'hidden_act': 'gelu',
-        'hidden_dropout_prob': 0.1,
-        'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 128,
-        'featurizer_seq_len': 128, # same as above
-        'type_vocab_size': 2,
-        'initializer_range': 0.02,
-        'use_adasoft': True,
-    })
-    model.save('bert-vi-fixed.bin')
+    model.init_model()
+    # model.save('bert-vi-fixed.bin')
 
     print(model)
 

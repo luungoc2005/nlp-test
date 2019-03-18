@@ -205,7 +205,9 @@ class MetricsTriggeredCallback(ICallback):
         else:
             if self.wait >= self.patience:
                 self.trigger_fn(monitor_val)
-            self.wait += 1
+                self.wait = 0
+            else:
+                self.wait += 1
 
 class EarlyStoppingCallback(MetricsTriggeredCallback):
     def __init__(self, 

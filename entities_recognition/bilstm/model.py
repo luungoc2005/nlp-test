@@ -26,6 +26,10 @@ class SequenceTagger(nn.Module):
         self.h_dropout_prob = config.get('h_dropout_prob', .5)
 
         self.tag_to_ix = config.get('tag_to_ix', {START_TAG: 0, STOP_TAG: 1})
+        if START_TAG not in self.tag_to_ix:
+            self.tag_to_ix[START_TAG] = max(self.tag_to_ix.values()) + 1
+        if STOP_TAG not in self.tag_to_ix:
+            self.tag_to_ix[START_TAG] = max(self.tag_to_ix.values()) + 1
         self.tagset_size = len(self.tag_to_ix)
 
         self.word_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')

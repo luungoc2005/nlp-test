@@ -500,7 +500,7 @@ class ILearner(object):
             else:
                 if self.model_wrapper._featurizer is not None:
                     X = self.model_wrapper._featurizer.transform(X)
-                    
+
                 X = self.model_wrapper.preprocess_input(X)
                 y = self.model_wrapper.preprocess_output(y)
 

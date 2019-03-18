@@ -46,9 +46,9 @@ class BRNNWordEncoder(nn.Module):
             for token in sentence
         ])
 
-        words_batch = to_gpu(words_batch)
+        words_batch = to_gpu(words_batch) # letters x words
 
-        words_batch = self.dropout(self.embedding(words_batch))
+        words_batch = self.dropout(self.embedding(words_batch)) # letters x words x embeds
 
         # print('words_batch: %s' % str(words_batch.size()))
         # Sort by length (keep idx)
@@ -78,7 +78,7 @@ class BRNNWordEncoder(nn.Module):
 
         # print(embeds)
 
-        return embeds
+        return embeds # words x embeds
 
     def get_layer_groups(self):
         return [(self.embedding, self.dropout), self.rnn]
