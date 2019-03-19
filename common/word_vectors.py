@@ -20,5 +20,8 @@ def get_emb_matrix():
 def get_word_vector(word, *args, **kwargs):
     return vectors[LANGUAGE].query(word, *args, **kwargs)
 
+def most_similar(word, topk=5):
+    return vectors[LANGUAGE].most_similar(word, topn=topk)
+
 def get_dim():
     return vectors[LANGUAGE].dim

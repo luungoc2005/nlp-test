@@ -3,7 +3,8 @@ import numpy as np
 from common.wrappers import IFeaturizer
 from common.preprocessing.keras import Tokenizer
 from common.utils import pad_sequences, word_to_vec
-from nltk.tokenize import wordpunct_tokenize
+from common.word_vectors import most_similar
+from nltk.tokenize import wordpunct_tokenize, word_tokenize
 from sent_to_vec.sif.encoder import SIF_embedding
 from config import MAX_NUM_WORDS
 
@@ -13,7 +14,7 @@ class SIFFeaturizer(IFeaturizer):
         super(SIFFeaturizer, self).__init__()
 
         self.num_words = config.get('num_words', MAX_NUM_WORDS)
-        self.tokenize_fn = wordpunct_tokenize
+        self.tokenize_fn = word_tokenize
         self.use_tokenizer = config.get('use_tokenizer', False)
 
         self.tokenizer = Tokenizer(num_words=self.num_words)
@@ -34,10 +35,20 @@ class SIFFeaturizer(IFeaturizer):
         
         maxlen = max([len(sent) for sent in tokens])
         tfidf_weights = np.zeros((len(tokens), maxlen))
-        for i, seq in enumerate(tokens):
-            for j, token in enumerate(seq):
-                if token < self.tokenizer.num_words:
+        for i, seq in enumerate(raw_tokens):
+            for j, raw_token in enumerate(seq):
+                token = -1
+                if raw_token in self.tokenizer.word_index:
+                    token = self.tokenizer.word_index[raw_token]
+                else:
+                    similar_to_raw_token = most_similar(raw_token)
+                    for similar_word in similar_to_raw_token:
+                        if similar_word in self.tokenizer.word_index:
+                            token = self.tokenizer.word_index[raw_token]
+                if token > -1:
                     tfidf_weights[i][j] = tfidf_matrix[i][token]
+                else:
+                    tfidf_weights[i][j] = 1 # default weight to 1
         
         # convert from token back to texts
         # this is to guarantee that tfidf matrix and X has the same length (with oov words ommited)

@@ -28,26 +28,14 @@ class EnsembleWrapper(IModel):
                     hidden_layer_sizes=(100,),
                     activation='identity',
                     verbose=1,
-                    max_iter=300
-                )),
-                ('mlp_large_2', MLPClassifier(
-                    hidden_layer_sizes=(100,),
-                    activation='relu',
-                    verbose=1,
-                    max_iter=300
+                    max_iter=500
                 )),
                 ('mlp_small_1', MLPClassifier(
                     hidden_layer_sizes=(50,),
                     activation='identity',
                     verbose=1,
-                    max_iter=300
+                    max_iter=500
                 )),
-                ('mlp_small_2', MLPClassifier(
-                    hidden_layer_sizes=(50,),
-                    activation='tanh',
-                    verbose=1,
-                    max_iter=300
-                ))
             ],
             voting='soft',
             featurizer=SIFFeaturizer(),
