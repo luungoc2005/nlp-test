@@ -9,10 +9,10 @@ from common.utils import to_categorical
 from config import EMBEDDING_DIM
 # import lightgbm as lgb
 
-class EnsembleLearner(ILearner):
+class SIFSkLearnLearner(ILearner):
 
     def __init__(self, model, *args, **kwargs):
-        super(EnsembleLearner, self).__init__(model, *args, **kwargs, auto_optimize=False, optimizer_fn=None)
+        super(SIFSkLearnLearner, self).__init__(model, *args, **kwargs, auto_optimize=False, optimizer_fn=None)
         self.criterion = None
 
     def init_on_data(self, X, y):
@@ -38,7 +38,7 @@ class EnsembleLearner(ILearner):
         self.model_wrapper.model.fit(self.train_X_buffer, self.train_y_buffer)
 
         print('Model score: %s' % self.model_wrapper.model.score(self.train_X_buffer, self.train_y_buffer))
-
+        
     def on_epoch(self, X, y):
         batch_len = X.size(0)
         start_idx = self.buffer_pointer

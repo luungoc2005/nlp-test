@@ -11,11 +11,11 @@ from config import CHAR_EMBEDDING_DIM, START_TAG, STOP_TAG
 from typing import List, Optional
 
 DEFAULT_CONFIG = dotdict({
-    'char_embedding_dim': 100,
-    'hidden_size': 400,
-    'num_hidden_layers': 4,
+    'char_embedding_dim': 50,
+    'hidden_size': 350,
+    'num_hidden_layers': 2,
     'num_attention_heads': 10,
-    'intermediate_size': 1024,
+    'intermediate_size': 512,
     'hidden_act': 'gelu',
     'hidden_dropout_prob': 0.1,
     'attention_probs_dropout_prob': 0.1,
@@ -82,6 +82,19 @@ class TransformerSequenceTagger(nn.Module):
         self.encoder = BertEncoder(config)
         self.hidden2tag = nn.Linear(config.hidden_size, self.tagset_size)
         self.crf = CRF(self.tagset_size)
+        
+        self.apply(self.init_bert_weights)
+
+    def init_bert_weights(self, module):
+        """ Initialize the weights.
+        """
+        if isinstance(module, (nn.Linear, nn.Embedding)):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        elif isinstance(module, BertLayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
+        if isinstance(module, nn.Linear) and module.bias is not None:
+            module.bias.data.zero_()
 
     def forward(self, sent_batch: List[List[str]], output_all_encoded_layers: bool = False, decode_tags: Optional[bool] = None):
         max_length = min(max([len(sent) for sent in sent_batch]), self.config.max_position_embeddings)

@@ -8,9 +8,8 @@ from featurizers.sif_featurizer import SIFFeaturizer
 from sklearn.preprocessing import LabelEncoder
 # from sklearn.svm import SVC
 # from sklearn.linear_model import LogisticRegression
-# from sklearn.model_selection import GridSearchCV
 from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import VotingClassifier
+# from sklearn.model_selection import GridSearchCV
 # import catboost as cb
 from text_classification.utils.inference import infer_classification_output
 import numpy as np
@@ -18,39 +17,33 @@ import torch
 
 from typing import List
 
-class EnsembleWrapper(IModel):
+class SIFSkLearnWrapper(IModel):
 
     def __init__(self, config={}, *args, **kwargs):
-        super(EnsembleWrapper, self).__init__(
-            VotingClassifier,
-            estimators = [
-                ('mlp_large_1', MLPClassifier(
-                    hidden_layer_sizes=(100,),
-                    activation='identity',
-                    verbose=1,
-                    max_iter=300
-                )),
-                ('mlp_large_2', MLPClassifier(
-                    hidden_layer_sizes=(100,),
-                    activation='relu',
-                    verbose=1,
-                    max_iter=300
-                )),
-                ('mlp_small_1', MLPClassifier(
-                    hidden_layer_sizes=(50,),
-                    activation='identity',
-                    verbose=1,
-                    max_iter=300
-                )),
-                ('mlp_small_2', MLPClassifier(
-                    hidden_layer_sizes=(50,),
-                    activation='tanh',
-                    verbose=1,
-                    max_iter=300
-                ))
-            ],
-            voting='soft',
+        super(SIFSkLearnWrapper, self).__init__(
+            # LogisticRegression,
+            # class_weight='balanced',
+            # multi_class='ovr',
+            # tol=1e-4,
+            # verbose=1
+            # LightGBM - requires no class
+            # object
+            # SVC,
+            # kernel='linear',
+            # class_weight='balanced',
+            # probability=True
+            MLPClassifier,
+            hidden_layer_sizes=(100,),
+            activation='identity',
+            verbose=1,
             featurizer=SIFFeaturizer(),
+            max_iter=500,
+            # CatBoost
+            # model_class=cb.CatBoostClassifier,
+            # iterations=100,
+            # loss_function='MultiClass',
+            # eval_metric='Accuracy',
+            # metric_period=10
             *args, **kwargs
         )
         self.config = config
@@ -58,13 +51,22 @@ class EnsembleWrapper(IModel):
         self.topk = config.get('top_k', 5)
         self.n_classes = config.get('num_classes', 10)
 
+        # Distribution of params for GridSearchCV
+        # self.param_dist = config.get('param_dist', 
+        # {
+        #     'depth': [4, 7, 10],
+        #     'learning_rate' : [0.03, 0.1, 0.15],
+        #     'l2_leaf_reg': [1,4,9],
+        #     'iterations': [300]
+        # }
+
         self.label_encoder = LabelEncoder()
 
     def get_state_dict(self):
         return {
             'config': self.config,
             'label_encoder': self.label_encoder,
-            'state_dict': self.model,
+            'state_dict': self.model
         }
 
     def load_state_dict(self, state_dict):
@@ -92,10 +94,3 @@ class EnsembleWrapper(IModel):
         # return torch.from_numpy(outputs).float()
         
         return torch.from_numpy(self.label_encoder.transform(y)).long()
-
-    def infer_predict(self, 
-        logits,
-        topk: int = None, 
-        contexts: List[str] = None):
-        logits = torch.from_numpy(logits).float()
-        return infer_classification_output(self, logits, topk, contexts)
