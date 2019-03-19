@@ -9,6 +9,11 @@ from os import path
 from tqdm import trange
 import torch
 import argparse
+import sys
+from common.preprocessing import keras
+
+# alias for old path
+sys.modules['common.keras_preprocessing'] = keras
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, default='masked-lm-checkpoint.bin')
