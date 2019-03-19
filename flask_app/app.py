@@ -5,9 +5,9 @@ import argparse
 import time
 import logging
 
-def start_server(args=None):
-    app = Flask(__name__)
+app = Flask(__name__)
 
+def start_server(args=None):
     try:
         gunicorn_logger = logging.getLogger('gunicorn.error')
         app.logger.handlers = gunicorn_logger.handlers
@@ -16,6 +16,7 @@ def start_server(args=None):
         pass
 
     initialize(app)
+    from flask_app.views import index, upload, delete, status, predict, visualize
 
     if args is not None:
         if args.cors:

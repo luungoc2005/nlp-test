@@ -19,6 +19,8 @@ logging.getLogger().addHandler(logging.StreamHandler())
 CLF_MODEL = {}
 ENT_MODEL = {}
 
+TRAIN_PROCESSES = dict()
+
 # from pympler import muppy, summary
 # all_objects = muppy.get_objects()
 
