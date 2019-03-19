@@ -40,11 +40,14 @@ class SIFFeaturizer(IFeaturizer):
                 token = -1
                 if raw_token in self.tokenizer.word_index:
                     token = self.tokenizer.word_index[raw_token]
-                else:
-                    similar_to_raw_token = most_similar(raw_token)
-                    for similar_word in similar_to_raw_token:
-                        if similar_word in self.tokenizer.word_index:
-                            token = self.tokenizer.word_index[raw_token]
+                # else:
+                #     similar_to_raw_token = most_similar(raw_token)
+                #     for similar_word in similar_to_raw_token:
+                #         print(similar_to_raw_token)
+                #         if similar_word in self.tokenizer.word_index:
+                #             token = self.tokenizer.word_index[similar_word]
+                #             print('Word not found: %s but similar word found: %s' % (raw_token, similar_word))
+                #             break
                 if token > -1:
                     tfidf_weights[i][j] = tfidf_matrix[i][token]
                 else:
