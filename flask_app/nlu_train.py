@@ -8,9 +8,12 @@ from os import path
 from text_classification.ensemble.model import EnsembleWrapper
 from text_classification.ensemble.train import EnsembleLearner
 
-from entities_recognition.bilstm.model import SequenceTaggerWrapper
-from entities_recognition.bilstm.train import SequenceTaggerLearner
-from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback
+from entities_recognition.transformer.model import TransformerSequenceTaggerWrapper
+from entities_recognition.transformer.train import TransformerSequenceTaggerLearner
+from entities_recognition.transformer.data import TransformerEntitiesRecognitionDataset
+
+from common.callbacks import EarlyStoppingCallback, PrintLoggerCallback, ReduceLROnPlateau
+
 from common.utils import wordpunct_space_tokenize
 from config import START_TAG, STOP_TAG, EMPTY_TAG
 
@@ -110,8 +113,8 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
     CLF_MODEL[model_id].save(clf_model_path)
 
     if num_entities > 0:
-        tag_names = [EMPTY_TAG, START_TAG, STOP_TAG] + list(set(tag_names))
-        tag_to_ix = {tag: idx for idx, tag in enumerate(tag_names)}
+        tag_names = [EMPTY_TAG] + list(set(tag_names))
+        tag_to_ix = {tag: idx + 1 for idx, tag in enumerate(tag_names)}
         print(tag_to_ix)
         print(entities_data)
 
@@ -119,12 +122,32 @@ def nlu_train_file(model_id, save_path, clf_model_path=None, ent_model_path=None
 
         # print(entities_data)
         print('Training entities recognition model')
-        ENT_MODEL[model_id] = SequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
-        ent_learner = SequenceTaggerLearner(ENT_MODEL[model_id])
+        ENT_MODEL[model_id] = TransformerSequenceTaggerWrapper(
+        {
+            'tag_to_ix': tag_to_ix,
+            'char_embedding_dim': 50,
+            'hidden_size': 350,
+            'num_hidden_layers': 2,
+            'num_attention_heads': 10,
+            'intermediate_size': 512,
+            'hidden_act': 'gelu',
+            'hidden_dropout_prob': 0.1,
+            'attention_probs_dropout_prob': 0.1,
+            'max_position_embeddings': 256,
+            'featurizer_seq_len': 256, # same as above
+            'initializer_range': 0.02,
+        })
+        ent_learner = TransformerSequenceTaggerLearner(ENT_MODEL[model_id])
+        entities_dataset = TransformerEntitiesRecognitionDataset(entities_data, tag_to_ix)
         ent_learner.fit(
-            training_data=entities_data,
+            training_data=entities_dataset,
+            batch_size=min(2, len(entities_data)),
             epochs=300,
-            callbacks=[PrintLoggerCallback(), EarlyStoppingCallback()]
+            callbacks=[
+                PrintLoggerCallback(),
+                ReduceLROnPlateau(reduce_factor=4, patience=2),
+                EarlyStoppingCallback(patience=5)
+            ]
         )
         ENT_MODEL[model_id].save(ent_model_path)
 

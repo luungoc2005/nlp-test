@@ -4,12 +4,15 @@ from os import path
 # from text_classification.fast_text.train import FastTextLearner
 
 from text_classification.ensemble.model import EnsembleWrapper
-from text_classification.ensemble.train import EnsembleLearner
+# from text_classification.ensemble.train import EnsembleLearner
 
-from entities_recognition.bilstm.model import SequenceTaggerWrapper
-from entities_recognition.bilstm.train import SequenceTaggerLearner
+from entities_recognition.transformer.model import TransformerSequenceTaggerWrapper
+from common.utils import wordpunct_space_tokenize
+# from entities_recognition.transformer.train import TransformerSequenceTaggerLearner
 
 from flask_app.visualize import visualize_inputs
+
+# from flask_app.entrypoint import app_cache
 
 import logging
 consoleHandler = logging.StreamHandler()
@@ -29,8 +32,8 @@ TRAIN_PROCESSES = dict()
 
 def nlu_init_model(model_id, filename, ent_file_name):
     global CLF_MODEL, ENT_MODEL
-    logging.info('Loading models for id %s' % model_id)
     if model_id not in CLF_MODEL:
+        logging.info('Loading models for id %s' % model_id)
         if filename is not None and filename != '' and path.exists(filename):
             CLF_MODEL[model_id] = EnsembleWrapper(from_fp=filename)
             CLF_MODEL[model_id].init_model()
@@ -39,7 +42,7 @@ def nlu_init_model(model_id, filename, ent_file_name):
             logging.error('Classification model does not exist')
         
         if ent_file_name is not None and ent_file_name != '' and path.exists(ent_file_name):
-            ENT_MODEL[model_id] = SequenceTaggerWrapper(from_fp=ent_file_name)
+            ENT_MODEL[model_id] = TransformerSequenceTaggerWrapper(from_fp=ent_file_name)
             ENT_MODEL[model_id].init_model()
             logging.info('Entity tagging model loaded')
         else:
@@ -60,7 +63,7 @@ def nlu_predict(model_id, query, contexts = None):
 
     entities_result = {}
     if ENT_MODEL.get(model_id, None) is not None:
-        ret_entities = ENT_MODEL[model_id]([query])
+        ret_entities = ENT_MODEL[model_id]([wordpunct_space_tokenize(query)])
         entities_result = {
             "entities": ret_entities[0] if ret_entities is not None else None
         }

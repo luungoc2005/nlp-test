@@ -15,6 +15,9 @@ try:
 except:
     pass
 
+# from werkzeug.contrib.cache import SimpleCache
+# app_cache = SimpleCache()
+
 from flask_app.views import index, upload, delete, status, predict, visualize
 
 def apply_args(cli_args=None):

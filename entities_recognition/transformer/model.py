@@ -22,7 +22,6 @@ DEFAULT_CONFIG = dotdict({
     'max_position_embeddings': 256,
     'featurizer_seq_len': 256, # same as above
     'initializer_range': 0.02,
-    'use_adasoft': False,
 })
 
 class TransformerPretrainedDualEmbedding(nn.Module):
@@ -203,4 +202,4 @@ class TransformerSequenceTaggerWrapper(IModel):
             else:
                 result.append(tag_seq)
         
-        return tag_seq_batch, result
+        return result
