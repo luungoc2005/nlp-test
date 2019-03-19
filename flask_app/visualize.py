@@ -5,14 +5,25 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 
+from nltk.tokenize import word_tokenize
+from common.utils import word_to_vec
+from common.word_vectors import get_dim
+
 from typing import List, Tuple
 
-def transform_input(model, input_list: List[str]) -> np.array:
+def transform_input(input_list: List[str], model=None) -> np.array:
     X = None
     if not torch.is_tensor(X) and model._featurizer is not None:
         X = model._featurizer.transform(input_list)
         X = model.preprocess_input(X)
         X = X.numpy()
+    else: # falls back to BoW
+        raw_tokens = [word_tokenize(sent) for sent in input_list]
+        sent_vectors = word_to_vec(raw_tokens)
+        
+        sent_matrix = np.zeros(len(raw_tokens), get_dim())
+        for ix in range(len(raw_tokens)):
+            sent_matrix[ix] = np.mean(np.array(sent_vectors[ix]), axis=0)
     return X
 
     # vectorizer = TfidfVectorizer(min_df=2,
@@ -35,10 +46,10 @@ def visualize_matrix(X: np.array, n_clusters: int = None) -> Tuple[np.array, np.
 
     return X_tsne, y_pred
 
-def visualize_inputs(model, input_list: List[str], n_clusters: int = None) -> List[dict]:
+def visualize_inputs(input_list: List[str], model=None, n_clusters: int = None) -> List[dict]:
     if len(input_list) == 0: return []
     
-    X = transform_input(model, input_list)
+    X = transform_input(input_list, model=model)
     if X is None: return None
     
     X_tsne, y_pred = visualize_matrix(X, n_clusters)

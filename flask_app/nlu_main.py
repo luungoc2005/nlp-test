@@ -75,8 +75,11 @@ def nlu_predict(model_id, query, contexts = None):
 
     return result
 
-def nlu_visualize(model_id, query, n_clusters=None):
-    return visualize_inputs(CLF_MODEL.get(model_id), query, n_clusters)
+def nlu_visualize(query, model_id=None, n_clusters=None):
+    if model_id is not None:
+        return visualize_inputs(query, CLF_MODEL.get(model_id), n_clusters)
+    else:
+        return visualize_inputs(query, None, n_clusters)
 
 def nlu_release_model(model_id):
     global CLF_MODEL, ENT_MODEL
