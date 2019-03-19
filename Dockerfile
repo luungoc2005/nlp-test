@@ -1,6 +1,6 @@
 FROM luungoc2005/botbot-nlp:staging
 # FROM ubuntu
-MAINTAINER Ngoc Nguyen <luungoc2005@2359media.com>
+MAINTAINER Ngoc Nguyen <ngoc.nguyen@2359media.com>
 
 # Uncomment these lines if expanding from vanilla ubuntu
 # RUN apt-get update

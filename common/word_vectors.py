@@ -11,6 +11,7 @@ for language_code in MAGNITUDE_PATH.keys():
         vectors[language_code] = Magnitude(MAGNITUDE_PATH[language_code], lazy_loading=lazy_loading)
 
 assert len(vectors) > 0, 'Error: No word vector files exist.'
+print('Word vectors data exists for the following languages: %s' % ', '.join(vectors.keys()))
 # vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=1, case_insensitive=True)
 
 def get_emb_matrix():

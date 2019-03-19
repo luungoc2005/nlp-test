@@ -6,6 +6,9 @@ LANGUAGE = os.environ.get('BOTBOT_LANGUAGE', 'en').lower()
 def set_default_language(lang='en'):
     global LANGUAGE
     LANGUAGE = lang.lower()
+    print('Default language changed to: %s' % LANGUAGE)
+
+print('Default language for this instance: %s' % LANGUAGE)
 
 CACHE_DATA = False
 
