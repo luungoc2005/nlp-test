@@ -58,7 +58,7 @@ Note: if the progress bars doesn't show up properly during training, run `conda 
 ### Notes about using the Flask server
 The model should be run on Gunicorn by
 
-`gunicorn -w 1 -t 0 -b 127.0.0.1:5000 flask_app.start_flask:start_server`
+`gunicorn -w 1 -t 0 -b 127.0.0.1:5000 flask_app.entrypoint:app`
 
 Arguments:
 - `-w` number of workers

@@ -6,31 +6,32 @@ import time
 import logging
 
 app = Flask(__name__)
+initialize(app)
 
-def start_server(args=None):
-    try:
-        gunicorn_logger = logging.getLogger('gunicorn.error')
-        app.logger.handlers = gunicorn_logger.handlers
-        app.logger.setLevel(gunicorn_logger.level)
-    except:
-        pass
+try:
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
+except:
+    pass
 
-    initialize(app)
-    from flask_app.views import index, upload, delete, status, predict, visualize
+from flask_app.views import index, upload, delete, status, predict, visualize
 
-    if args is not None:
-        if args.cors:
+def apply_args(cli_args=None):
+    if cli_args is not None:
+        if cli_args.cors:
             try:
                 from flask_cors import CORS
                 CORS(app)
             except:
                 pass
 
-        if args.debug:
-            app.run(processes=1, debug=True, threaded=False)
-        else:
-            app.config['USE_QUEUE'] = args.queue
-            app.run()
+    app.config['USE_QUEUE'] = cli_args.queue
+    
+    if cli_args.debug:
+        app.run(processes=1, debug=True, threaded=False)
+    else:
+        app.run()
 
 if __name__ == "__main__":
 
@@ -40,4 +41,4 @@ if __name__ == "__main__":
     parser.add_argument("--cors", action='store_true', default=False)
     args = parser.parse_args()
 
-    start_server(args)
+    apply_args(args)

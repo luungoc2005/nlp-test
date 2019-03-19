@@ -1,4 +1,5 @@
-from flask_app.app import app
+from flask_app.entrypoint import app
+
 from config import BASE_PATH
 
 @app.route("/")

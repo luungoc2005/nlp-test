@@ -1,4 +1,5 @@
-from flask_app.app import app
+from flask_app.entrypoint import app
+
 from flask_app.utils import get_json, jsonerror
 from flask_app.utils.app_utils import get_config
 from flask_app.nlu_main import TRAIN_PROCESSES, nlu_predict

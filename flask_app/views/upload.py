@@ -1,6 +1,8 @@
-from flask_app import app
+from flask_app.entrypoint import app
+
 from flask_app.utils import jsonerror, allowed_file
 from flask_app.utils.app_utils import get_config, save_config
+
 from flask import request, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
 from flask_app.nlu_train import nlu_train_file
