@@ -527,7 +527,10 @@ class ILearner(object):
             batch_size = len(dataset)
 
         if USE_GPU:
-            mp.set_start_method('spawn')
+            try:
+                mp.set_start_method('spawn')
+            except:
+                warnings.warn('Error orcurred in multiprocessing.set_start_method')
 
         if not self._uneven_batch_size:
             loader_kwargs = {
