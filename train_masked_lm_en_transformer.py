@@ -17,9 +17,9 @@ sys.modules['common.keras_preprocessing'] = keras
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 20000,
+        'num_words': 30000,
         'hidden_size': 400,
-        'num_hidden_layers': 3,
+        'num_hidden_layers': 6,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
         'hidden_act': 'gelu',
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 2e-5, 'warmup': 1, 't_total': 10}
+        optimizer_kwargs={'lr': 2e-5, 'warmup': 1.0, 't_total': 10}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
