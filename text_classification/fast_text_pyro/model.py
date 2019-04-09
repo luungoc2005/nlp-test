@@ -12,6 +12,9 @@ from featurizers.fasttext_featurizer import FastTextFeaturizer
 from text_classification.utils.inference import infer_classification_output
 from config import MAX_NUM_WORDS, EMBEDDING_DIM, MAX_SEQUENCE_LENGTH
 
+import pyro
+from pyro.distributions import Normal, Categorical
+
 class FastText(nn.Module):
 
     def __init__(self, config={}):
@@ -19,8 +22,8 @@ class FastText(nn.Module):
         self.config = config
 
         self.max_features = config.get('max_features', MAX_NUM_WORDS)
-        self.emb_dropout_prob = config.get('emb_dropout_prob', 0.2)
-        self.hidden_size = config.get('hidden_size', 100)
+        self.emb_dropout_prob = config.get('emb_dropout_prob', 0.)
+        self.hidden_size = config.get('hidden_size', 50)
         self.h_dropout_prob = config.get('h_dropout_prob', 0.)
         self.n_classes = config.get('num_classes', 10)
         self.embedding_matrix = config.get('embedding_matrix', None)
@@ -31,7 +34,7 @@ class FastText(nn.Module):
             self.embedding.from_pretrained(self.embedding_matrix)
 
         self.emb_dropout = nn.Dropout(self.emb_dropout_prob)
-        self.i2h = nn.Linear(self.embedding_dim, self.hidden_size, bias=True)
+        self.i2h = nn.Linear(self.embedding_dim, self.hidden_size, bias=False)
         self.h_dropout = nn.Dropout(self.h_dropout_prob)
         self.h2o = nn.Linear(self.hidden_size, self.n_classes)
 
@@ -63,6 +66,7 @@ class FastTextWrapper(IModel):
             model_class=FastText, 
             config=config, 
             featurizer=FastTextFeaturizer(),
+            predict_fn=self.predict,
             *args, **kwargs
         )
         self.config = config
@@ -86,6 +90,75 @@ class FastTextWrapper(IModel):
         # load label encoder
         self.label_encoder = state_dict['label_encoder']
 
+    def init_model(self):
+        super().init_model()
+
+        model = self.model
+
+        self.pyro_init = False
+
+        def normal(target):
+            return Normal(
+                loc=torch.zeros_like(target), 
+                scale=torch.ones_like(target)
+            )
+
+        def pyro_model(X_data, y_data):
+            i2h_w_prior = normal(model.i2h.weight)
+            h2o_w_prior = normal(model.h2o.weight).independent(1)
+            h2o_b_prior = normal(model.h2o.bias)
+            priors = {
+                'i2h.weight': i2h_w_prior, 
+                # 'i2h.bias': i2h_b_prior,  
+                'h2o.weight': h2o_w_prior, 
+                'h2o.bias': h2o_b_prior
+            }
+            lifted_module = pyro.random_module('module', model, priors)
+            lifted_reg_model = lifted_module()
+
+            lhat = F.log_softmax(lifted_reg_model(X_data), dim=1)
+            pyro.sample('obs', Categorical(logits=lhat), obs=y_data)
+
+        def vnormal(name, target):
+            softplus = nn.Softplus()
+            return Normal(
+                loc=pyro.param(name + '_m', torch.randn_like(target)),
+                scale=softplus(pyro.param(name + '_s', torch.randn_like(target)))
+            )
+
+        def pyro_guide(X_data, y_data):
+            # First layer weight distribution priors
+            i2h_w_prior = vnormal(
+                'w1',
+                model.i2h.weight
+            )
+
+            # Output layer weight distribution priors
+            h2o_w_prior = vnormal(
+                'w2',
+                model.h2o.weight
+            ).independent(1)
+
+            # Output layer bias distribution priors
+            h2o_b_prior = vnormal(
+                'b2',
+                model.h2o.bias
+            )
+            
+            priors = {
+                'i2h.weight': i2h_w_prior, 
+                # 'i2h.bias': i2h_b_prior, 
+                'h2o.weight': h2o_w_prior, 
+                'h2o.bias': h2o_b_prior
+            }
+            
+            lifted_module = pyro.random_module("module", model, priors)
+            
+            return lifted_module()
+
+        self.pyro_guide = pyro_guide
+        self.pyro_model = pyro_model
+
     def preprocess_output(self, y):
         # One-hot encode outputs
         # Can also use torch.eye() but leaving as numpy until torch achieves performance parity
@@ -94,6 +167,25 @@ class FastTextWrapper(IModel):
         # return to_gpu(torch.from_numpy(outputs).float())
 
         return torch.from_numpy(self.label_encoder.transform(y)).long()
+
+    def get_layer_groups(self):
+        model = self.model
+        return [
+            (model.embedding, model.emb_dropout),
+            (model.i2h, model.h_dropout),
+            model.h2o
+        ]
+
+    # function to encode sentences to vectors
+    def encode(self, sents):
+        emb = self._featurizer.transform(sents)
+        return emb
+
+    def predict(self, X):
+        sampled_models = [self.pyro_guide(None, None) for _ in range(self.num_samples)]
+        yhats = [F.softmax(model(X), dim=-1).data for model in sampled_models]
+        mean = torch.mean(torch.stack(yhats), 0)
+        return mean
 
     def infer_predict(self, logits, topk=None):
         return infer_classification_output(self, logits, topk)

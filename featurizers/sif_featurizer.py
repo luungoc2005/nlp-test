@@ -56,6 +56,7 @@ class SIFFeaturizer(IFeaturizer):
         # convert from token back to texts
         # this is to guarantee that tfidf matrix and X has the same length (with oov words ommited)
         # embs = word_to_vec(self.tokenizer.sequences_to_texts(tokens))
+        # print(raw_tokens)
         embs = word_to_vec(raw_tokens)
         
         if embs is None: return None

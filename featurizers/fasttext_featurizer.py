@@ -20,7 +20,7 @@ class FastTextFeaturizer(IFeaturizer):
         self.indice_token = None
         self.max_features = MAX_NUM_WORDS
         self.max_len = MAX_SEQUENCE_LENGTH
-        self.ngrams = 2
+        self.ngrams = 3
 
     def get_output_shape(self):
         return (300,) # size of embedding

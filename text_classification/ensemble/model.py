@@ -5,6 +5,7 @@ from common.utils import word_to_vec
 from config import MAX_NUM_WORDS
 from nltk.tokenize import wordpunct_tokenize
 from featurizers.sif_featurizer import SIFFeaturizer
+from featurizers.elmo_featurizer import ElmoFeaturizer
 from sklearn.preprocessing import LabelEncoder
 # from sklearn.svm import SVC
 # from sklearn.linear_model import LogisticRegression
@@ -30,15 +31,22 @@ class EnsembleWrapper(IModel):
                     verbose=1,
                     max_iter=500
                 )),
-                ('mlp_small_1', MLPClassifier(
-                    hidden_layer_sizes=(50,),
-                    activation='identity',
-                    verbose=1,
-                    max_iter=500
-                )),
+                # ('mlp_large_2', MLPClassifier(
+                #     hidden_layer_sizes=(100,),
+                #     activation='tanh',
+                #     verbose=1,
+                #     max_iter=500
+                # )),
+                # ('mlp_small_1', MLPClassifier(
+                #     hidden_layer_sizes=(50,),
+                #     activation='identity',
+                #     verbose=1,
+                #     max_iter=500
+                # )),
             ],
             voting='soft',
-            featurizer=SIFFeaturizer(),
+            # featurizer=SIFFeaturizer(),
+            featurizer=ElmoFeaturizer(),
             *args, **kwargs
         )
         self.config = config

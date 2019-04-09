@@ -11,11 +11,12 @@ from config import CHAR_EMBEDDING_DIM, START_TAG, STOP_TAG
 from typing import List, Optional
 
 DEFAULT_CONFIG = dotdict({
+    'mode': 'transformer',
     'char_embedding_dim': 50,
     'hidden_size': 350,
     'num_hidden_layers': 2,
-    'num_attention_heads': 10,
-    'intermediate_size': 512,
+    'num_attention_heads': 2,
+    'intermediate_size': 128,
     'hidden_act': 'gelu',
     'hidden_dropout_prob': 0.1,
     'attention_probs_dropout_prob': 0.1,
@@ -32,9 +33,11 @@ class TransformerPretrainedDualEmbedding(nn.Module):
 
         self.char_embedding_dim = config.get('char_embedding_dim', CHAR_EMBEDDING_DIM)
         self.word_embedding_dim = config.hidden_size - self.char_embedding_dim
+        self.use_position_embeddings = config.use_position_embeddings
 
-        # self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
+        if self.use_position_embeddings:
+            # self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
+            self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
 
         self.char_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
         
@@ -57,13 +60,17 @@ class TransformerPretrainedDualEmbedding(nn.Module):
             for sent in sent_batch
         ], 0))
 
-        position_ids = torch.arange(max_length, dtype=torch.long, device=words_embeddings.device)
-        position_ids = position_ids.unsqueeze(0).expand(words_embeddings.size(0), words_embeddings.size(1))
+        if self.use_position_embeddings:
+            position_ids = torch.arange(max_length, dtype=torch.long, device=words_embeddings.device)
+            position_ids = position_ids.unsqueeze(0).expand(words_embeddings.size(0), words_embeddings.size(1))
 
-        position_embeddings = self.position_embeddings(position_ids)
+            position_embeddings = self.position_embeddings(position_ids)
 
         embeddings = torch.cat([words_embeddings, chars_embeddings], dim=-1) + position_embeddings
-        # embeddings = words_embeddings + position_embeddings
+        
+        if self.use_position_embeddings:
+            embeddings = words_embeddings + position_embeddings
+        
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -75,11 +82,24 @@ class TransformerSequenceTagger(nn.Module):
         self.config = config
         self.use_crf = True
 
+        assert self.config.mode.lower() in ['transformer', 'lstm']
+
         self.tag_to_ix = config.get('tag_to_ix', {})
         self.tagset_size = max(self.tag_to_ix.values()) + 1
 
         self.embeddings = TransformerPretrainedDualEmbedding(config)
-        self.encoder = BertEncoder(config)
+
+        if self.config.mode == 'transformer':
+            self.encoder = BertEncoder(config)
+        else:
+            self.encoder = nn.LSTM(
+                config.hidden_size, 
+                config.hidden_size // 2, 
+                num_layers=config.num_hidden_layers,
+                dropout=config.hidden_dropout_prob,
+                bidirectional=True, batch_first=True
+            )
+        
         self.hidden2tag = nn.Linear(config.hidden_size, self.tagset_size)
         self.crf = CRF(self.tagset_size)
         

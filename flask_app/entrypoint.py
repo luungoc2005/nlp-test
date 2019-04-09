@@ -20,6 +20,9 @@ except:
 
 from flask_app.views import index, upload, delete, status, predict, visualize
 
+from flask_cors import CORS
+CORS(app)
+
 def apply_args(cli_args=None):
     if cli_args is not None:
         if cli_args.cors:
@@ -43,5 +46,5 @@ if __name__ == "__main__":
     parser.add_argument("--queue", type=bool, default=False)
     parser.add_argument("--cors", action='store_true', default=False)
     args = parser.parse_args()
-
+    
     apply_args(args)
