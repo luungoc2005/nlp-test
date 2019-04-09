@@ -15,21 +15,21 @@ from common.preprocessing import keras
 sys.modules['common.keras_preprocessing'] = keras
 
 if __name__ == '__main__':
-    MODEL_PATH = 'vi-masked-lm-test.bin'
+    MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 30000,
+        'num_words': 50000,
         'hidden_size': 400,
-        'num_hidden_layers': 6,
+        'num_hidden_layers': 4,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 128,
-        'featurizer_seq_len': 128, # same as above
+        'max_position_embeddings': 64,
+        'featurizer_seq_len': 64, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
-        'use_adasoft': False,
+        'use_adasoft': True,
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 32
+    BATCH_SIZE = 512
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 2e-5, 'warmup': 0.9, 't_total': 12}
+        optimizer_kwargs={'lr': 1e-4, 'warmup': 0.9, 't_total': 12}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
