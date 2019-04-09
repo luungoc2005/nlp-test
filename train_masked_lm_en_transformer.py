@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 2e-5, 'warmup': 1.0, 't_total': 10}
+        optimizer_kwargs={'lr': 2e-5, 'warmup': 0.9, 't_total': 12}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
