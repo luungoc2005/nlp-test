@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     dataset = WikiTextDataset()
 
-    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     BATCH_SIZE = 32
 
     if path.exists(SAVE_PATH):
