@@ -9,6 +9,11 @@ from config import BASE_PATH
 from common.modules import BertAdam
 from common.utils import dotdict
 
+# alias for old path
+import sys
+from common.preprocessing import keras
+sys.modules['common.keras_preprocessing'] = keras
+
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
     model_config = dotdict({
