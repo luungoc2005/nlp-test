@@ -18,15 +18,15 @@ if __name__ == '__main__':
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
         'num_words': 50000,
-        'hidden_size': 400,
-        'num_hidden_layers': 6,
+        'hidden_size': 512,
+        'num_hidden_layers': 4,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
-        'hidden_act': 'gelu',
+        'hidden_act': 'relu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 80,
-        'featurizer_seq_len': 80, # same as above
+        'max_position_embeddings': 100,
+        'featurizer_seq_len': 100, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
         'use_adasoft': True,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 512
+    BATCH_SIZE = 32
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-5, 'warmup': 0.9, 't_total': 10000}
+        optimizer_kwargs={'lr': 0.0001, 'warmup': 0.9, 't_total': 10000}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -98,6 +98,6 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=2,
+        gradient_accumulation_steps=1,
         # optimize_on_cpu=True,
     )
