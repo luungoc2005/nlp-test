@@ -1,7 +1,7 @@
 # from sent_to_vec.masked_lm.pervasive_model import PervasiveAttnLanguageModelWrapper
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
-from sent_to_vec.masked_lm.data import WikiTextDataset
+from sent_to_vec.masked_lm.vi_data import ViTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path, listdir
 from config import BASE_PATH
@@ -12,16 +12,16 @@ from common.utils import dotdict
 if __name__ == '__main__':
     MODEL_PATH = 'vi-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 20000,
-        'hidden_size': 400,
-        'num_hidden_layers': 3,
+        'num_words': 30000,
+        'hidden_size': 512,
+        'num_hidden_layers': 4,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 128,
-        'featurizer_seq_len': 128, # same as above
+        'max_position_embeddings': 80,
+        'featurizer_seq_len': 80, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
         'use_adasoft': False,
@@ -42,10 +42,10 @@ if __name__ == '__main__':
         # }) # large model
         model = BertLMWrapper(model_config)
 
-    dataset = WikiTextDataset()
+    dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 256
+    BATCH_SIZE = 160
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -53,9 +53,9 @@ if __name__ == '__main__':
     else:
         paths = [
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
-            path.join(BASE_PATH, 'vi-corpus/vi.all'),
-            path.join(BASE_PATH, 'vi-corpus/vi_corpus_1.txt'),
-            path.join(BASE_PATH, 'vi-corpus/vi_corpus_2.txt'),
+            path.join(BASE_PATH, 'data/vi.train'),
+            path.join(BASE_PATH, 'data/news_corpus.txt'),
+            # path.join(BASE_PATH, 'vi-corpus/vi_corpus_2.txt'),
         ]
         dataset.initialize(model, data_path=paths)
         dataset.save(SAVE_PATH)
@@ -70,7 +70,11 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-3, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={
+            'lr': 1e-4
+            # 't_total': 40000,
+            # 'warmup': 0.99
+        }
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -86,13 +90,15 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=100,
+        epochs=30,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
-            ReduceLROnPlateau(reduce_factor=4, patience=2)
+            # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        # gradient_accumulation_steps=3,
+        # gradient_accumulation_steps=2
+        fp16=True,
+        clip_grad=1.0
         # optimize_on_cpu=True,
     )

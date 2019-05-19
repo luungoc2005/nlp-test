@@ -4,6 +4,7 @@ import numpy as np
 from common.langs.vi_VN.utils import remove_tone_marks
 from config import EMBEDDING_DIM  # FASTTEXT_BIN
 from nltk.tokenize import RegexpTokenizer
+from blingfire import text_to_words
 # from glove_utils import get_word_vector
 import unicodedata
 import string
@@ -170,6 +171,9 @@ _rt = RegexpTokenizer(r'[a-zA-Z]+|\d+|[^a-zA-Z\d\s]+')
 
 def wordpunct_tokenize(sent):
     return _rt.tokenize(sent)
+
+def word_tokenize(sent):
+    return text_to_words(sent).split(' ')
 
 
 # Helper functions for time remaining

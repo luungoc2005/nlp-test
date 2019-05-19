@@ -329,6 +329,7 @@ class ILearner(object):
         self._uneven_batch_size = uneven_batch_size
         self._collate_fn = collate_fn
         self._halt = False # prematurely halt training
+        self.clip_grad = 0
         self.fp16 = False
         self.gradient_accumulation_steps = 1
 
@@ -446,11 +447,14 @@ class ILearner(object):
         optimize_on_cpu: bool = False,
         fp16: bool = False,
         gradient_accumulation_steps: int = 1,
-        callbacks: Iterable[object] = []):
+        callbacks: Iterable[object] = [],
+        clip_grad:float=0):
 
         if self._uneven_batch_size: batch_size = 1
 
         self._batch_size = batch_size
+
+        self.clip_grad = clip_grad
 
         if gradient_accumulation_steps and 'gradient_accumulation_steps' in dict(inspect.getmembers(self.on_epoch.__func__.__code__))['co_varnames']:
             print('Gradient accumulation is supported by this class')
@@ -583,7 +587,10 @@ class ILearner(object):
                 from apex import amp, optimizers
                 from apex.multi_tensor_apply import multi_tensor_applier
 
-                model, self.optimizer = amp.initialize(model, self.optimizer, opt_level="O1")
+                model, self.optimizer = amp.initialize(model, self.optimizer, 
+                    opt_level="O1",
+                    loss_scale="dynamic"
+                )
                 self.model_wrapper._model = model
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
@@ -633,8 +640,20 @@ class ILearner(object):
                             if fp16:
                                 with amp.scale_loss(epoch_loss, self.optimizer) as scaled_loss:
                                     scaled_loss.backward()
+
+                                if self.clip_grad > 0:
+                                    torch.nn.utils.clip_grad_norm_(
+                                        amp.master_params(self.optimizer),
+                                        self.clip_grad
+                                    )
                             else:
                                 epoch_loss.backward()
+
+                                if self.clip_grad > 0:
+                                    torch.nn.utils.clip_grad_norm_(
+                                        model.parameters(), 
+                                        self.clip_grad
+                                    )
 
                             epoch_ret['loss'] = epoch_loss.detach().cpu().item()
                             batch_metrics['loss'] = epoch_ret['loss']
