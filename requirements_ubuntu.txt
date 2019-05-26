@@ -13,8 +13,6 @@ jedi==0.13.3
 lazy-object-proxy==1.4.1
 Markdown==3.1
 mccabe==0.6.1
-mkl-fft==1.0.12
-mkl-random==1.0.2
 nltk==3.4.1
 numpy==1.16.3
 olefile==0.46
