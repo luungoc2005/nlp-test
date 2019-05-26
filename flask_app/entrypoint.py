@@ -18,7 +18,7 @@ except:
 # from werkzeug.contrib.cache import SimpleCache
 # app_cache = SimpleCache()
 
-from flask_app.views import index, upload, delete, status, predict, visualize
+from flask_app.views import index, upload, delete, status, predict, visualize, tokenize
 
 from flask_cors import CORS
 CORS(app)
