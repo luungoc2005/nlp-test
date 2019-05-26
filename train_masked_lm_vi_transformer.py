@@ -8,20 +8,26 @@ from config import BASE_PATH
 # from torch.optim import RMSprop
 from common.modules import BertAdam
 from common.utils import dotdict
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--checkpoint", type=str, default='vi-masked-lm-test.bin')
+
+args = parser.parse_args()
 
 if __name__ == '__main__':
-    MODEL_PATH = 'vi-masked-lm-test.bin'
+    MODEL_PATH = args.checkpoint
     model_config = dotdict({
         'num_words': 30000,
         'hidden_size': 512,
-        'num_hidden_layers': 4,
+        'num_hidden_layers': 6,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
-        'hidden_act': 'gelu',
+        'hidden_act': 'relu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 80,
-        'featurizer_seq_len': 80, # same as above
+        'max_position_embeddings': 100,
+        'featurizer_seq_len': 100, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
         'use_adasoft': False,
@@ -45,7 +51,7 @@ if __name__ == '__main__':
     dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 160
+    BATCH_SIZE = 150
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -72,7 +78,7 @@ if __name__ == '__main__':
         optimizer_fn=BertAdam,
         optimizer_kwargs={
             'lr': 1e-4
-            # 't_total': 40000,
+            # 't_total': 41000,
             # 'warmup': 0.99
         }
     )
