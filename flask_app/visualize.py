@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 def transform_input(input_list: List[str], model=None) -> np.array:
     X = None
-    if not torch.is_tensor(X) and model._featurizer is not None:
+    if not torch.is_tensor(X) and model is not None and model._featurizer is not None:
         X = model._featurizer.transform(input_list)
         X = model.preprocess_input(X)
         X = X.numpy()
@@ -21,9 +21,12 @@ def transform_input(input_list: List[str], model=None) -> np.array:
         raw_tokens = [word_tokenize(sent) for sent in input_list]
         sent_vectors = word_to_vec(raw_tokens)
         
-        sent_matrix = np.zeros(len(raw_tokens), get_dim())
-        for ix in range(len(raw_tokens)):
-            sent_matrix[ix] = np.mean(np.array(sent_vectors[ix]), axis=0)
+        sent_matrix = np.zeros((len(raw_tokens), get_dim()))
+        for ix in range(len(input_list)):
+            print(sent_vectors[ix])
+            sent_matrix[ix] = np.mean(np.array(sent_vectors[ix], dtype='float32'), axis=0)
+
+        X = sent_matrix
     return X
 
     # vectorizer = TfidfVectorizer(min_df=2,

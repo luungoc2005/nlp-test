@@ -1,26 +1,25 @@
 # from sent_to_vec.masked_lm.pervasive_model import PervasiveAttnLanguageModelWrapper
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
-from sent_to_vec.masked_lm.vi_data import ViTextDataset
+from sent_to_vec.masked_lm.data import WikiTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path, listdir
 from config import BASE_PATH
 # from torch.optim import RMSprop
 from common.modules import BertAdam
 from common.utils import dotdict
-import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", type=str, default='vi-masked-lm-test.bin')
-
-args = parser.parse_args()
+# alias for old path
+import sys
+from common.preprocessing import keras
+sys.modules['common.keras_preprocessing'] = keras
 
 if __name__ == '__main__':
-    MODEL_PATH = args.checkpoint
+    MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 30000,
+        'num_words': 50000,
         'hidden_size': 512,
-        'num_hidden_layers': 6,
+        'num_hidden_layers': 4,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
         'hidden_act': 'relu',
@@ -30,7 +29,7 @@ if __name__ == '__main__':
         'featurizer_seq_len': 100, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
-        'use_adasoft': False,
+        'use_adasoft': True,
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
@@ -48,10 +47,10 @@ if __name__ == '__main__':
         # }) # large model
         model = BertLMWrapper(model_config)
 
-    dataset = ViTextDataset()
+    dataset = WikiTextDataset()
 
-    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 150
+    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
+    BATCH_SIZE = 32
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -59,9 +58,9 @@ if __name__ == '__main__':
     else:
         paths = [
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
-            path.join(BASE_PATH, 'data/vi.train'),
-            path.join(BASE_PATH, 'data/news_corpus.txt'),
-            # path.join(BASE_PATH, 'vi-corpus/vi_corpus_2.txt'),
+            path.join(BASE_PATH, 'vi-corpus/vi.all'),
+            path.join(BASE_PATH, 'vi-corpus/vi_corpus_1.txt'),
+            path.join(BASE_PATH, 'vi-corpus/vi_corpus_2.txt'),
         ]
         dataset.initialize(model, data_path=paths)
         dataset.save(SAVE_PATH)
@@ -76,11 +75,7 @@ if __name__ == '__main__':
     # )
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={
-            'lr': 1e-4
-            # 't_total': 41000,
-            # 'warmup': 0.99
-        }
+        optimizer_kwargs={'lr': 0.0001, 'warmup': 0.9, 't_total': 10000}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -96,15 +91,13 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=30,
+        epochs=100,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
-            # ReduceLROnPlateau(reduce_factor=4, patience=2)
+            ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        # gradient_accumulation_steps=2
-        fp16=True,
-        clip_grad=1.0
+        gradient_accumulation_steps=1,
         # optimize_on_cpu=True,
     )

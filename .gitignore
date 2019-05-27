@@ -95,6 +95,8 @@ onnx/
 *.bin
 *.vec
 *.h5
+*.train
+*.all
 
 \.DS_Store
 

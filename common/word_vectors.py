@@ -14,14 +14,17 @@ assert len(vectors) > 0, 'Error: No word vector files exist.'
 print('Word vectors data exists for the following languages: %s' % ', '.join(vectors.keys()))
 # vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=1, case_insensitive=True)
 
-def get_emb_matrix():
-    return vectors[LANGUAGE].get_vectors_mmap()[:MAX_NUM_WORDS]
+def get_magnitude_object(language=None):
+    return vectors[language if language is not None else LANGUAGE]
 
-def get_word_vector(word, *args, **kwargs):
-    return vectors[LANGUAGE].query(word, *args, **kwargs)
+def get_emb_matrix(language=None):
+    return vectors[language if language is not None else LANGUAGE].get_vectors_mmap()[:MAX_NUM_WORDS]
 
-def most_similar(word, topk=5):
-    return vectors[LANGUAGE].most_similar(word, topn=topk)
+def get_word_vector(word, *args, language=None, **kwargs):
+    return vectors[language if language is not None else LANGUAGE].query(word, *args, **kwargs)
 
-def get_dim():
-    return vectors[LANGUAGE].dim
+def most_similar(word, topk=5, language=None):
+    return vectors[language if language is not None else LANGUAGE].most_similar(word, topn=topk)
+
+def get_dim(language=None):
+    return vectors[language if language is not None else LANGUAGE].dim

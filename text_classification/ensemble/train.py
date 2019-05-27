@@ -6,6 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from sklearn.utils import class_weight
 from common.utils import to_categorical
+from common.word_vectors import get_dim
 from config import EMBEDDING_DIM
 # import lightgbm as lgb
 
@@ -17,7 +18,8 @@ class EnsembleLearner(ILearner):
 
     def init_on_data(self, X, y):
         self.n_samples = len(X)
-        self.train_X_buffer = np.zeros((self.n_samples, EMBEDDING_DIM))
+        # self.train_X_buffer = np.zeros((self.n_samples, get_dim(language='en_elmo')))
+        self.train_X_buffer = np.zeros((self.n_samples, 3072))
         self.train_y_buffer = np.zeros((self.n_samples,))
         self.buffer_pointer = 0
 

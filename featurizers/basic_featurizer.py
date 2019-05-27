@@ -21,7 +21,7 @@ class BasicFeaturizer(IFeaturizer):
         self.to_tensor = config.get('to_tensor', True) # pad sequences and return tensors
         self.return_mask = config.get('return_mask', False)
 
-        self.tokenize_fn = wordpunct_tokenize
+        self.tokenize_fn = config.get('tokenize_fn', wordpunct_tokenize)
         
         self.tokenizer = Tokenizer(
             num_words=self.num_words, 
@@ -59,7 +59,7 @@ class BasicFeaturizer(IFeaturizer):
             _ = (it for it in data)
             if len(data) < 1: return # Must have at least 1 item
         except:
-            return # data is not an iterable
+            pass # data is not an iterable
         
         self.tokenizer.fit_on_texts(self.tokenize(data))
 

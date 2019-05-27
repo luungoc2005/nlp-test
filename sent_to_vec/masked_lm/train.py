@@ -92,12 +92,6 @@ class LanguageModelLearner(ILearner):
         
         if gradient_accumulation_steps > 1:
             loss = loss / gradient_accumulation_steps
-
-        if self.clip_grad > 0:
-            torch.nn.utils.clip_grad_norm_(
-                model.parameters(), 
-                self.clip_grad
-            )
         
         return {
             'loss': loss

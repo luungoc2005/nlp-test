@@ -1,4 +1,4 @@
 {
-  "python.pythonPath": "/Users/2359media/anaconda3/envs/botbot-nlp/bin/python",
+  "python.pythonPath": "/home/luungoc2005/miniconda3/envs/nlp/bin/python",
   "python.linting.pylintEnabled": true
 }
