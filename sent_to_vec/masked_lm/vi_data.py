@@ -111,17 +111,15 @@ class ViTextDataset(Dataset):
     def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
         if self.remove_marks:
-            raw_sent = self.featurizer.transform([
-                random_remove_marks(self.raw_sents[index])
-            ])[0]
-            orig_sent = self.featurizer.transform([
-                self.raw_sents[index]
+            marks_removed = random_remove_marks(self.raw_sents[index])
+            marks_removed_sent = self.featurizer.transform([
+                marks_removed
             ])[0]
         else:
-            orig_sent = None
-            raw_sent = self.featurizer.transform([
-                self.raw_sents[index]
-            ])[0]
+            marks_removed_sent = None
+        raw_sent = self.featurizer.transform([
+            self.raw_sents[index]
+        ])[0]
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
@@ -129,7 +127,7 @@ class ViTextDataset(Dataset):
         for ix in range(raw_sent.size(0)):
             prob = random.random()
             if prob < 0.15:
-                output_label[ix] = raw_sent[ix] if orig_sent is None else orig_sent[ix]
+                output_label[ix] = raw_sent[ix]
 
                 prob /= 0.15
                 if prob < 0.8:
@@ -142,7 +140,7 @@ class ViTextDataset(Dataset):
                 # else no change
             else:
                 output_label[ix] = 0 # ignore idx
-        return raw_sent, output_label
+        return raw_sent if marks_removed_sent is None else marks_removed_sent, output_label
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],

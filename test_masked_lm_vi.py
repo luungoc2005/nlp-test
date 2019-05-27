@@ -1,6 +1,6 @@
 
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
-from sent_to_vec.masked_lm.data import WikiTextDataset, collate_seq_lm_fn
+from sent_to_vec.masked_lm.vi_data import ViTextDataset, collate_seq_lm_fn
 from torch.utils.data import DataLoader
 from common.torch_utils import to_gpu
 from common.metrics import accuracy
@@ -37,7 +37,7 @@ def pad_sents(first_array, second_array, third_array):
 
 
 if __name__ == '__main__':
-    dataset = WikiTextDataset()
+    dataset = ViTextDataset()
 
     model = BertLMWrapper(from_fp=args.checkpoint)
     # patch to fix adasoft on older checkpoint file
@@ -81,6 +81,7 @@ if __name__ == '__main__':
         collate_fn=collate_seq_lm_fn,
         num_workers=0
     )
+    # print(next(iter(loader)))
 
     TEST_EPOCHS = 100 if model._onnx is None else 1600
     # total_accuracy = 0.

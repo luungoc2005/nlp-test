@@ -34,7 +34,7 @@ def remove_tone_marks(input_str):
     )
     return result_str
 
-def random_remove_marks(input_str, ratio=0.15):
+def random_remove_marks(input_str, ratio=0.3):
     result_str = input_str.split()
     for idx, token in enumerate(result_str):
         if random.random() <= ratio:
