@@ -84,7 +84,6 @@
       type: "POST",
       url: "http://127.0.0.1:5000/visualize",
       data: JSON.stringify({
-        "model_id": "a7770070-bec1-4c00-9f10-91307b34dd67",
         "items": document.getElementById('txtExamples').value.split("\n").filter(item => item.trim() !== ""),
         n_clusters: parseInt(document.getElementById('txtClusters').value),
       }),
