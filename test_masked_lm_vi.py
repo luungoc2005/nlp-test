@@ -10,6 +10,11 @@ from tqdm import trange
 import torch
 import argparse
 
+# alias for old path
+import sys
+from common.preprocessing import keras
+sys.modules['common.keras_preprocessing'] = keras
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, default='bert-vi.bin')
 parser.add_argument("--show_raws", action='store_true')
@@ -58,7 +63,8 @@ if __name__ == '__main__':
         model.export_onnx(dummy_input, 'masked-lm-vi.onnx')
         exit()
 
-    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    # SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
 
