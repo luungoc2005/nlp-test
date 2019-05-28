@@ -33,11 +33,6 @@ def apply_args(cli_args=None):
                 pass
 
     app.config['USE_QUEUE'] = cli_args.queue
-    
-    if cli_args.debug:
-        app.run(processes=1, debug=True, threaded=False)
-    else:
-        app.run()
 
 if __name__ == "__main__":
 
@@ -48,3 +43,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     apply_args(args)
+
+    if args.debug:
+        app.config['DEBUG'] = True
+        app.run(processes=1, debug=True, threaded=False, host='0.0.0.0', port=5000)
+    else:
+        app.run()

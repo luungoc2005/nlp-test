@@ -7,6 +7,11 @@ from config import BASE_PATH
 # from torch.optim import RMSprop
 from common.modules import BertAdam
 
+# alias for old path
+import sys
+from common.preprocessing import keras
+sys.modules['common.keras_preprocessing'] = keras
+
 if __name__ == '__main__':
     MODEL_PATH = 'masked-lm-checkpoint.bin'
     if path.exists(MODEL_PATH):

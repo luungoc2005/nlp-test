@@ -1,6 +1,6 @@
 
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
-from sent_to_vec.masked_lm.data import WikiTextDataset, collate_seq_lm_fn
+from sent_to_vec.masked_lm.vi_data import ViTextDataset, collate_seq_lm_fn
 from torch.utils.data import DataLoader
 from common.torch_utils import to_gpu
 from common.metrics import accuracy
@@ -9,6 +9,11 @@ from os import path
 from tqdm import trange
 import torch
 import argparse
+
+# alias for old path
+import sys
+from common.preprocessing import keras
+sys.modules['common.keras_preprocessing'] = keras
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--checkpoint", type=str, default='bert-vi.bin')
@@ -37,7 +42,7 @@ def pad_sents(first_array, second_array, third_array):
 
 
 if __name__ == '__main__':
-    dataset = WikiTextDataset()
+    dataset = ViTextDataset()
 
     model = BertLMWrapper(from_fp=args.checkpoint)
     # patch to fix adasoft on older checkpoint file
@@ -58,7 +63,8 @@ if __name__ == '__main__':
         model.export_onnx(dummy_input, 'masked-lm-vi.onnx')
         exit()
 
-    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    # SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
 
@@ -81,6 +87,7 @@ if __name__ == '__main__':
         collate_fn=collate_seq_lm_fn,
         num_workers=0
     )
+    # print(next(iter(loader)))
 
     TEST_EPOCHS = 100 if model._onnx is None else 1600
     # total_accuracy = 0.
