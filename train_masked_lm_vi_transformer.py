@@ -30,7 +30,7 @@ if __name__ == '__main__':
         'featurizer_seq_len': 100, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.02,
-        'use_adasoft': False,
+        'use_adasoft': True,
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 150
+    BATCH_SIZE = 320
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')

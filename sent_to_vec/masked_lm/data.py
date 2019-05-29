@@ -135,8 +135,7 @@ class WikiTextDataset(Dataset):
             else:
                 return first_sent, self.get_sent(index + 1), True
 
-def collate_sent(data):
-    max_seq_len = max([len(item) for item in data])
+def collate_sent(data, max_seq_len):
     ret_val = torch.zeros(len(data), max_seq_len)
     for ix, seq in enumerate(data):
         seq_len = min(max_seq_len, len(seq))
@@ -154,15 +153,18 @@ def collate_sent_batch_first(data):
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
+
+    max_len_X = max([len(item) for item in X_data])
+    max_len_y = max([len(item) for item in y_data])
+    max_len = max(max_len_X, max_len_y)
     # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
-    return collate_sent(X_data), collate_sent(y_data)
+    return collate_sent(X_data, max_len), collate_sent(y_data, max_len)
 
 def collate_seq_lm_fn(data) -> Iterable:
     if len(data[0]) == 2: # first task
         return collate_sent_target(data)
     else: # second task
-        first_sent = [item[0] for item in data]
-        second_sent = [item[1] for item in data]
+        first_batch, second_batch = collate_sent_target([(item[0], item[1]) for item in data])
         is_next = [item[2] for item in data]
-        return collate_sent_target(first_sent), collate_sent_target(second_sent), torch.LongTensor(is_next)
+        return first_batch, second_batch, torch.LongTensor(is_next)
     

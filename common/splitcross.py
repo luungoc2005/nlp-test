@@ -71,6 +71,9 @@ class SplitCrossEntropyLoss(nn.Module):
         return results[0]
 
     def split_on_targets(self, hiddens, targets):
+        if hiddens.size(0) != targets.size(0):
+            raise RuntimeError('Input and target should have the same size '
+                               'in the batch dimension.')
         # Split the targets into those in the head and in the tail
         split_targets = []
         split_hiddens = []
@@ -166,8 +169,7 @@ class SplitCrossEntropyLoss(nn.Module):
                 # All indices are shifted - if the first split handles [0,...,499] then the 500th in the second split will be 0 indexed
                 indices = (split_targets[idx] - self.splits[idx]).view(-1, 1)
                 # Warning: if you don't squeeze, you get an N x 1 return, which acts oddly with broadcasting
-                tail_entropy = torch.gather(
-                    torch.nn.functional.log_softmax(tail_res, dim=-1), dim=1, index=indices).squeeze()
+                tail_entropy = torch.gather(tail_res, dim=1, index=indices).squeeze()
                 entropy = -(head_entropy + tail_entropy)
             ###
             running_offset += len(split_hiddens[idx])
