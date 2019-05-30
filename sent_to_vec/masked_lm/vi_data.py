@@ -124,7 +124,9 @@ class ViTextDataset(Dataset):
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
 
-        for ix in range(raw_sent.size(0)):
+        seq_len = raw_sent.size(0) if marks_removed_sent is None else min(raw_sent.size(0), marks_removed_sent.size(0))
+
+        for ix in range(seq_len):
             prob = random.random()
             if prob < 0.15:
                 output_label[ix] = raw_sent[ix]
