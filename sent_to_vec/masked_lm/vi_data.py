@@ -110,13 +110,6 @@ class ViTextDataset(Dataset):
 
     def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
-        if self.remove_marks:
-            marks_removed = random_remove_marks(self.raw_sents[index])
-            marks_removed_sent = self.featurizer.transform([
-                marks_removed
-            ])[0]
-        else:
-            marks_removed_sent = None
         raw_sent = self.featurizer.transform([
             self.raw_sents[index]
         ])[0]
@@ -124,31 +117,34 @@ class ViTextDataset(Dataset):
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
 
-        seq_len = raw_sent.size(0) if marks_removed_sent is None else min(raw_sent.size(0), marks_removed_sent.size(0))
+        seq_len = raw_sent.size(0)
 
         for ix in range(seq_len):
             prob = random.random()
+
             if prob < 0.15:
                 output_label[ix] = raw_sent[ix]
 
                 prob /= 0.15
                 if prob < 0.8:
-                    if marks_removed_sent is not None:
-                        marks_removed_sent[ix] = word_index[MASK_TAG]
-                    else:
-                        raw_sent[ix] = word_index[MASK_TAG]
+                    raw_sent[ix] = word_index[MASK_TAG]
                 
                 elif prob < 0.9:
                     # 5 reserved tokens - hardcoded
-                    if marks_removed_sent is not None:
-                        marks_removed_sent[ix] = random.randrange(4, num_words - 1)
-                    else:
-                        raw_sent[ix] = random.randrange(4, num_words - 1)
+                    raw_sent[ix] = random.randrange(4, num_words - 1)
 
                 # else no change
             else:
                 output_label[ix] = 0 # ignore idx
-        return raw_sent if marks_removed_sent is None else marks_removed_sent, output_label
+
+            if prob < 0.3:
+                orig_word = self.featurizer.tokenizer.ix_to_word[int(raw_sent[ix])]
+                raw_sent[ix] = word_index.get(
+                    remove_tone_marks(orig_word), 
+                    word_index[UNK_TAG]
+                )
+
+        return raw_sent, output_label
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],
