@@ -63,8 +63,8 @@ if __name__ == '__main__':
         model.export_onnx(dummy_input, 'masked-lm-vi.onnx')
         exit()
 
-    # SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
+    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    # SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
 

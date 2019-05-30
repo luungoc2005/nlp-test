@@ -51,7 +51,7 @@ if __name__ == '__main__':
     dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 320
+    BATCH_SIZE = 350
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
