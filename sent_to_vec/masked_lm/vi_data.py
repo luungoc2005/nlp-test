@@ -131,14 +131,14 @@ class ViTextDataset(Dataset):
 
                 prob /= 0.15
                 if prob < 0.8:
-                    if marks_removed_sent is None:
+                    if marks_removed_sent is not None:
                         marks_removed_sent[ix] = word_index[MASK_TAG]
                     else:
                         raw_sent[ix] = word_index[MASK_TAG]
                 
                 elif prob < 0.9:
                     # 5 reserved tokens - hardcoded
-                    if marks_removed_sent is None:
+                    if marks_removed_sent is not None:
                         marks_removed_sent[ix] = random.randrange(4, num_words - 1)
                     else:
                         raw_sent[ix] = random.randrange(4, num_words - 1)
