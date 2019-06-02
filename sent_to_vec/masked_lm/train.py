@@ -65,7 +65,7 @@ class LanguageModelLearner(ILearner):
 
         else:
             hidden = None
-            logits, hidden, _, _ = model(X, training=True)
+            logits, hidden, _, _ = model(X, training=True, batch_first=False)
 
         if self.bert_mode:
             decoder = model.cls.predictions.decoder

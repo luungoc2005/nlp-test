@@ -47,7 +47,7 @@ def nlu_load_pretrained(model_name: str):
     if model_name in PRETRAINED_MODELS:
         if PRETRAINED_MODELS[model_name].loaded_object is None:
             model = PRETRAINED_MODELS[model_name].base_class(
-                from_fp=path.join(BASE_PATH, PRETRAINED_MODELS[model_name].file_name)
+                from_fp=path.join(BASE_PATH, PRETRAINED_MODELS[model_name].filename)
             )
             model.init_model()
 

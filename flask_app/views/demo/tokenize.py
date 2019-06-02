@@ -10,7 +10,7 @@ import sys, traceback
 LANGUAGE_MODEL = None
 
 @app.route("/demo/tokenize", methods=['POST'])
-def flask_visualize():
+def demo_tokenize():
     try:
         content = get_json(request)
 

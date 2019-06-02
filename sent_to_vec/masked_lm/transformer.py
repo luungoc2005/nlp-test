@@ -674,9 +674,16 @@ class BertForMaskedLM(BertPreTrainedModel):
         else:
             self.adasoft = None
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=False, training=False):
-        # Transform to batch-first format
-        input_ids = input_ids.t()
+    def forward(self, 
+        input_ids, 
+        token_type_ids=None, 
+        attention_mask=None, 
+        output_all_encoded_layers=False, 
+        batch_first=True,
+        training=False):
+        if not batch_first:
+            # Transform to batch-first format
+            input_ids = input_ids.t()
         if attention_mask is not None: attention_mask = attention_mask.t()
         if token_type_ids is not None: token_type_ids = token_type_ids.t()
         sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
@@ -699,7 +706,10 @@ class BertForMaskedLM(BertPreTrainedModel):
                         sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))
                     )
             else:
-                prediction_scores = self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2)))
+                prediction_scores = torch.log_softmax(
+                    self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
+                    dim=-1
+                )
             return prediction_scores, sequence_output
 
 
