@@ -38,13 +38,18 @@ class TransformerSequenceTaggerLearner(ILearner):
     def calculate_metrics(self, logits, y):
         tags_output, sent_batch = logits
         if self.model_wrapper.model.use_crf:
-            seq_lens = torch.LongTensor([len(sent) for sent in sent_batch])
-            tags_output = self.model_wrapper.model.crf.decode(tags_output, seq_lens)
+            seq_lens = to_gpu(
+                torch.LongTensor(
+                    [len(sent) for sent in sent_batch]
+                )
+            )
+            tags_output = self.model_wrapper.model.crf. \
+                decode(tags_output, seq_lens)
         else:
             tags_output = torch.max(tags_output, -1)[1]
         return {
-            'accuracy': accuracy(tags_output, y)
-            # 'f1': f1(tags_output, y),
+            # 'accuracy': accuracy(tags_output, y)
+            'f1': f1(tags_output, y),
             # 'precision': precision(tags_output, y)
             # 'recall': recall(tags_output, y)
         }

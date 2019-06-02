@@ -39,7 +39,7 @@ class TransformerPretrainedDualEmbedding(nn.Module):
             # self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
             self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
 
-        self.char_encoder = BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM')
+        self.char_encoder = to_gpu(BRNNWordEncoder(self.char_embedding_dim, rnn_type='LSTM'))
         
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -52,24 +52,31 @@ class TransformerPretrainedDualEmbedding(nn.Module):
         ))
         
         chars_embeddings = to_gpu(torch.stack([
-            torch.cat((self.char_encoder(sent), torch.zeros(max_length - len(sent), self.char_embedding_dim)), dim=0)
-            if len(sent) < max_length
-            else self.char_encoder(sent)[:max_length]
-            if len(sent) > max_length
-            else self.char_encoder(sent)
+            to_gpu(
+                torch.cat(
+                    (self.char_encoder(sent), 
+                    to_gpu(torch.zeros(max_length - len(sent), self.char_embedding_dim))), 
+                    dim=0
+                )
+                if len(sent) < max_length
+                else self.char_encoder(sent)[:max_length]
+                    if len(sent) > max_length
+                    else self.char_encoder(sent)
+            )
             for sent in sent_batch
         ], 0))
 
+        position_embeddings = None
+
+        embeddings = torch.cat([words_embeddings, chars_embeddings], dim=-1)
+        
         if self.use_position_embeddings:
             position_ids = torch.arange(max_length, dtype=torch.long, device=words_embeddings.device)
             position_ids = position_ids.unsqueeze(0).expand(words_embeddings.size(0), words_embeddings.size(1))
 
             position_embeddings = self.position_embeddings(position_ids)
 
-        embeddings = torch.cat([words_embeddings, chars_embeddings], dim=-1) + position_embeddings
-        
-        if self.use_position_embeddings:
-            embeddings = words_embeddings + position_embeddings
+            embeddings = embeddings + position_embeddings
         
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
@@ -101,7 +108,7 @@ class TransformerSequenceTagger(nn.Module):
             )
         
         self.hidden2tag = nn.Linear(config.hidden_size, self.tagset_size)
-        self.crf = CRF(self.tagset_size)
+        self.crf = to_gpu(CRF(self.tagset_size))
         
         self.apply(self.init_bert_weights)
 
@@ -130,7 +137,7 @@ class TransformerSequenceTagger(nn.Module):
 
         embedding_output = self.embeddings(sent_batch)
         encoded_layers = self.encoder(embedding_output,
-            extended_attention_mask,
+            to_gpu(extended_attention_mask),
             output_all_encoded_layers=output_all_encoded_layers)
         sequence_output = encoded_layers[-1]
 
@@ -145,10 +152,20 @@ class TransformerSequenceTagger(nn.Module):
         if decode_tags is None: decode_tags = not self.training
         if decode_tags:
             if self.use_crf:
-                seq_lens = torch.LongTensor([len(sent) for sent in sent_batch])
-                tags_output = self.crf.decode(tags_output, seq_lens)
+                seq_lens = to_gpu(
+                    torch.LongTensor([
+                        len(sent) for sent in sent_batch
+                    ])
+                )
+                tags_output = self.crf.decode(
+                    tags_output, 
+                    seq_lens
+                )
             else:
-                tags_output = torch.max(tags_output, dim=-1)[1]
+                tags_output = torch.max(
+                    tags_output, 
+                    dim=-1
+                )[1]
 
         return tags_output, encoded_layers, sent_batch
     

@@ -76,8 +76,6 @@ class BRNNWordEncoder(nn.Module):
             embeds = embeds.squeeze(0)
             assert embeds.ndimension() == 2
 
-        # print(embeds)
-
         return embeds # words x embeds
 
     def get_layer_groups(self):
