@@ -116,6 +116,10 @@ class ViTextDataset(Dataset):
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
+        ix_to_word = self.featurizer.tokenizer.ix_to_word
+
+        MASK_ID = word_index[MASK_TAG]
+        UNK_ID = word_index[UNK_TAG]
 
         seq_len = raw_sent.size(0)
 
@@ -127,7 +131,7 @@ class ViTextDataset(Dataset):
 
                 prob /= 0.15
                 if prob < 0.8:
-                    raw_sent[ix] = word_index[MASK_TAG]
+                    raw_sent[ix] = MASK_ID
                 
                 elif prob < 0.9:
                     # 5 reserved tokens - hardcoded
@@ -138,10 +142,10 @@ class ViTextDataset(Dataset):
                 output_label[ix] = 0 # ignore idx
 
             if prob < 0.3:
-                orig_word = self.featurizer.tokenizer.ix_to_word[int(raw_sent[ix])]
+                orig_word = ix_to_word[int(raw_sent[ix])]
                 raw_sent[ix] = word_index.get(
                     remove_tone_marks(orig_word), 
-                    word_index[UNK_TAG]
+                    UNK_ID
                 )
 
         return raw_sent, output_label

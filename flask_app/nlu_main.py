@@ -22,6 +22,18 @@ logging.getLogger().addHandler(logging.StreamHandler())
 CLF_MODEL = {}
 ENT_MODEL = {}
 
+from sent_to_vec.masked_lm.bert_model import BertLMWrapper
+from config import BASE_PATH
+from common.utils import dotdict
+
+PRETRAINED_MODELS = dotdict({
+    'bert_vi_base': dotdict({
+        "base_class": BertLMWrapper,
+        "filename": '2404m 57s - epoch 10:38000 checkpoint - loss: 2.1996.bin',
+        "loaded_object": None
+    })
+})
+
 TRAIN_PROCESSES = dict()
 
 # from pympler import muppy, summary
@@ -29,6 +41,25 @@ TRAIN_PROCESSES = dict()
 
 # sum1 = summary.summarize(all_objects)
 # summary.print_(sum1)
+
+def nlu_load_pretrained(model_name: str):
+    global PRETRAINED_MODELS
+    if model_name in PRETRAINED_MODELS:
+        if PRETRAINED_MODELS[model_name].loaded_object is None:
+            model = PRETRAINED_MODELS[model_name].base_class(
+                from_fp=path.join(BASE_PATH, PRETRAINED_MODELS[model_name].file_name)
+            )
+            model.init_model()
+
+            logging.info('Pretrained model %s loaded' % model_name)
+            PRETRAINED_MODELS[model_name].loaded_object = model
+
+            return model
+        else:
+            return PRETRAINED_MODELS[model_name].loaded_object
+    else:
+        logging.error('Invalid model name')
+
 
 def nlu_init_model(model_id, filename, ent_file_name):
     global CLF_MODEL, ENT_MODEL

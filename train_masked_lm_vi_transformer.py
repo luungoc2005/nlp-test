@@ -23,7 +23,7 @@ if __name__ == '__main__':
         'num_hidden_layers': 6,
         'num_attention_heads': 8,
         'intermediate_size': 1140,
-        'hidden_act': 'relu',
+        'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,
         'max_position_embeddings': 100,
@@ -51,7 +51,7 @@ if __name__ == '__main__':
     dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    BATCH_SIZE = 350
+    BATCH_SIZE = 256
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -77,9 +77,9 @@ if __name__ == '__main__':
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-4
-            # 't_total': 41000,
-            # 'warmup': 0.99
+            'lr': 1e-4,
+            't_total': 380000,
+            'warmup': 0.04
         }
     )
     print('Dataset: {} sentences'.format(len(dataset)))
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=30,
+        epochs=10,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),

@@ -70,7 +70,11 @@ class BasicFeaturizer(IFeaturizer):
         except:
             return # data is not an iterable
 
-        tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
+        if isinstance(data[0], str):
+            tokens = self.tokenizer.texts_to_sequences(self.tokenize(data))
+        else:
+            tokens = self.tokenizer.texts_to_sequences(data)
+        
         _return_mask = return_mask if return_mask is not None else hasattr(self, 'return_mask') and self.return_mask
 
         if to_tensor if to_tensor is not None else self.to_tensor:
