@@ -270,6 +270,7 @@ class ModelCheckpointCallback(PeriodicCallback):
         every_epoch=1,
         save_last=10,
         logging_fn=print,
+        prefix='_',
         metrics=['loss', 'accuracy']):
 
         super(ModelCheckpointCallback, self).__init__(
@@ -282,12 +283,14 @@ class ModelCheckpointCallback(PeriodicCallback):
         self.logging_fn = logging_fn
         self.save_last = save_last
         self.file_queue = deque()
+        self.prefix = prefix
 
     def get_savefile_name(self):
         now = time.time()
         s = now - self.start
 
-        file_name = '{} - epoch {}:{} checkpoint'.format(
+        file_name = '{} {} _epoch {}_{}'.format(
+            self.prefix,
             asMinutes(s),
             self._learner._current_epoch + 1,
             self._learner._batch_idx + 1
@@ -298,7 +301,7 @@ class ModelCheckpointCallback(PeriodicCallback):
         if metrics is not None:
             for key in self.metrics:
                 if key in metrics:
-                    file_name += ' - %s: %.4f' % (key, metrics[key])
+                    file_name += (' %s_%.4f' % (key, metrics[key])).replace('.', '_')
         file_name += '.bin'
         return file_name
 
