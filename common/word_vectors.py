@@ -1,6 +1,7 @@
 from pymagnitude import *
 from config import MAGNITUDE_PATH, MAX_NUM_WORDS, BASE_PATH, WORDS_SHORTLIST, LANGUAGE
 from os import path
+import warnings
 
 lazy_loading = -1 if path.isfile(path.join(BASE_PATH, 'DEBUG')) else WORDS_SHORTLIST
 
@@ -10,8 +11,12 @@ for language_code in MAGNITUDE_PATH.keys():
     if path.exists(MAGNITUDE_PATH[language_code]):
         vectors[language_code] = Magnitude(MAGNITUDE_PATH[language_code], lazy_loading=lazy_loading)
 
-assert len(vectors) > 0, 'Error: No word vector files exist.'
-print('Word vectors data exists for the following languages: %s' % ', '.join(vectors.keys()))
+# assert len(vectors) > 0, 'Error: No word vector files exist.'
+
+if len(vectors) > 0:
+    warnings.warn('Error: No word vector files exist.')
+else:
+    print('Word vectors data exists for the following languages: %s' % ', '.join(vectors.keys()))
 # vectors = Magnitude(MAGNITUDE_PATH, lazy_loading=1, case_insensitive=True)
 
 def get_magnitude_object(language=None):

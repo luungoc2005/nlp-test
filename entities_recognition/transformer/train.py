@@ -48,8 +48,8 @@ class TransformerSequenceTaggerLearner(ILearner):
         else:
             tags_output = torch.max(tags_output, -1)[1]
         return {
-            # 'accuracy': accuracy(tags_output, y)
-            'f1': f1(tags_output, y),
+            'accuracy': accuracy(tags_output, y)
+            # 'f1': f1(tags_output, y),
             # 'precision': precision(tags_output, y)
             # 'recall': recall(tags_output, y)
         }
