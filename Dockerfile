@@ -35,6 +35,7 @@ RUN mkdir -p ./flask_app/logs
 ENV LOG_FILE ./flask_app/logs/main_$(date +%s)_stdout.log
 RUN touch $LOG_FILE
 
+ENV DEBUG True
 # $PORT is heroku's provided port to bind to
 # gunicorn --workers=1 --timeout=500 --bind=0.0.0.0:$PORT flask_app.entrypoint:app &> $LOG_FILE
 
