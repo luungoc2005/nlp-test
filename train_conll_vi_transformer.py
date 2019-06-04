@@ -88,11 +88,14 @@ if __name__ == '__main__':
 
     n_epochs = 100
     batch_size = 128
-    model = TransformerSequenceTaggerWrapper({'tag_to_ix': tag_to_ix})
+    model = TransformerSequenceTaggerWrapper({
+        'tag_to_ix': tag_to_ix,
+        'mode': 'lstm'
+    })
     learner = TransformerSequenceTaggerLearner(model, 
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 5e-5,
+            'lr': 1e-4,
             'warmup': .1, 
             't_total': n_epochs * (len(dataset_text) // batch_size)
         })
