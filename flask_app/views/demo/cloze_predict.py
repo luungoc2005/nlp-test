@@ -9,6 +9,7 @@ from config import MASK_TAG, START_TAG, STOP_TAG
 import torch
 
 from os import path
+import logging
 import sys, traceback
 
 @app.route("/demo/cloze_predict", methods=['POST'])
@@ -55,5 +56,5 @@ def demo_cloze_predict():
         return jsonify(formatted_result)
         
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

@@ -9,6 +9,7 @@ from flask_app.nlu_train import nlu_train_file
 from flask_app.nlu_main import TRAIN_PROCESSES
 from config import PYTHON_PATH
 from os import path
+import logging
 import subprocess
 import sys, traceback
 import time
@@ -90,5 +91,5 @@ def upload():
         })
         
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

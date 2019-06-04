@@ -5,6 +5,7 @@ from flask_app.utils.app_utils import get_config
 from flask_app.nlu_main import TRAIN_PROCESSES, nlu_visualize, nlu_init_model
 from flask import jsonify, request
 from os import path
+import logging
 import sys, traceback
 
 @app.route("/visualize", methods=['POST'])
@@ -34,5 +35,5 @@ def flask_visualize():
         return jsonify(result)
 
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

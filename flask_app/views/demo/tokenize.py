@@ -6,6 +6,7 @@ from flask import jsonify, request
 from os import path
 from common.utils import word_tokenize
 import sys, traceback
+import logging
 
 LANGUAGE_MODEL = None
 
@@ -24,5 +25,5 @@ def demo_tokenize():
         return jsonify(result)
         
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

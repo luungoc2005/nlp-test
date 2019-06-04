@@ -6,6 +6,7 @@ from config import BASE_PATH
 
 from os import path
 import sys, traceback
+import logging
 
 FASTTEXT_MODEL = None
 def load_lid_model():
@@ -16,11 +17,12 @@ def load_lid_model():
         FASTTEXT_MODEL = FastText.load_model(
             path.join(BASE_PATH, 'lid.176.bin')
         )
+        logging.info('FastText model loaded')
     
     return FASTTEXT_MODEL
 
 @app.route("/demo/language_predict", methods=['POST'])
-def demo_language_identification():
+def demo_language_predict():
     try:
         content = get_json(request)
         
@@ -43,5 +45,5 @@ def demo_language_identification():
         return jsonify(result)
 
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

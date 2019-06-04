@@ -5,6 +5,7 @@ from flask_app.utils.app_utils import get_config
 from flask_app.nlu_main import TRAIN_PROCESSES
 from flask import jsonify, request
 from os import path
+import logging
 import sys, traceback
 
 @app.route("/status", methods=['POST'])
@@ -47,5 +48,5 @@ def flask_get_status():
             })
             
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

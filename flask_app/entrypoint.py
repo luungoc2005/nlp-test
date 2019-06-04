@@ -28,7 +28,8 @@ from flask_app.views import \
 
 from flask_app.views.demo import \
     tokenize, \
-    cloze_predict
+    cloze_predict, \
+    language_identification
 
 from flask_cors import CORS
 CORS(app)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     
     apply_args(args)
 
-    if args.debug or os.environ.get('DEBUG', '') != '':
+    if args.debug or environ.get('DEBUG', '') != '':
         app.config['DEBUG'] = True
         app.run(processes=1, debug=True, threaded=False, host='0.0.0.0', port=5000)
     else:

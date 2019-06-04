@@ -4,6 +4,7 @@ from flask_app.utils import get_json, jsonerror
 from flask_app.utils.app_utils import get_config, save_config
 from flask import request, jsonify
 from os import path, remove
+import logging
 import sys, traceback
 
 @app.route("/delete", methods=['POST'])
@@ -38,5 +39,5 @@ def flask_delete_model():
                 save_config(app)
         return jsonify({ 'model_id': model_id })
     except Exception as e:
-        traceback.print_exc(limit=2, file=sys.stderr)
+        logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

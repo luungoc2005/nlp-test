@@ -95,7 +95,7 @@ if __name__ == '__main__':
     learner = TransformerSequenceTaggerLearner(model, 
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-4,
+            'lr': 1e-3,
             'warmup': .1, 
             't_total': n_epochs * (len(dataset_text) // batch_size)
         })
