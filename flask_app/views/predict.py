@@ -40,6 +40,6 @@ def flask_predict():
         contexts = content['contexts'] if 'contexts' in content else None
         result = nlu_predict(model_id, content['query'], contexts)
         return jsonify(result)
-    except:
-        traceback.print_exc(limit=2, file=sys.stdout)
-        return jsonerror('Runtime exception encountered when handling request')
+    except Exception as e:
+        traceback.print_exc(limit=2, file=sys.stderr)
+        return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

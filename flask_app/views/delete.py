@@ -37,6 +37,6 @@ def flask_delete_model():
 
                 save_config(app)
         return jsonify({ 'model_id': model_id })
-    except:
-        traceback.print_exc(limit=2, file=sys.stdout)
-        return jsonerror('Runtime exception encountered when handling request')
+    except Exception as e:
+        traceback.print_exc(limit=2, file=sys.stderr)
+        return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

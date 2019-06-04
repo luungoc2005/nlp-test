@@ -92,9 +92,9 @@ if __name__ == '__main__':
     learner = TransformerSequenceTaggerLearner(model, 
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-4
-            # 'warmup': .1, 
-            # 't_total': n_epochs * (len(dataset_text) // batch_size)
+            'lr': 5e-5,
+            'warmup': .1, 
+            't_total': n_epochs * (len(dataset_text) // batch_size)
         })
     training_data = TransformerEntitiesRecognitionDataset(dataset_text, tag_to_ix)
 

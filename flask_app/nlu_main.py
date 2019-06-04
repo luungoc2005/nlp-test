@@ -29,7 +29,7 @@ from common.utils import dotdict
 PRETRAINED_MODELS = dotdict({
     'bert_vi_base': dotdict({
         "base_class": BertLMWrapper,
-        "filename": '2404m 57s - epoch 10:38000 checkpoint - loss: 2.1996.bin',
+        "filename": 'bert_vi_base.bin',
         "loaded_object": None
     })
 })
