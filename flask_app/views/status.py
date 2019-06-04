@@ -45,6 +45,7 @@ def flask_get_status():
             return jsonify({
                 'status': 'not_found'
             })
-    except:
-        traceback.print_exc(limit=2, file=sys.stdout)
-        return jsonerror('Runtime exception encountered when handling request')
+            
+    except Exception as e:
+        traceback.print_exc(limit=2, file=sys.stderr)
+        return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

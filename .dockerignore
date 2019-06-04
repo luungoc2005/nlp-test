@@ -87,7 +87,6 @@ pretrained/
 \.ipynb_checkpoints/
 
 *.json
-*.bin
 *.h5
 
 \.DS_Store
@@ -95,7 +94,6 @@ pretrained/
 \.idea/
 
 *.ipynb
-*.bin
 .gitignore
 Dockerfile
 

@@ -54,7 +54,7 @@ if __name__ == "__main__":
     
     apply_args(args)
 
-    if args.debug:
+    if args.debug or os.environ.get('DEBUG', '') != '':
         app.config['DEBUG'] = True
         app.run(processes=1, debug=True, threaded=False, host='0.0.0.0', port=5000)
     else:

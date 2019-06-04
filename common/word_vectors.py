@@ -9,6 +9,7 @@ vectors = {}
 
 for language_code in MAGNITUDE_PATH.keys():
     if path.exists(MAGNITUDE_PATH[language_code]):
+        # print(MAGNITUDE_PATH[language_code])
         vectors[language_code] = Magnitude(MAGNITUDE_PATH[language_code], lazy_loading=lazy_loading)
 
 # assert len(vectors) > 0, 'Error: No word vector files exist.'

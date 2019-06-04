@@ -14,8 +14,8 @@ DEFAULT_CONFIG = dotdict({
     'mode': 'transformer',
     'char_embedding_dim': 50,
     'hidden_size': 350,
-    'num_hidden_layers': 2,
-    'num_attention_heads': 2,
+    'num_hidden_layers': 4,
+    'num_attention_heads': 7,
     'intermediate_size': 128,
     'hidden_act': 'gelu',
     'hidden_dropout_prob': 0.1,
@@ -98,18 +98,20 @@ class TransformerSequenceTagger(nn.Module):
 
         if self.config.mode == 'transformer':
             self.encoder = BertEncoder(config)
+
         else:
             self.encoder = nn.LSTM(
                 config.hidden_size, 
                 config.hidden_size // 2, 
                 num_layers=config.num_hidden_layers,
                 dropout=config.hidden_dropout_prob,
-                bidirectional=True, batch_first=True
+                bidirectional=True, 
+                batch_first=True
             )
         
         self.hidden2tag = nn.Linear(config.hidden_size, self.tagset_size)
         self.crf = to_gpu(CRF(self.tagset_size))
-        
+
         self.apply(self.init_bert_weights)
 
     def init_bert_weights(self, module):
@@ -124,6 +126,7 @@ class TransformerSequenceTagger(nn.Module):
             module.bias.data.zero_()
 
     def forward(self, sent_batch: List[List[str]], output_all_encoded_layers: bool = False, decode_tags: Optional[bool] = None):
+        encoded_layers = None
         max_length = min(max([len(sent) for sent in sent_batch]), self.config.max_position_embeddings)
 
         attention_mask = torch.zeros(len(sent_batch), max_length).long()
@@ -136,13 +139,21 @@ class TransformerSequenceTagger(nn.Module):
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
         embedding_output = self.embeddings(sent_batch)
-        encoded_layers = self.encoder(embedding_output,
-            to_gpu(extended_attention_mask),
-            output_all_encoded_layers=output_all_encoded_layers)
-        sequence_output = encoded_layers[-1]
 
-        if not output_all_encoded_layers:
-            encoded_layers = encoded_layers[-1]
+        if self.config.mode == 'transformer':
+            encoded_layers = self.encoder(embedding_output,
+                to_gpu(extended_attention_mask),
+                output_all_encoded_layers=output_all_encoded_layers)
+            sequence_output = encoded_layers[-1]
+
+            if not output_all_encoded_layers:
+                encoded_layers = encoded_layers[-1]
+
+        else:
+            encoded_layers, _ = self.encoder(embedding_output)
+            
+            # .contiguous() to make .view() work
+            sequence_output = encoded_layers.contiguous()
 
         tags_output = self.hidden2tag(
             sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))

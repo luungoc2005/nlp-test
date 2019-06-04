@@ -18,9 +18,9 @@ GLOVE_PATH = path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.vec')
 SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 MAGNITUDE_PATH = {
-    'en': path.join(BASE_PATH, 'data/fasttext/crawl-300d-2M.magnitude'),
+    'en': path.join(BASE_PATH, 'data/glove/crawl-300d-2M.magnitude'),
     'en_elmo': path.join(BASE_PATH, 'data/fasttext/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.magnitude'),
-    'vi': path.join(BASE_PATH, 'data/fasttext/vi-wiki-news-300d-60K.magnitude')
+    'vi': path.join(BASE_PATH, 'data/fasttext/cc.vi.300.magnitude')
 }
 
 if LANGUAGE not in MAGNITUDE_PATH.keys():

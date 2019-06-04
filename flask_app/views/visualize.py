@@ -32,6 +32,7 @@ def flask_visualize():
         n_clusters = content.get('n_clusters', None)
         result = nlu_visualize(content.get('items', []), model_id=model_id, n_clusters=n_clusters)
         return jsonify(result)
-    except:
-        traceback.print_exc(limit=2, file=sys.stdout)
-        return jsonerror('Runtime exception encountered when handling request')
+
+    except Exception as e:
+        traceback.print_exc(limit=2, file=sys.stderr)
+        return jsonerror('Runtime exception encountered when handling request: %s' % str(e))
