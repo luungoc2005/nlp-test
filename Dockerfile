@@ -16,6 +16,8 @@ ENV VIRTUAL_ENV=/botbot-env
 RUN python3 -m virtualenv --python=/usr/bin/python3 $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+ENV PYTHONIOENCODING utf8
+
 # Can put these inside requirements.txt but... for a minimal version
 
 COPY . /botbot-nlp
@@ -26,17 +28,21 @@ RUN pip install -r requirements.txt
 # RUN chmod u+x ./data/get_data_minimal.bash
 # RUN ./data/get_data_minimal.bash
 
-# EXPOSE 80
+EXPOSE 80
 
 # RUN chmod u+x botbot-nlp/entrypoint.sh
 # CMD botbot-nlp/entrypoint.sh
 
-RUN mkdir -p ./flask_app/logs
-ENV LOG_FILE ./flask_app/logs/main_$(date +%s)_stdout.log
-RUN touch $LOG_FILE
+# RUN mkdir -p ./flask_app/logs
+# ENV LOG_FILE ./flask_app/logs/main_$(date +%s)_stdout.log
+# RUN touch $LOG_FILE
 
-ENV DEBUG True
 # $PORT is heroku's provided port to bind to
 # gunicorn --workers=1 --timeout=500 --bind=0.0.0.0:$PORT flask_app.entrypoint:app &> $LOG_FILE
 
-CMD gunicorn --workers=1 --timeout=500 --bind=0.0.0.0:${PORT:-80} flask_app.entrypoint:app
+ENTRYPOINT gunicorn \
+  --workers=1 \
+  --timeout=500 \
+  --bind=0.0.0.0:${PORT:-80} \
+  --log-level=error \
+  flask_app.entrypoint:app
