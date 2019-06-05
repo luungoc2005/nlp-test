@@ -90,6 +90,7 @@ text_classification/fast_text/logs/
 text_classification/fast_text/model/
 fastText/
 pretrained/
+word_vectors/
 onnx/
 
 *.json

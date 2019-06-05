@@ -86,10 +86,11 @@ if __name__ == '__main__':
     from entities_recognition.transformer.data import TransformerEntitiesRecognitionDataset
     from common.modules import BertAdam
 
-    n_epochs = 25
+    n_epochs = 50
     batch_size = 128
     model = TransformerSequenceTaggerWrapper({
         'tag_to_ix': tag_to_ix,
+        'mode': 'lstm',
         'language': 'vi'
     })
     learner = TransformerSequenceTaggerLearner(model, 

@@ -18,7 +18,7 @@ BASE_PATH = path.dirname(__file__)
 # SKIP_FIRST_LINE = True # FastText format has n_words, n_dims as first line
 
 MAGNITUDE_PATH = {
-    'en': path.join(BASE_PATH, 'data/glove/glove.6B.300d.magnitude'),
+    'en': path.join(BASE_PATH, 'word_vectors/glove.6B.300d.magnitude'),
     'en_elmo': path.join(BASE_PATH, 'data/fasttext/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.magnitude'),
     'vi': path.join(BASE_PATH, 'data/fasttext/cc.vi.300.magnitude')
 }

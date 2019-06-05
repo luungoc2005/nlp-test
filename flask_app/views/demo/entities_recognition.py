@@ -26,8 +26,16 @@ def demo_entities_predict():
 
         model = nlu_load_pretrained('lstm_en_tagger')
 
-        formatted_result = model(items)
-        return jsonify(formatted_result)
+        tag_seq_batch, _, sent_batch = model(items, return_logits=True)
+
+        return jsonify([[
+            {
+                'tag': model.ix_to_tag.get(tag_seq_batch[sent_ix][word_ix]),
+                'label': word
+            }
+            for word_ix, word in enumerate(sent)
+        ] 
+        for sent_ix, sent in enumerate(sent_batch)])
         
     except Exception as e:
         logging.error(traceback.print_exc(limit=5))
