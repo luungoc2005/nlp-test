@@ -23,6 +23,7 @@ DEFAULT_CONFIG = dotdict({
     'max_position_embeddings': 256,
     'featurizer_seq_len': 256, # same as above
     'initializer_range': 0.02,
+    'language': 'en'
 })
 
 class TransformerPretrainedDualEmbedding(nn.Module):
@@ -48,7 +49,7 @@ class TransformerPretrainedDualEmbedding(nn.Module):
         max_length = min(max([len(sent) for sent in sent_batch]), self.config.max_position_embeddings)
 
         words_embeddings = to_gpu(torch.FloatTensor(
-            word_to_vec(sent_batch, pad_to_length=max_length)
+            word_to_vec(sent_batch, pad_to_length=max_length, language=self.config.language)
         ))
         
         chars_embeddings = to_gpu(torch.stack([
@@ -110,7 +111,7 @@ class TransformerSequenceTagger(nn.Module):
             )
         
         self.hidden2tag = nn.Linear(config.hidden_size, self.tagset_size)
-        self.crf = to_gpu(CRF(self.tagset_size))
+        self.crf = to_gpu(CRF(self.tagset_size, batch_first=True))
 
         self.apply(self.init_bert_weights)
 
@@ -163,15 +164,7 @@ class TransformerSequenceTagger(nn.Module):
         if decode_tags is None: decode_tags = not self.training
         if decode_tags:
             if self.use_crf:
-                seq_lens = to_gpu(
-                    torch.LongTensor([
-                        len(sent) for sent in sent_batch
-                    ])
-                )
-                tags_output = self.crf.decode(
-                    tags_output, 
-                    seq_lens
-                )
+                tags_output = self.crf.decode(tags_output)
             else:
                 tags_output = torch.max(
                     tags_output, 
@@ -215,6 +208,8 @@ class TransformerSequenceTaggerWrapper(IModel):
         # print(tag_seq_batch.size())
         # tag_seq_batch = torch.max(tag_seq_batch, 2)[1]
         # print(tag_seq_batch.size())
+        print(tag_seq_batch)
+        print(self.ix_to_tag)
         for sent_ix, tokens_in in enumerate(sent_batch):
             tag_seq = [self.ix_to_tag[int(tag)] for tag in tag_seq_batch[sent_ix]]
 

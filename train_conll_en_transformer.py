@@ -9,9 +9,9 @@ import io
 import string
 
 if __name__ == '__main__':
-    set_default_language('vi')
+    set_default_language('en')
 
-    TRAIN_PATH = path.join(BASE_PATH, 'data/vn_treebank')
+    TRAIN_PATH = path.join(BASE_PATH, 'data/CoNLL-2003/eng.train')
     print(TRAIN_PATH)
     
     def read_conll_2003(filename, tag_idx=-1):
@@ -56,29 +56,15 @@ if __name__ == '__main__':
 
         return tagset, all_data
 
-    count = 0
-    dataset_tags = []
-    dataset_text = []
-    for file_name in listdir(TRAIN_PATH):
-        if file_name[-5:] == 'conll' and file_name[0] != '.':
-            count += 1
-            full_path = path.join(TRAIN_PATH, file_name)
-            file_tags, file_data = read_conll_2003(full_path)
-            print('Reading from %s, found %s items' % (full_path, len(file_data)))
-            dataset_tags.extend(file_tags)
-            dataset_text.extend(file_data)
+    dataset_tags, training_data = read_conll_2003(TRAIN_PATH)
+    tag_to_ix = {tag: key for key, tag in enumerate(list(set(dataset_tags)))}
 
-    tag_to_ix = {tag: key + 1 for key, tag in enumerate(list(set(dataset_tags)))}
-
-    print(tag_to_ix)
-
-    for sentence, tag_seq in dataset_text:
+    result = []
+    for sentence, tag_seq in training_data:
         tokens_in = wordpunct_space_tokenize(sentence)
         assert len(tokens_in) == len(tag_seq.split(' '))
-    #     print(read_tags(tokens_in, tag_seq.split(' ')))
-    print('Loaded %s sentences from %s files' % (len(dataset_text), count))
 
-    print(dataset_text[30])
+    print(training_data[30])
     print(tag_to_ix)
 
     from entities_recognition.transformer.model import TransformerSequenceTaggerWrapper
@@ -86,20 +72,21 @@ if __name__ == '__main__':
     from entities_recognition.transformer.data import TransformerEntitiesRecognitionDataset
     from common.modules import BertAdam
 
-    n_epochs = 25
+    n_epochs = 50
     batch_size = 128
     model = TransformerSequenceTaggerWrapper({
         'tag_to_ix': tag_to_ix,
-        'language': 'vi'
+        'mode': 'lstm',
+        'language': 'en'
     })
     learner = TransformerSequenceTaggerLearner(model, 
         optimizer_fn=BertAdam,
         optimizer_kwargs={
             'lr': 1e-3,
             'warmup': .1, 
-            't_total': n_epochs * (len(dataset_text) // batch_size)
+            't_total': n_epochs * (len(training_data) // batch_size)
         })
-    training_data = TransformerEntitiesRecognitionDataset(dataset_text, tag_to_ix)
+    training_data = TransformerEntitiesRecognitionDataset(training_data, tag_to_ix)
 
     from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
     learner.fit(
@@ -110,8 +97,8 @@ if __name__ == '__main__':
             PrintLoggerCallback(log_every=1),
             ReduceLROnPlateau(reduce_factor=4, patience=10),
             EarlyStoppingCallback(patience=50),
-            ModelCheckpointCallback(prefix='vi_conll_', metrics=['loss'], every_epoch=5),
+            ModelCheckpointCallback(prefix='en_conll_', metrics=['loss'], every_epoch=5),
         ]
     )
 
-    model.save('vn-tagger.bin')
+    model.save('en-tagger.bin')

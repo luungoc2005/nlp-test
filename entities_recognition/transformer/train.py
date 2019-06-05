@@ -25,8 +25,7 @@ class TransformerSequenceTaggerLearner(ILearner):
     def on_epoch(self, X, y):
         tags_output, _, _ = self.model_wrapper.model(X)
         if self.model_wrapper.model.use_crf:
-            loss = -1 * self.criterion(tags_output, y, reduce=False)
-            loss = loss.mean()
+            loss = -1 * self.criterion(tags_output, y, reduction='mean')
         else:
             loss = self.criterion(tags_output.view(-1, tags_output.size(-1)), y.view(-1))
 
@@ -38,18 +37,18 @@ class TransformerSequenceTaggerLearner(ILearner):
     def calculate_metrics(self, logits, y):
         tags_output, sent_batch = logits
         if self.model_wrapper.model.use_crf:
-            seq_lens = to_gpu(
-                torch.LongTensor(
-                    [len(sent) for sent in sent_batch]
-                )
-            )
-            tags_output = self.model_wrapper.model.crf. \
-                decode(tags_output, seq_lens)
+            # seq_lens = to_gpu(
+            #     torch.LongTensor(
+            #         [len(sent) for sent in sent_batch]
+            #     )
+            # )
+            tags_output = to_gpu(torch.LongTensor(self.model_wrapper.model.crf. \
+                decode(tags_output)))
         else:
             tags_output = torch.max(tags_output, -1)[1]
         return {
             'accuracy': accuracy(tags_output, y)
-            # 'f1': f1(tags_output, y),
-            # 'precision': precision(tags_output, y)
-            # 'recall': recall(tags_output, y)
+            # 'f1': f1(tags_output, y)
+            # 'precision': precision(tags_output, y.cpu())
+            # 'recall': recall(tags_output, y.cpu())
         }

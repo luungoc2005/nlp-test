@@ -23,6 +23,7 @@ CLF_MODEL = {}
 ENT_MODEL = {}
 
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
+from entities_recognition.transformer.model import TransformerSequenceTaggerWrapper
 from config import BASE_PATH
 from common.utils import dotdict
 
@@ -30,6 +31,11 @@ PRETRAINED_MODELS = dotdict({
     'bert_vi_base': dotdict({
         "base_class": BertLMWrapper,
         "filename": 'bert_vi_base.bin',
+        "loaded_object": None
+    }),
+    'lstm_en_tagger': dotdict({
+        "base_class": TransformerSequenceTaggerWrapper,
+        "filename": 'lstm_en_tagger.bin',
         "loaded_object": None
     })
 })

@@ -10,11 +10,12 @@ vectors = {}
 for language_code in MAGNITUDE_PATH.keys():
     if path.exists(MAGNITUDE_PATH[language_code]):
         # print(MAGNITUDE_PATH[language_code])
+        # print(MAGNITUDE_PATH[language_code])
         vectors[language_code] = Magnitude(MAGNITUDE_PATH[language_code], lazy_loading=lazy_loading)
 
 # assert len(vectors) > 0, 'Error: No word vector files exist.'
 
-if len(vectors) > 0:
+if len(vectors) == 0:
     warnings.warn('Error: No word vector files exist.')
 else:
     print('Word vectors data exists for the following languages: %s' % ', '.join(vectors.keys()))

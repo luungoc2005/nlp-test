@@ -98,3 +98,5 @@ pretrained/
 Dockerfile
 
 config.cfg
+
+vi-corpus.bin
