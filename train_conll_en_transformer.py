@@ -8,6 +8,13 @@ from config import set_default_language
 import io
 import string
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--task", type=str, default='pos')
+
+args = parser.parse_args()
+
 if __name__ == '__main__':
     set_default_language('en')
 
@@ -56,7 +63,7 @@ if __name__ == '__main__':
 
         return tagset, all_data
 
-    dataset_tags, training_data = read_conll_2003(TRAIN_PATH)
+    dataset_tags, training_data = read_conll_2003(TRAIN_PATH, -1 if args.task == 'ner' else 1)
     tag_to_ix = {tag: key for key, tag in enumerate(list(set(dataset_tags)))}
 
     result = []
@@ -97,8 +104,8 @@ if __name__ == '__main__':
             PrintLoggerCallback(log_every=1),
             ReduceLROnPlateau(reduce_factor=4, patience=10),
             EarlyStoppingCallback(patience=50),
-            ModelCheckpointCallback(prefix='en_conll_', metrics=['loss'], every_epoch=5),
+            ModelCheckpointCallback(prefix='en_conll_' if args.task == 'ner' else 'en_conll_pos', metrics=['loss'], every_epoch=5),
         ]
     )
 
-    model.save('en-tagger.bin')
+    model.save('en-tagger.bin' if args.task == 'ner' else 'en-pos-tagger.bin')

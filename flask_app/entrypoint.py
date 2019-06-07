@@ -29,8 +29,9 @@ from flask_app.views import \
 from flask_app.views.demo import \
     tokenize, \
     cloze_predict, \
+    language_identification, \
     entities_recognition, \
-    language_identification
+    pos_predict
 
 from flask_cors import CORS
 CORS(app)

@@ -13,8 +13,8 @@ from os import path
 import logging
 import sys, traceback
 
-@app.route("/demo/entities_predict", methods=['POST'])
-def demo_entities_predict():
+@app.route("/demo/pos_predict", methods=['POST'])
+def demo_pos_predict():
     try:
         content = get_json(request)
 
@@ -26,9 +26,9 @@ def demo_entities_predict():
 
         language = content.get('language', 'en')
         if language == 'en':
-            model = nlu_load_pretrained('lstm_en_tagger')
+            model = nlu_load_pretrained('lstm_en_pos_tagger')
         elif language == 'vi':
-            model = nlu_load_pretrained('lstm_vi_tagger')
+            model = nlu_load_pretrained('lstm_vi_pos_tagger')
         else:
             raise ValueError('Unsupported language code')
 
@@ -42,7 +42,7 @@ def demo_entities_predict():
             for word_ix, word in enumerate(sent)
         ] 
         for sent_ix, sent in enumerate(sent_batch)])
-        
+
     except Exception as e:
         logging.error(traceback.print_exc(limit=5))
         return jsonerror('Runtime exception encountered when handling request: %s' % str(e))

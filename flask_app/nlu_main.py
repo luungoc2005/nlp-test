@@ -33,9 +33,21 @@ PRETRAINED_MODELS = dotdict({
         "filename": 'bert_vi_base.bin',
         "loaded_object": None
     }),
+
     'lstm_en_tagger': dotdict({
         "base_class": TransformerSequenceTaggerWrapper,
         "filename": 'lstm_en_tagger.bin',
+        "loaded_object": None
+    }),
+
+    'lstm_en_pos_tagger': dotdict({
+        "base_class": TransformerSequenceTaggerWrapper,
+        "filename": 'lstm_en_pos_tagger.bin',
+        "loaded_object": None
+    }),
+    'lstm_vi_pos_tagger': dotdict({
+        "base_class": TransformerSequenceTaggerWrapper,
+        "filename": 'lstm_vi_pos_tagger.bin',
         "loaded_object": None
     })
 })
