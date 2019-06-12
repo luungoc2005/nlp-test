@@ -73,6 +73,7 @@ data/glove
 data/GloVe
 data/bookcorpus/
 data/fb_test/
+data/1-billion-word-language-modeling-benchmark-r13output/
 data/*.zip
 data/*.txt
 output/

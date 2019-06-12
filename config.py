@@ -20,7 +20,7 @@ BASE_PATH = path.dirname(__file__)
 MAGNITUDE_PATH = {
     'en': path.join(BASE_PATH, 'word_vectors/glove.6B.300d.magnitude'),
     'en_elmo': path.join(BASE_PATH, 'data/fasttext/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.magnitude'),
-    'vi': path.join(BASE_PATH, 'data/fasttext/cc.vi.300.magnitude')
+    'vi': path.join(BASE_PATH, 'word_vectors/cc.vi.300.magnitude')
 }
 
 if LANGUAGE not in MAGNITUDE_PATH.keys():

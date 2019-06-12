@@ -100,3 +100,4 @@ Dockerfile
 config.cfg
 
 vi-corpus.bin
+wikitext-maskedlm-data.bin

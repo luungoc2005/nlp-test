@@ -7,6 +7,7 @@ from nltk.tokenize import sent_tokenize
 from torch.utils.data import Dataset
 from os import path
 from typing import Union, Iterable, Tuple
+from tqdm import tqdm
 
 PATTERNS = [
     (re.compile(r'[^\n]-[^\n]'), ' @-@ ')
@@ -58,8 +59,11 @@ class WikiTextDataset(Dataset):
 
         if (len(self.featurizer.tokenizer.word_index) == 0):
             print('Fitting featurizer')
-            self.featurizer.fit(self.raw_sents)
-            # print(list(self.featurizer.tokenizer.word_index.keys()))
+            batch_size = 1024
+            for i in tqdm(range(0, len(self.raw_sents), batch_size)):
+                sent_batch = self.raw_sents[i:i+batch_size]
+                self.featurizer.fit(sent_batch)
+
         else:
             print('Featurizer previously fitted, continuing')
 
