@@ -15,16 +15,18 @@ if __name__ == '__main__':
     else:
         model = BiLanguageModelWrapper({
             'rnn_type': 'LSTM',
-            'n_layers': 2,
-            'tie_weights': True,
-            'embedding_dim': 2048,
+            'n_layers': 3,
+            'tie_weights': False,
+            'embedding_dim': 400,
             'hidden_dim': 2048,
             'alpha': 2,
             'beta': 1,
-            'emb_dropout': .1,
-            'h_dropout': .25,
+            'emb_dropout': .4,
+            'h_dropout': .3,
             'w_dropout': .5,
+            'lock_drop': .2,
             'rnn_dropout': 0,
+            'clip_grad': .25,
             'use_adasoft': True,
             'num_words': 30000
         }) # large model
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name())
-    BATCH_SIZE = 80
+    BATCH_SIZE = 60
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -60,9 +62,14 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
+    n_epochs = 12
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-4, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={
+            'lr': 1e-3, 
+            'weight_decay_rate': 1.2e-6,
+            't_total':  n_epochs * (len(dataset) // BATCH_SIZE)
+        }
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -78,10 +85,10 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=100,
+        epochs=n_epochs,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
+            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
             ReduceLROnPlateau(reduce_factor=4, patience=2)
         ]

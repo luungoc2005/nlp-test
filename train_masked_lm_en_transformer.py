@@ -18,10 +18,10 @@ if __name__ == '__main__':
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
         'num_words': 30000,
-        'hidden_size': 512,
-        'num_hidden_layers': 6,
-        'num_attention_heads': 8,
-        'intermediate_size': 1140,
+        'hidden_size': 768,
+        'num_hidden_layers': 12,
+        'num_attention_heads': 12,
+        'intermediate_size': 3072,
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.1,
         'attention_probs_dropout_prob': 0.1,

@@ -42,7 +42,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
                     bidirectional=True,
                     dropout=self.dropout_rnn
                 )
@@ -57,7 +57,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 nn.GRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
                     bidirectional=True,
                     dropout=self.dropout_rnn
                 )
@@ -72,8 +72,8 @@ class BiRNNLanguageModel(nn.Module):
             from torchqrnn import QRNNLayer
             self.rnns = self.rnns = [
                 QRNNLayer(
-                    self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2,
+                    self.embedding_dim if layer_ix == 0 else self.hidden_dim,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
@@ -86,7 +86,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 to_gpu(SRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
                     dropout=self.wdrop,
@@ -101,7 +101,7 @@ class BiRNNLanguageModel(nn.Module):
 
         self.rnns = nn.ModuleList(self.rnns)
         self.decoder = nn.Linear(
-            self.embedding_dim if self.tie_weights else self.hidden_dim, 
+            self.embedding_dimm, 
             self.num_words
         )
         
@@ -248,7 +248,7 @@ class BiRNNLanguageModel(nn.Module):
 
         for idx, rnn in enumerate(self.rnns):
             raw_output, current_h = rnn(raw_output, hidden[idx])
-            
+            # print(raw_output.size())
             raw_hiddens.append(current_h)
             raw_outputs.append(raw_output)
 
@@ -268,6 +268,7 @@ class BiRNNLanguageModel(nn.Module):
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))
 
         if training:
+            # print(output.size())
             return output, raw_hiddens, raw_outputs, outputs
         else:
             if self.use_adasoft:
