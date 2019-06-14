@@ -101,7 +101,7 @@ class BiRNNLanguageModel(nn.Module):
 
         self.rnns = nn.ModuleList(self.rnns)
         self.decoder = nn.Linear(
-            self.embedding_dimm, 
+            self.embedding_dim, 
             self.num_words
         )
         
