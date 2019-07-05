@@ -17,11 +17,12 @@ class BiRNNLanguageModel(nn.Module):
 
         self.tie_weights = config.get('tie_weights', True)
         self.embedding_dim = config.get('embedding_dim', LM_HIDDEN_DIM)
-        self.hidden_dim = self.embedding_dim if self.tie_weights else config.get('hidden_dim', LM_HIDDEN_DIM)
+        self.hidden_dim = config.get('hidden_dim', LM_HIDDEN_DIM)
         self.dropout_emb = config.get('emb_dropout', .2)
         self.dropout_i = config.get('lock_drop', .5)
         self.dropout_h = config.get('h_dropout', .5)
         self.dropout_w = config.get('w_dropout', 0)
+        self.dropout = config.get('dropout', 0)
         self.num_words = config.get('num_words', LM_VOCAB_SIZE)
         self.rnn_type = config.get('rnn_type', 'SRU')
         self.n_layers = config.get('n_layers', 6)
@@ -42,7 +43,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 nn.LSTM(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
                     bidirectional=True,
                     dropout=self.dropout_rnn
                 )
@@ -57,7 +58,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 nn.GRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
                     bidirectional=True,
                     dropout=self.dropout_rnn
                 )
@@ -73,7 +74,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = self.rnns = [
                 QRNNLayer(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim,
-                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
                     bidirectional=True
                 )
                 for layer_ix in range(self.n_layers)
@@ -86,7 +87,7 @@ class BiRNNLanguageModel(nn.Module):
             self.rnns = [
                 to_gpu(SRU(
                     self.embedding_dim if layer_ix == 0 else self.hidden_dim, 
-                    self.hidden_dim // 2 if layer_ix != self.n_layers else self.embedding_dim,
+                    self.hidden_dim // 2 if layer_ix != self.n_layers - 1 else self.embedding_dim // 2,
                     num_layers=1,
                     rnn_dropout=self.dropout_rnn,
                     dropout=self.wdrop,
@@ -131,7 +132,7 @@ class BiRNNLanguageModel(nn.Module):
             # print('Cross Entropy Splits: Using', splits)
 
             self.adasoft = SplitCrossEntropyLoss(
-                self.hidden_dim, 
+                self.embedding_dim, 
                 splits,
                 ignore_index=0
             )
@@ -156,12 +157,12 @@ class BiRNNLanguageModel(nn.Module):
                 (to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_dim // 2
+                    self.hidden_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 )),
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_dim // 2
+                    self.hidden_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 )))
                 for l in range(self.n_layers)
             ]
@@ -170,7 +171,7 @@ class BiRNNLanguageModel(nn.Module):
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_dim // 2
+                    self.hidden_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ))
                 for l in range(self.n_layers)
             ]
@@ -179,7 +180,7 @@ class BiRNNLanguageModel(nn.Module):
                 to_gpu(torch.zeros(
                     2, 
                     batch_size, 
-                    self.hidden_dim // 2
+                    self.hidden_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ))
                 for l in range(self.n_layers)
             ]
@@ -188,7 +189,7 @@ class BiRNNLanguageModel(nn.Module):
                 to_gpu(torch.zeros(
                     1, 
                     batch_size, 
-                    self.hidden_dim
+                    self.hidden_dim // 2 if l != self.n_layers - 1 else self.embedding_dim // 2
                 ))
                 for l in range(self.n_layers)
             ]
@@ -258,11 +259,12 @@ class BiRNNLanguageModel(nn.Module):
                 
                 outputs.append(raw_output)
 
-        if training:
-            output = self.lockdrop(raw_output, self.dropout_h)
+        if training and hasattr(self, 'dropout') and self.dropout > 0:
+            output = self.lockdrop(raw_output, self.dropout)
         else:
             output = raw_output
 
+        # print(output.size())
         outputs.append(output)
 
         # decoded = self.decoder(output.view(output.size(0) * output.size(1), output.size(2)))

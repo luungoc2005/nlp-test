@@ -1,5 +1,6 @@
 
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
+from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.vi_data import ViTextDataset, collate_seq_lm_fn
 from torch.utils.data import DataLoader
 from common.torch_utils import to_gpu
@@ -42,12 +43,14 @@ def pad_sents(first_array, second_array, third_array):
 
 
 if __name__ == '__main__':
-    dataset = ViTextDataset()
-
-    model = BertLMWrapper(from_fp=args.checkpoint)
+    try:
+        model = BertLMWrapper(from_fp=args.checkpoint)
+        model.init_model()
+    except:
+        model = BiLanguageModelWrapper(from_fp=args.checkpoint)
+        model.init_model()
     # patch to fix adasoft on older checkpoint file
     # model = BiLanguageModelWrapper()
-    model.init_model()
     # model.save('bert-vi-fixed.bin')
 
     print(model)
@@ -67,6 +70,8 @@ if __name__ == '__main__':
     # SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
+
+    dataset = ViTextDataset()
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file at %s' % SAVE_PATH)

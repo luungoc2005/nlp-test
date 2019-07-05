@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from os import path
 from typing import Union, Iterable, Tuple
 from tqdm import tqdm
+import numpy as np
 
 PATTERNS = [
     (re.compile(r'[^\n]-[^\n]'), ' @-@ ')
@@ -92,7 +93,7 @@ class WikiTextDataset(Dataset):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
-        self.raw_sents = state['raw_sents']
+        self.raw_sents = np.array(state['raw_sents'], dtype=object)
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
@@ -146,8 +147,10 @@ def collate_sent(data, max_seq_len):
         ret_val[ix, :seq_len] = seq
     return ret_val.long().t().contiguous()
 
+import math
 def collate_sent_batch_first(data):
     max_seq_len = max([len(item) for item in data])
+    max_seq_len = int(math.ceil(float(max_seq_len) / 8) * 8)
     ret_val = torch.zeros(len(data), max_seq_len)
     for ix, seq in enumerate(data):
         seq_len = min(max_seq_len, len(seq))
@@ -161,6 +164,7 @@ def collate_sent_target(data):
     max_len_X = max([len(item) for item in X_data])
     max_len_y = max([len(item) for item in y_data])
     max_len = max(max_len_X, max_len_y)
+    max_len = int(math.ceil(float(max_len) / 8) * 8)
     # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
     return collate_sent(X_data, max_len), collate_sent(y_data, max_len)
 

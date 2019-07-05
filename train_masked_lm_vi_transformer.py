@@ -19,18 +19,18 @@ if __name__ == '__main__':
     MODEL_PATH = args.checkpoint
     model_config = dotdict({
         'num_words': 30000,
-        'hidden_size': 512,
-        'num_hidden_layers': 6,
-        'num_attention_heads': 8,
-        'intermediate_size': 1140,
+        'hidden_size': 576,
+        'num_hidden_layers': 7, # or 6 is also fine
+        'num_attention_heads': 12,
+        'intermediate_size': 1200,
         'hidden_act': 'gelu',
-        'hidden_dropout_prob': 0.1,
-        'attention_probs_dropout_prob': 0.1,
-        'max_position_embeddings': 100,
-        'featurizer_seq_len': 100, # same as above
+        'hidden_dropout_prob': 0.15,
+        'attention_probs_dropout_prob': 0.15,
+        'max_position_embeddings': 104,
+        'featurizer_seq_len': 104, # same as above
         'type_vocab_size': 2,
-        'initializer_range': 0.02,
-        'use_adasoft': True,
+        'initializer_range': 0.025,
+        'use_adasoft': True
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')

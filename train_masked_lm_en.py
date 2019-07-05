@@ -16,8 +16,8 @@ if __name__ == '__main__':
         model = BiLanguageModelWrapper({
             'rnn_type': 'LSTM',
             'n_layers': 3,
-            'tie_weights': False,
-            'embedding_dim': 400,
+            'tie_weights': True,
+            'embedding_dim': 600,
             'hidden_dim': 2048,
             'alpha': 2,
             'beta': 1,
@@ -26,7 +26,6 @@ if __name__ == '__main__':
             'w_dropout': .5,
             'lock_drop': .2,
             'rnn_dropout': 0,
-            'clip_grad': .25,
             'use_adasoft': True,
             'num_words': 30000
         }) # large model
@@ -66,9 +65,9 @@ if __name__ == '__main__':
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-3, 
-            'weight_decay_rate': 1.2e-6,
-            't_total':  n_epochs * (len(dataset) // BATCH_SIZE)
+            'lr': 1e-3
+            # 'weight_decay_rate': 1.2e-6,
+            # 't_total':  n_epochs * (len(dataset) // BATCH_SIZE)
         }
     )
     print('Dataset: {} sentences'.format(len(dataset)))

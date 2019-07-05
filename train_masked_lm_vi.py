@@ -1,6 +1,6 @@
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
-from sent_to_vec.masked_lm.data import WikiTextDataset
+from sent_to_vec.masked_lm.vi_data import ViTextDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path, listdir
 from config import BASE_PATH
@@ -22,19 +22,20 @@ if __name__ == '__main__':
             'rnn_type': 'LSTM',
             'n_layers': 3,
             'tie_weights': True,
-            'embedding_dim': 400,
-            'hidden_dim': 1150,
+            'embedding_dim': 600,
+            'hidden_dim': 2048,
             'alpha': 2,
             'beta': 1,
-            'emb_dropout': .1,
-            'h_dropout': .25,
+            'emb_dropout': .4,
+            'h_dropout': .3,
             'w_dropout': .5,
+            'lock_drop': .2,
             'rnn_dropout': 0,
             'use_adasoft': True,
             'num_words': 30000
         }) # large model
 
-    dataset = WikiTextDataset()
+    dataset = ViTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
     BATCH_SIZE = 80
@@ -60,11 +61,15 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
+    n_epochs = 12
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
-        optimizer_kwargs={'lr': 1e-3, 'weight_decay_rate': 1.2e-6}
+        optimizer_kwargs={
+            'lr': 1e-3
+            # 'weight_decay_rate': 1.2e-6,
+            # 't_total':  n_epochs * (len(dataset) // BATCH_SIZE)
+        }
     )
-    print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
     # losses = learner.find_lr(lr_range, {
     #     'training_data': dataset,
@@ -78,7 +83,7 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=100,
+        epochs=n_epochs,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             # TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),

@@ -1,0 +1,17 @@
+authorName: luungoc2005
+experimentName: en_transformer
+trialConcurrency: 1
+maxTrialNum: 25
+trainingServicePlatform: local
+# The path to Search Space
+searchSpacePath: en_transformer_search_space.json
+useAnnotation: false
+tuner:
+  builtinTunerName: TPE
+  classArgs:
+    optimize_mode: minimize
+# The path and the running command of trial
+trial:
+  command: NUM_WORKERS=2 CUDA_VISIBLE_DEVICES=0 python masked_lm_en_transformer_hp_search.py
+  codeDir: .
+  gpuNum: 0

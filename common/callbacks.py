@@ -163,6 +163,40 @@ class TensorboardCallback(PeriodicCallback):
                         self.counter
                     )
 
+class NNICallback(PeriodicCallback):
+
+    def __init__(self, 
+        log_every:int = 5, 
+        log_every_batch:int = -1, 
+        metric:str = 'loss'):
+
+        super(NNICallback, self).__init__(
+            every_batch=log_every_batch,
+            every_epoch=log_every,
+            metrics=[metric],
+            trigger_fn_batch=self.send_to_nni,
+            fn_epoch_kwargs={},
+            trigger_fn_epoch=self.send_to_nni
+        )
+        self.log_every = log_every
+        self.log_every_batch = log_every_batch
+        self.metric = metric
+
+    def on_training_start(self):
+        pass
+
+    def send_to_nni(self):
+        import nni
+        metrics = self.learner.metrics
+        print('Intermediate Result: Metric %s - Value %s' % (self.metric, metrics[self.metric]))
+        nni.report_intermediate_result(metrics[self.metric])
+
+    def on_training_end(self):
+        import nni
+        metrics = self.learner.metrics
+        print('Final Result: Metric %s - Value %s' % (self.metric, metrics[self.metric]))
+        nni.report_final_result(metrics[self.metric])
+
 class MetricsTriggeredCallback(ICallback):
     def __init__(self, 
         monitor:str = 'loss', 

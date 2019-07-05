@@ -2,7 +2,7 @@
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.data import WikiTextDataset
-from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
+from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, NNICallback, ReduceLROnPlateau
 from os import path, listdir
 from config import BASE_PATH
 # from torch.optim import RMSprop
@@ -14,23 +14,50 @@ import sys
 from common.preprocessing import keras
 sys.modules['common.keras_preprocessing'] = keras
 
+import nni
+
 if __name__ == '__main__':
+    import torch
+    if torch.cuda.is_available():
+        print('Using GPU')
     MODEL_PATH = 'en-masked-lm-test.bin'
-    model_config = dotdict({
-        'num_words': 30000,
-        'hidden_size': 576,
-        'num_hidden_layers': 7, # or 6 is also fine
-        'num_attention_heads': 12,
-        'intermediate_size': 1200,
-        'hidden_act': 'gelu',
-        'hidden_dropout_prob': 0.15,
-        'attention_probs_dropout_prob': 0.15,
-        'max_position_embeddings': 104,
-        'featurizer_seq_len': 104, # same as above
-        'type_vocab_size': 2,
-        'initializer_range': 0.025,
-        'use_adasoft': True
+    # model_config = dotdict({
+    #     'num_words': 30000,
+    #     'hidden_size': 768,
+    #     'num_hidden_layers': 6,
+    #     'num_attention_heads': 12,
+    #     'intermediate_size': 1140,
+    #     'hidden_act': 'gelu',
+    #     'hidden_dropout_prob': 0.1,
+    #     'attention_probs_dropout_prob': 0.1,
+    #     'max_position_embeddings': 100,
+    #     'featurizer_seq_len': 100, # same as above
+    #     'type_vocab_size': 2,
+    #     'initializer_range': 0.02,
+    #     'use_adasoft': True
+    # })
+    model_config = dotdict(nni.get_next_parameter())
+  # "hidden_size": {"_type": "choice", "_value": [200, 300, 512, 600, 768]},
+    model_config.hidden_size = model_config.attention_head_size * model_config.num_attention_heads
+    
+    model_config.num_hidden_layers = int(model_config.num_hidden_layers)
+    model_config.num_attention_heads = int(model_config.num_attention_heads)
+    model_config.hidden_size = int(model_config.hidden_size)
+    model_config.intermediate_size = int(model_config.intermediate_size)
+    model_config.update({
+      'num_words': 30000,
+      'hidden_act': 'gelu',
+      'max_position_embeddings': 104,
+      'featurizer_seq_len': 104,
+      'type_vocab_size': 2,
+      'use_adasoft': True
     })
+    learning_rate = model_config.learning_rate
+
+    model_config.pop('attention_head_size', None)
+    model_config.pop('learning_rate', None)
+
+    print(model_config)
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
         # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
@@ -50,7 +77,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 160
+    BATCH_SIZE = 128
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -87,11 +114,11 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
-    n_epochs=15
+    n_epochs=1
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 8e-4,
+            'lr': 1e-4,
             'warmup': 0.04,
             't_total':  n_epochs * (len(dataset) // BATCH_SIZE)}
     )
@@ -111,10 +138,10 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE,
         epochs=n_epochs,
         callbacks=[
-            PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
-            TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
-            ModelCheckpointCallback(metrics=['loss']),
-            ReduceLROnPlateau(reduce_factor=4, patience=2)
+            # PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
+            NNICallback(log_every_batch=100, log_every=1, metric='loss')
+            # ModelCheckpointCallback(metrics=['loss']),
+            # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
         gradient_accumulation_steps=1,
         fp16=True
