@@ -17,7 +17,7 @@ sys.modules['common.keras_preprocessing'] = keras
 if __name__ == '__main__':
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
-        'num_words': 30000,
+        'num_words': 36000,
         'hidden_size': 576,
         'num_hidden_layers': 7, # or 6 is also fine
         'num_attention_heads': 12,
