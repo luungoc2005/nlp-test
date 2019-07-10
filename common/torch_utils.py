@@ -2,6 +2,30 @@ import torch
 import torch.nn as nn
 import os
 import warnings
+import math
+
+def gelu(x):
+    """Implementation of the gelu activation function.
+        For information: OpenAI GPT's gelu is slightly different (and gives slightly different results):
+        0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+        Also see https://arxiv.org/abs/1606.08415
+    """
+    # return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+    return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+def cauchy(x):
+    return 1 / (1 + x ** 2)
+
+ACT2FN = {
+    "gelu": gelu, 
+    "relu": torch.nn.functional.relu,
+    "tanh": torch.tanh,
+    "cauchy": cauchy,
+    "swish": swish
+}
 
 def children(m): return m if isinstance(m, (list, tuple)) else list(m.children())
 

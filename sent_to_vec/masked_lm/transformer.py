@@ -28,25 +28,9 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from common.splitcross import SplitCrossEntropyLoss
-from common.torch_utils import to_gpu
+from common.torch_utils import ACT2FN, to_gpu
 
 logger = logging.getLogger(__name__)
-
-def gelu(x):
-    """Implementation of the gelu activation function.
-        For information: OpenAI GPT's gelu is slightly different (and gives slightly different results):
-        0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
-        Also see https://arxiv.org/abs/1606.08415
-    """
-    # return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
-    return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
-
-def swish(x):
-    return x * torch.sigmoid(x)
-
-
-ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
-
 
 class BertConfig(object):
     """Configuration class to store the configuration of a `BertModel`.
@@ -695,8 +679,9 @@ class BertForMaskedLM(BertPreTrainedModel):
             # loss_fct = CrossEntropyLoss(ignore_index=-1)
             # masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
             # return masked_lm_loss
-        # else:
-        sequence_output = sequence_output.permute(1, 0, 2).contiguous()
+
+        if not batch_first:
+            sequence_output = sequence_output.permute(1, 0, 2).contiguous()
         if training:
             return sequence_output, pooled_output, None, None
         else:

@@ -87,7 +87,7 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
-    n_epochs=15
+    n_epochs=3 #15
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={

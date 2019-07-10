@@ -206,7 +206,7 @@ class IModel(object):
             else:
                 if self._predict_fn is None:
                     if self._onnx_model is None:
-                        logits = self._model(X)
+                        logits = self._model(to_gpu(X))
                     else:
                         if torch.is_tensor(X):
                             X = X.numpy()
@@ -219,6 +219,9 @@ class IModel(object):
         
         if is_pytorch:
             self._model.train()
+        
+        if isinstance(logits, dict) and 'logits' in logits:
+            logits = logits['logits']
         
         if return_logits or logits is None:
             return logits

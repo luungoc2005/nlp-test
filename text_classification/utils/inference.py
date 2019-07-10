@@ -27,6 +27,11 @@ def infer_classification_output(
     else:
         assert hasattr(model, 'n_classes'), "The attribute `n_classes` is required on the model wrapper class"
 
+    try:
+        logits = iter(logits).__next__()
+    except:
+        pass
+
     topk = topk or model_topk
     batch_size = logits.size(0)
     n_classes = model.model.n_classes if model.is_pytorch_module() else model.n_classes

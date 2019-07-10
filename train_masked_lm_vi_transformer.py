@@ -36,7 +36,7 @@ if __name__ == '__main__':
         print('Resuming from saved checkpoint')
         # model = PervasiveAttnLanguageModelWrapper(from_fp=MODEL_PATH)
         model = BertLMWrapper(from_fp=MODEL_PATH)
-        model.init_model(update_configs=model_config)
+        # model.init_model(update_configs=model_config)
     else:
         # model = PervasiveAttnLanguageModelWrapper({
         #     'n_layers': 6,
@@ -74,13 +74,13 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
+    n_epochs=15
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-4,
-            't_total': 380000,
-            'warmup': 0.04
-        }
+            'lr': 8e-4,
+            'warmup': 0.04,
+            't_total':  n_epochs * (len(dataset) // BATCH_SIZE)}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        epochs=10,
+        epochs=n_epochs,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),

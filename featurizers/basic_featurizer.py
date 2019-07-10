@@ -16,7 +16,10 @@ class BasicFeaturizer(IFeaturizer):
         self.char_level = config.get('char_level', False)
         self.num_words = config.get('num_words', n_letters + LM_CHAR_RESERVED if self.char_level else LM_VOCAB_SIZE)
         self.append_sos_eos = config.get('append_sos_eos', False)
-        self.featurizer_seq_len = config.get('featurizer_seq_len', MAX_SEQUENCE_LENGTH)
+        self.featurizer_seq_len = config.get(
+            'featurizer_seq_len', 
+            config.get('max_position_embeddings', MAX_SEQUENCE_LENGTH)
+        )
         self.reserved_tokens = config.get('featurizer_reserved_tokens', [START_TAG, STOP_TAG, UNK_TAG])
         self.to_tensor = config.get('to_tensor', True) # pad sequences and return tensors
         self.return_mask = config.get('return_mask', False)

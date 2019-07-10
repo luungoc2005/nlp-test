@@ -43,20 +43,24 @@ class ViTextDataset(Dataset):
         self.remove_marks = True
         super(ViTextDataset, self).__init__()
 
-    def initialize(self, model_wrapper, data_path, get_next_sent=False):
+    def initialize(self, model_wrapper, data_path=None, data_texts=None, get_next_sent=False):
         self.get_next_sent = get_next_sent
-        if isinstance(data_path, str):
-            self.raw_sents = read_wikitext(data_path)
-            print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
-        else:
-            self.raw_sents = []
-            for file_path in data_path:
-                file_sents = read_wikitext(file_path)
-                self.raw_sents.extend(file_sents)
-                print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
-                print('Sample sentence: {}'.format(random.choice(file_sents)))
 
-        # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
+        if data_path is not None:
+            if isinstance(data_path, str):
+                self.raw_sents = read_wikitext(data_path)
+                print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
+            else:
+                self.raw_sents = []
+                for file_path in data_path:
+                    file_sents = read_wikitext(file_path)
+                    self.raw_sents.extend(file_sents)
+                    print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
+                    print('Sample sentence: {}'.format(random.choice(file_sents)))
+        else:
+            self.raw_sents = data_texts
+
+        self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
 
@@ -95,6 +99,8 @@ class ViTextDataset(Dataset):
         model_wrapper.featurizer = state['featurizer']
         self.raw_sents = state['raw_sents']
         self.remove_marks = remove_marks
+        self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
+
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Featurizer type found: {}'.format(str(self.featurizer)))
@@ -113,6 +119,10 @@ class ViTextDataset(Dataset):
         raw_sent = self.featurizer.transform([
             self.raw_sents[index]
         ])[0]
+        
+        if raw_sent.size(0) > self.max_seq_len:
+            raw_sent = raw_sent[:self.max_seq_len]
+        
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
@@ -148,6 +158,8 @@ class ViTextDataset(Dataset):
                     UNK_ID
                 )
 
+        # print(self.featurizer.inverse_transform(torch.LongTensor(raw_sent).unsqueeze(0)))
+        # print(self.featurizer.inverse_transform(torch.LongTensor(output_label).unsqueeze(0)))
         return raw_sent, output_label
 
     def __getitem__(self, index) -> Union[
@@ -165,6 +177,7 @@ class ViTextDataset(Dataset):
 
 def collate_sent(data):
     max_seq_len = max([len(item) for item in data])
+    print('max: {}'.format(max_seq_len))
     ret_val = torch.zeros(len(data), max_seq_len)
     for ix, seq in enumerate(data):
         seq_len = min(max_seq_len, len(seq))
@@ -173,6 +186,7 @@ def collate_sent(data):
 
 def collate_sent_batch_first(data):
     max_seq_len = max([len(item) for item in data])
+    print('max: {}'.format(max_seq_len))
     ret_val = torch.zeros(len(data), max_seq_len)
     for ix, seq in enumerate(data):
         seq_len = min(max_seq_len, len(seq))

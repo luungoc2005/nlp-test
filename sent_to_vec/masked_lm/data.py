@@ -41,20 +41,26 @@ class WikiTextDataset(Dataset):
     def __init__(self):
         super(WikiTextDataset, self).__init__()
 
-    def initialize(self, model_wrapper, data_path, get_next_sent=False):
+    def initialize(self, model_wrapper, data_path=None, data_texts=None, get_next_sent=False):
         self.get_next_sent = get_next_sent
-        if isinstance(data_path, str):
-            self.raw_sents = read_wikitext(data_path)
-            print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
+
+        if data_path is not None:
+            if isinstance(data_path, str):
+                self.raw_sents = read_wikitext(data_path)
+                print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
+            else:
+                self.raw_sents = []
+                for file_path in data_path:
+                    file_sents = read_wikitext(file_path)
+                    self.raw_sents.extend(file_sents)
+                    print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
+                    print('Sample sentence: {}'.format(random.choice(file_sents)))
         else:
-            self.raw_sents = []
-            for file_path in data_path:
-                file_sents = read_wikitext(file_path)
-                self.raw_sents.extend(file_sents)
-                print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
-                print('Sample sentence: {}'.format(random.choice(file_sents)))
+            self.raw_sents = data_texts
 
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
+        
+        self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
 
@@ -94,6 +100,8 @@ class WikiTextDataset(Dataset):
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
         self.raw_sents = np.array(state['raw_sents'], dtype=object)
+        self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
+
         # self.seq_len = model_wrapper.config.get('seq_len', LM_SEQ_LEN)
         # self.process_raw(batch_size)
         print('Finished loading preprocessed dataset')
@@ -105,6 +113,10 @@ class WikiTextDataset(Dataset):
     def get_sent(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         # process sentence
         raw_sent = self.featurizer.transform([self.raw_sents[index]])[0]
+
+        if len(raw_sent) > self.max_seq_len:
+            raw_sent = raw_sent[:self.max_seq_len]
+
         output_label = torch.LongTensor(len(raw_sent))
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
@@ -144,7 +156,7 @@ def collate_sent(data, max_seq_len):
     ret_val = torch.zeros(len(data), max_seq_len)
     for ix, seq in enumerate(data):
         seq_len = min(max_seq_len, len(seq))
-        ret_val[ix, :seq_len] = seq
+        ret_val[ix, :seq_len] = seq[:seq_len]
     return ret_val.long().t().contiguous()
 
 import math
@@ -164,7 +176,7 @@ def collate_sent_target(data):
     max_len_X = max([len(item) for item in X_data])
     max_len_y = max([len(item) for item in y_data])
     max_len = max(max_len_X, max_len_y)
-    max_len = int(math.ceil(float(max_len) / 8) * 8)
+    max_len = int(math.floor(float(max_len) / 8) * 8)
     # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
     return collate_sent(X_data, max_len), collate_sent(y_data, max_len)
 
