@@ -16,14 +16,14 @@ class LMClassifier(nn.Module):
 
     def __init__(self, config=dotdict({
         'encoder_dropout': .2,
-        'hidden_size': 512,
+        'hidden_size': 1024,
         'rnn_layers': 1,
         'pool_hidden_size': 512,
-        'pool_layers': 1,
+        'pool_layers': 3,
         'pool_act': 'cauchy'
     }), *args, **kwargs):
         super(LMClassifier, self).__init__(*args, **kwargs)
-        self.encoder = config.get('encoder', BertLMWrapper)
+        self.encoder = None
         
         self.encoder_size = config.get('encoder_size', \
             self.encoder.config.get('hidden_size', 512) \
@@ -114,10 +114,11 @@ class LMClassifier(nn.Module):
 
 class LMClassifierWrapper(IModel):
 
-    def __init__(self, config={}):
+    def __init__(self, config={}, *args, **kwargs):
         super(LMClassifierWrapper, self).__init__(
             model_class=LMClassifier, 
-            config=config
+            config=config,
+            *args, **kwargs
         )
         self.config = config
 
@@ -127,16 +128,16 @@ class LMClassifierWrapper(IModel):
 
     def get_state_dict(self):
         return {
-            'label_encoder': self.label_encoder,
+            'label_encoder': self.label_encoder
         }
 
     def load_state_dict(self, state_dict):
-        # re-initialize model with loaded config
-        self.model = self.init_model()
-        self.model.set_params(state_dict['state_dict'])
-
         # load label encoder
         self.label_encoder = state_dict['label_encoder']
+
+    def on_model_init(self):
+        self.model.encoder = self.config['encoder'].model
+        self._featurizer = self.config['encoder']._featurizer
 
     def preprocess_output(self, y):
         # One-hot encode outputs

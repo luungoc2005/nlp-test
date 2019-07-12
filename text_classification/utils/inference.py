@@ -32,6 +32,8 @@ def infer_classification_output(
     except:
         pass
 
+    logits = logits.cpu()
+
     topk = topk or model_topk
     batch_size = logits.size(0)
     n_classes = model.model.n_classes if model.is_pytorch_module() else model.n_classes
@@ -62,14 +64,26 @@ def infer_classification_output(
     top_probs, top_idxs = torch.topk(logits, topk)
 
     top_idxs = top_idxs.numpy()
-    top_classes = [
-        model.label_encoder.inverse_transform(top_idxs[idx])
-        for idx in range(batch_size)
-    ]
+    # top_classes = [
+    #     model.label_encoder.inverse_transform(top_idxs[idx])
+    #     for idx in range(batch_size)
+    # ]
+    top_classes = []
+    # workaround for LabelEncoder
+    labels_dict = dict(zip(model.label_encoder.classes_, model.label_encoder.transform(model.label_encoder.classes_)))
+
+    for idx in range(batch_size):
+        try:
+            sent_top_classes = []
+            for class_idx in range(topk):
+                sent_top_classes.append(labels_dict.get(top_idxs[class_idx], '<unknown>'))
+            top_classes.append(sent_top_classes)
+        except:
+            top_classes.append(None)
     return [
         [{
             'intent': top_classes[sent_idx][idx],
             'confidence': top_probs[sent_idx][idx].item()
         } for idx in range(topk)
-        if top_probs[sent_idx][idx].item() != 0]
+        if top_probs[sent_idx] is not None and top_probs[sent_idx][idx].item() != 0]
         for sent_idx in range(batch_size)]

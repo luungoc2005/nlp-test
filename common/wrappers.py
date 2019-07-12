@@ -128,13 +128,7 @@ class IModel(object):
     def get_state_dict(self): raise NotImplementedError
 
     def __getstate__(self) -> dict:
-        model_state = None
-        try:
-            model_state = self.get_state_dict()
-        except NotImplementedError:
-            model_state = {}
-            warnings.warn('get_state_dict() is not implemented. Using default implementation')
-
+        model_state = {}
         if self.is_pytorch_module():
             if self._model is not None:
                 model_state['state_dict'] = self._model.state_dict()
@@ -149,6 +143,12 @@ class IModel(object):
         if self._featurizer is not None:
             # print('Featurizer found: ', self._featurizer)
             model_state['featurizer'] = self._featurizer
+        
+        try:
+            model_state.update(self.get_state_dict())
+        except NotImplementedError:
+            warnings.warn('get_state_dict() is not implemented. Using default implementation')
+
         return model_state
 
     def load_state_dict(self, state_dict:dict, *args, **kwargs): pass
@@ -306,9 +306,7 @@ class IModel(object):
 class ILearner(object):
 
     def __init__(self, 
-        model_wrapper:IModel, 
-        data=None, 
-        val_data=None, 
+        model_wrapper:IModel,
         optimizer_fn:Union[str, Callable]='adam', 
         optimizer_kwargs:dict={},
         auto_optimize:bool=True,
@@ -318,6 +316,8 @@ class ILearner(object):
         """
         data: Dataset or tuple (X_train, y_train)
         """
+        self._data = None
+        self._val_data = None
         self._model_wrapper = model_wrapper
         self._optimizer_kwargs = optimizer_kwargs
         self._verbose = 1
@@ -336,9 +336,6 @@ class ILearner(object):
         self.fp16 = False
         self.gradient_accumulation_steps = 1
 
-        if data is not None:
-            self.set_training_data(data)
-    
         if optimizer_fn is not None:
             self._optimizer_fn = self.get_optimizer_fn(optimizer_fn)
         else:
@@ -372,6 +369,7 @@ class ILearner(object):
     
     def on_training_start(self): pass
 
+    def on_model_before_init(self): pass
     """
     Triggered after model is initialized
     """
@@ -488,6 +486,12 @@ class ILearner(object):
 
             self.init_on_data(X, y)
 
+            if self._val_data is not None:
+                X_test, y_test = self._val_data
+
+                X_test = self.model_wrapper.preprocess_dataset_X(X_test)
+                y_test = self.model_wrapper.preprocess_dataset_y(y_test)
+
             # Preprocess all batches of data (adding n-grams etc.)
             # If data should be lazily processed, use the Dataset class instead.
 
@@ -499,24 +503,51 @@ class ILearner(object):
                         ),
                         output_process_fn=self.model_wrapper.preprocess_output,
                         batch_size=batch_size)
+                    
+                    if self._val_data is not None:
+                        test_dataset = BatchPreprocessedDataset(X_test, y_test,
+                            input_process_fn=lambda _X: self.model_wrapper.preprocess_input(
+                                self.model_wrapper._featurizer.transform(_X)
+                            ),
+                            output_process_fn=self.model_wrapper.preprocess_output,
+                            batch_size=batch_size)
                 else:
                     dataset = BatchPreprocessedDataset(X, y,
                         input_process_fn=self.model_wrapper.preprocess_input,
                         output_process_fn=self.model_wrapper.preprocess_output,
                         batch_size=batch_size)
+                    
+                    if self._val_data is not None:
+                        test_dataset = BatchPreprocessedDataset(X_test, y_test,
+                            input_process_fn=lambda _X: self.model_wrapper.preprocess_input(
+                                self.model_wrapper._featurizer.transform(_X)
+                            ),
+                            output_process_fn=self.model_wrapper.preprocess_output,
+                            batch_size=batch_size)
             else:
                 if self.model_wrapper._featurizer is not None:
                     X = self.model_wrapper._featurizer.transform(X)
 
+                    if self._val_data is not None:
+                        X_test = self.model_wrapper._featurizer.transform(X_test)
+
                 X = self.model_wrapper.preprocess_input(X)
                 y = self.model_wrapper.preprocess_output(y)
 
+                if self._val_data is not None:
+                    X_test = self.model_wrapper.preprocess_input(X_test)
+
                 if not self._uneven_batch_size:
                     dataset = GenericDataset(X, y)
+
+                    if self._val_data is not None:
+                        test_dataset = GenericDataset(X, y)
         else:
             dataset = self._data
 
             self.init_on_dataset(dataset)
+
+            test_dataset = self._val_data
 
         # Call on_training_start hooks
         self.on_training_start()
@@ -551,12 +582,19 @@ class ILearner(object):
                 loader_kwargs['collate_fn'] = self._collate_fn
             
             data_loader = DataLoader(dataset, **loader_kwargs)
+            
+            if self._val_data is not None:
+                test_data_loader = DataLoader(test_dataset, **loader_kwargs)
         else:
             data_loader = [([X[idx]], [y[idx]]) for idx in range(len(X))]
+
+            if self._val_data is not None:
+                test_data_loader = [([X_test[idx]], [y_test[idx]]) for idx in range(len(X_test))]
 
         if self.model_wrapper._featurizer is not None:
             self.model_wrapper.config['input_shape'] = self.model_wrapper._featurizer.get_output_shape()
 
+        self.on_model_before_init()
         if self.model_wrapper.model is None:
             self.model_wrapper.init_model()
         self.on_model_init()

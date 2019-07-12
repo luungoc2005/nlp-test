@@ -32,11 +32,13 @@ class LMClassifierLearner(ILearner):
 
     def on_epoch(self, X, y):
         model = self.model_wrapper.model
+
+        X = to_gpu(self.model_wrapper._featurizer.transform(X))
         with_inhibited, max_pool = model(X)
         loss = self.criterion(with_inhibited, y)- 0.000001 * max_pool.sum()
 
         return {
-            'loss': loss, 
+            'loss': loss,
             'logits': with_inhibited
         }
 

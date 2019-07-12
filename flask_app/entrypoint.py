@@ -29,6 +29,7 @@ from flask_app.views import \
 from flask_app.views.demo import \
     tokenize, \
     cloze_predict, \
+    sentiment, \
     language_identification, \
     entities_recognition, \
     pos_predict

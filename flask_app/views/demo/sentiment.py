@@ -31,6 +31,7 @@ def demo_sentiment_predict():
         else:
             raise ValueError('Unsupported language code')
 
+        print(model)
         logits, _ = model(items, return_logits=True)
         logits = torch.softmax(logits, dim=1)
         positive_class = model.label_encoder.classes_.tolist().index(1)
