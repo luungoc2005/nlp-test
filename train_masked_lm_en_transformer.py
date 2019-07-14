@@ -19,7 +19,7 @@ if __name__ == '__main__':
     model_config = dotdict({
         'num_words': 36000,
         'hidden_size': 576,
-        'num_hidden_layers': 7, # or 6 is also fine
+        'num_hidden_layers': 6, # or 6 is also fine
         'num_attention_heads': 12,
         'intermediate_size': 1200,
         'hidden_act': 'gelu',
@@ -88,12 +88,13 @@ if __name__ == '__main__':
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
     n_epochs=3 #15
+    t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 8e-4,
-            'warmup': 0.04,
-            't_total':  n_epochs * (len(dataset) // BATCH_SIZE)}
+            'lr': 1e-4,
+            'warmup': 20000 / t_total,
+            't_total':  t_total}
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -114,9 +115,9 @@ if __name__ == '__main__':
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
             TensorboardCallback(log_every_batch=100, log_every=-1, metrics=['loss']),
             ModelCheckpointCallback(metrics=['loss']),
-            ReduceLROnPlateau(reduce_factor=4, patience=2)
+            # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=1,
+        # gradient_accumulation_steps=1,
         fp16=True
         # optimize_on_cpu=True,
     )

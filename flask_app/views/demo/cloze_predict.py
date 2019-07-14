@@ -16,13 +16,20 @@ import sys, traceback
 def demo_cloze_predict():
     try:
         content = get_json(request)
-        model = nlu_load_pretrained('bert_vi_base')
+
+        language = content.get('language', 'en')
+        if language == 'en':
+            model = nlu_load_pretrained('bert_en_base')
+        elif language == 'vi':
+            model = nlu_load_pretrained('bert_vi_base')
+        else:
+            raise ValueError('Unsupported language code')
 
         content = get_json(request)
         raw_line = [
             [START_TAG] + [
                 tokenObject['value'] if not tokenObject['isMasked'] else MASK_TAG
-                for tokenObject in content
+                for tokenObject in content.get('tokens')
             ] + [STOP_TAG]
         ]
         print(raw_line)

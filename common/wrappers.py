@@ -264,7 +264,12 @@ class IModel(object):
         raise NotImplementedError
 
     @property
-    def model(self): return self._model.module if (self._use_data_parallel == True and self._model is not None and hasattr(self._model, 'module')) else self._model
+    def model(self): return self._model.module \
+        if (hasattr(self, '_use_data_parallel') \
+        and self._use_data_parallel == True \
+        and self._model is not None \
+        and hasattr(self._model, 'module')) \
+        else self._model
 
     @property
     def training(self): return self._model.training if hasattr(self._model, 'training') else False

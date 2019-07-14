@@ -20,7 +20,7 @@ if __name__ == '__main__':
     model_config = dotdict({
         'num_words': 36000,
         'hidden_size': 576,
-        'num_hidden_layers': 7, # or 6 is also fine
+        'num_hidden_layers': 6, # or 6 is also fine
         'num_attention_heads': 12,
         'intermediate_size': 1200,
         'hidden_act': 'gelu',
