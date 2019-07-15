@@ -2,6 +2,7 @@ annoy==1.13.0
 blingfire==0.0.9
 click==6.7
 fasteners==0.14.1
+fasttext==0.9.1
 Flask==1.0.3
 Flask-Cors==3.0.7
 gunicorn==19.9.0

@@ -13,8 +13,8 @@ def load_lid_model():
     global FASTTEXT_MODEL
     
     if FASTTEXT_MODEL is None:
-        from fastText import FastText
-        FASTTEXT_MODEL = FastText.load_model(
+        import fasttext
+        FASTTEXT_MODEL = fasttext.load_model(
             path.join(BASE_PATH, 'lid.176.bin')
         )
         logging.info('FastText model loaded')
