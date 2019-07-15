@@ -29,7 +29,7 @@ def demo_cloze_predict():
         raw_line = [
             [START_TAG] + [
                 tokenObject['value'] if not tokenObject['isMasked'] else MASK_TAG
-                for tokenObject in content.get('tokens')
+                for tokenObject in content.get('tokens', [])
             ] + [STOP_TAG]
         ]
         print(raw_line)
