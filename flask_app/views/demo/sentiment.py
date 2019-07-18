@@ -32,23 +32,16 @@ def demo_sentiment_predict():
             raise ValueError('Unsupported language code')
 
         print(model)
-        logits, _ = model(items, return_logits=True)
-        logits = torch.softmax(logits, dim=1)
-        positive_class = model.label_encoder.classes_.tolist().index(1)
+        intents = model(items, return_logits=True)[0]
+        
+        score = 0
+        for intent in intents:
+            if intent['intent'] == 'positive':
+                score += 1 * intent['confidence']
+            elif intent['intent'] == 'negative':
+                score -= 1 * intent['confidence']
 
-        if positive_class == 1:
-            scores = [
-                -sent_score[0] if sent_score[0] > sent_score[1]
-                else sent_score[1]
-                for sent_score in logits
-            ]
-        else:
-            scores = [
-                sent_score[0] if sent_score[0] > sent_score[1]
-                else -sent_score[1]
-                for sent_score in logits
-            ]
-        return jsonify(scores)
+        return jsonify({ 'scores': [score] })
 
     except Exception as e:
         logging.error(traceback.print_exc(limit=5))

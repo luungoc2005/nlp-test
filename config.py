@@ -61,6 +61,7 @@ STOP_TAG = "<STOP>"
 UNK_TAG = "<UNK>"
 EMPTY_TAG = "-"
 MASK_TAG = "<MASK>"
+CLS_TAG = "<CLS>"
 
 # BiLSTM-CRF configs
 EMBEDDING_DIM = 300

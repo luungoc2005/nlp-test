@@ -101,6 +101,7 @@ class IModel(object):
             if self.is_pytorch_module():
                 if state_dict is not None:
                     self._model.load_state_dict(state_dict, strict=False)
+                    self._model = to_gpu(self._model)
             elif self._onnx is not None:
                 import onnx
                 self._onnx_model = onnx.load(self._onnx)
@@ -131,7 +132,9 @@ class IModel(object):
         model_state = {}
         if self.is_pytorch_module():
             if self._model is not None:
-                model_state['state_dict'] = self._model.state_dict()
+                cpu_model = self._model.cpu()
+                model_state['state_dict'] = cpu_model.state_dict()
+                self._model = to_gpu(self._model)
         else:
             model_state['onnx'] = self._onnx
 

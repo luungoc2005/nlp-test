@@ -698,7 +698,7 @@ class BertForMaskedLM(BertPreTrainedModel):
                     self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
                     dim=-1
                 )
-            return prediction_scores, sequence_output
+            return prediction_scores, pooled_output, sequence_output, None
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):

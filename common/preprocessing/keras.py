@@ -16,7 +16,7 @@ import numpy as np
 # from six.moves import range
 # from six.moves import zip
 
-from config import START_TAG, STOP_TAG, UNK_TAG, MASK_TAG
+from config import START_TAG, STOP_TAG, UNK_TAG, MASK_TAG, CLS_TAG
 from common.utils import all_letters
 
 maketrans = str.maketrans
@@ -154,7 +154,7 @@ class Tokenizer(object):
                  split=' ',
                  char_level=False,
                  oov_token=UNK_TAG,
-                 reserved_tokens=[START_TAG, STOP_TAG, UNK_TAG],
+                 reserved_tokens=[START_TAG, STOP_TAG, UNK_TAG, CLS_TAG],
                  **kwargs):
         # Legacy support
         if 'nb_words' in kwargs:

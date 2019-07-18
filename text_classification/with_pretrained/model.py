@@ -16,28 +16,37 @@ class LMClassifier(nn.Module):
 
     def __init__(self, config=dotdict({
         'encoder_dropout': .2,
-        'encoder_config': {},
-        'hidden_size': 1024,
-        'rnn_layers': 1,
+        'encoder_config': dotdict({
+            'num_words': 36000,
+            'hidden_size': 576,
+            'num_hidden_layers': 6,
+            'num_attention_heads': 12,
+            'intermediate_size': 1200,
+            'hidden_act': 'gelu',
+            'hidden_dropout_prob': 0.15,
+            'attention_probs_dropout_prob': 0.15,
+            'max_position_embeddings': 104,
+            'featurizer_seq_len': 104,
+            'type_vocab_size': 2,
+            'initializer_range': 0.025,
+            'use_adasoft': True
+        }),
+        'hidden_size': 512,
         'pool_hidden_size': 512,
-        'pool_layers': 3,
-        'batch_norm': False,
+        'pool_layers': 2,
         'pool_act': 'relu',
         'pool_last_act': 'cauchy'
     }), *args, **kwargs):
         super(LMClassifier, self).__init__(*args, **kwargs)
-        self.encoder_config = config.get('encoder_config', None)
-        self.encoder = BertForMaskedLM(self.encoder_config) \
-            if self.encoder_config is not None \
-            else None
+        self.encoder_config = config.get('encoder_config', dotdict({}))
+        print(self.encoder_config)
+        self.encoder = BertForMaskedLM(self.encoder_config)
         
         self.encoder_size = config.get('encoder_size', \
             self.encoder.config.get('hidden_size', 512) \
             if hasattr(self.encoder, 'config') else 512
         )
         self.encoder_dropout = config.get('encoder_dropout', .5)
-        self.hidden_size = config.get('hidden_size', 512)
-        self.rnn_layers = config.get('rnn_layers', 1)
         self.pool_hidden_size = config.get('pool_hidden_size', 512)
         self.pool_layers = config.get('pool_layers', 2)
         self.pool_act = config.get('pool_act', None)
@@ -45,7 +54,7 @@ class LMClassifier(nn.Module):
         if self.pool_act is not None:
             self.pool_act = ACT2FN[self.pool_act]
         if self.pool_last_act is not None:
-            self.pool_last_act = ACT2FN(self.pool_last_act)
+            self.pool_last_act = ACT2FN[self.pool_last_act]
 
         self.n_classes = config.get('num_classes', 10)
 
@@ -53,22 +62,8 @@ class LMClassifier(nn.Module):
             self.dropout_e = nn.Dropout2d(self.encoder_dropout)
         else:
             self.dropout_e = None
-        
-        if self.hidden_size > 0 and self.rnn_layers > 0:
-            self.rnn = nn.LSTM(
-                self.encoder_size, 
-                self.hidden_size,
-                self.rnn_layers, 
-                batch_first=True, 
-                bidirectional=True
-            )
-        else:
-            self.rnn = None
 
-        if self.hidden_size > 0:
-            self.pool_input_size = self.hidden_size * 2 # directions
-        else:
-            self.pool_input_size = self.encoder_size
+        self.pool_input_size = self.encoder_size
 
         if self.pool_hidden_size > 0 and self.pool_layers > 0:
             pool_layers_list = []
@@ -82,57 +77,46 @@ class LMClassifier(nn.Module):
                     )
                     
             self.pooler = nn.ModuleList(pool_layers_list)
-            
-            if config.get('batch_norm'):
-                self.batch_norm = nn.BatchNorm1d(self.pool_hidden_size)
-            else:
-                self.batch_norm = None
 
             self.classifier = nn.Linear(self.pool_hidden_size, self.n_classes, bias=False)
         else:
             self.pooler = None
-            self.batch_norm = None
 
             self.classifier = nn.Linear(self.pool_input_size, self.n_classes, bias=False)
 
     def forward(self, seq_batch):
-        _, sequence_output = self.encoder(seq_batch)
+        pooled_output = self.encoder(seq_batch)[1]
         
         if self.dropout_e is not None:
-            sequence_output = sequence_output.permute(0, 2, 1) # convert to [batch, channels, time]
-            sequence_output = self.dropout_e(sequence_output)
-            sequence_output = sequence_output.permute(0, 2, 1) # back to [batch, time, channels]
-
-        if self.rnn is not None:
-            sequence_output = self.rnn(sequence_output)[0]
+            pooled_output = self.dropout_e(pooled_output)
 
         # pooling
-        max_pool = torch.max(sequence_output, 1)[0]
-        if max_pool.ndimension() == 3:
-            max_pool = max_pool.squeeze(1)
+        # pooled_output = torch.max(pooled_output, 1)[0]
+        # if pooled_output.ndimension() == 3:
+        #     pooled_output = pooled_output.squeeze(1)
         
-        pooled = max_pool
         if self.pooler is not None:
             for ix, layer in enumerate(self.pooler):
-                pooled = layer(pooled)
+                pooled_output = layer(pooled_output)
 
                 if ix < len(self.pooler) - 1:
                     if self.pool_act is not None:
-                        pooled = self.pool_act(pooled)
-                    if self.batch_norm is not None:
-                        pooled = self.batch_norm(pooled)
+                        pooled_output = self.pool_act(pooled_output)
                 else:
                     if self.pool_last_act is not None:
-                        pooled = self.pool_last_act(pooled)
+                        pooled_output = self.pool_last_act(pooled_output)
 
-        pooled = self.classifier(pooled)
+        pooled_output = self.classifier(pooled_output)
 
-        batch_size = pooled.size(0)
+        batch_size = pooled_output.size(0)
         inhibited_channel = to_gpu(torch.zeros((batch_size, 1)))
-        
-        with_inhibited = torch.cat((pooled, inhibited_channel), dim=1)
 
-        return with_inhibited, max_pool
+        with_inhibited = torch.cat((pooled_output, inhibited_channel), dim=1)
+
+        if self.training:
+            return with_inhibited, pooled_output
+        else:
+            return torch.softmax(with_inhibited, dim=1), pooled_output
 
 class LMClassifierWrapper(IModel):
 
@@ -149,6 +133,10 @@ class LMClassifierWrapper(IModel):
         self.encoder = encoder
         self.topk = config.get('top_k', 5)
         self.label_encoder = LabelEncoder()
+        if self.encoder is not None:
+            self.config.update({
+                'encoder_config': self.encoder.config
+            })
 
     def get_state_dict(self):
         return {
@@ -163,9 +151,7 @@ class LMClassifierWrapper(IModel):
         if self.encoder is not None:
             self._model.encoder = self.encoder._model
             self._featurizer = self.encoder._featurizer
-            self.config.update({
-                'encoder_config': self.encoder.config
-            })
+            self.encoder = None
 
     def preprocess_output(self, y):
         # One-hot encode outputs
