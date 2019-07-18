@@ -70,12 +70,18 @@ def infer_classification_output(
     # ]
     top_classes = []
     # workaround for LabelEncoder
-    labels_dict = dict(zip(model.label_encoder.classes_, model.label_encoder.transform(model.label_encoder.classes_)))
-
+    labels_dict = dict(
+        zip(
+            [str(item) for item in model.label_encoder.transform(
+                model.label_encoder.classes_
+            )],
+            model.label_encoder.classes_
+        )
+    )
     for idx in range(batch_size):
         sent_top_classes = []
         for class_idx in range(topk):
-            sent_top_classes.append(labels_dict.get(top_idxs[0][class_idx], '<unknown>'))
+            sent_top_classes.append(labels_dict.get(str(top_idxs[0][class_idx]), '<unknown>'))
         top_classes.append(sent_top_classes)
     return [
         [{

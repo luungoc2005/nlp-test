@@ -32,10 +32,11 @@ def demo_sentiment_predict():
             raise ValueError('Unsupported language code')
 
         print(model)
-        intents = model(items, return_logits=True)[0]
+        predicted_items = model(items)
         
         score = 0
-        for intent in intents:
+        print(predicted_items[0])
+        for intent in predicted_items[0]:
             if intent['intent'] == 'positive':
                 score += 1 * intent['confidence']
             elif intent['intent'] == 'negative':
