@@ -74,6 +74,9 @@ data/GloVe
 data/bookcorpus/
 data/fb_test/
 data/1-billion-word-language-modeling-benchmark-r13output/
+data/imdb/
+data/binary_sst/
+data/semeval/
 data/*.zip
 data/*.txt
 output/

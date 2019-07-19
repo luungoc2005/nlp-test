@@ -62,6 +62,11 @@ PRETRAINED_MODELS = dotdict({
         "base_class": LMClassifierWrapper,
         "filename": "bert_vi_sentiment.bin",
         "loaded_object": None
+    }),
+    'bert_en_sentiment': dotdict({
+        "base_class": LMClassifierWrapper,
+        "filename": "bert_en_sentiment.bin",
+        "loaded_object": None
     })
 })
 
