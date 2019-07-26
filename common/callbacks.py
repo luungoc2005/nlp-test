@@ -39,7 +39,7 @@ class PeriodicCallback(ICallback):
         trigger_fn_epoch:Callable = None,
         fn_batch_kwargs:object = {},
         fn_epoch_kwargs:object = {},
-        metrics:Iterable[str] = ['loss', 'accuracy']):
+        metrics:Iterable[str] = ['loss', 'accuracy', 'val_loss', 'val_accuracy']):
 
         super(PeriodicCallback, self).__init__()
         self.every_epoch = every_epoch
@@ -68,7 +68,18 @@ class PrintLoggerCallback(PeriodicCallback):
     def __init__(self, 
         log_every:int = 5, 
         log_every_batch:int = -1, 
-        metrics:Iterable[str] = ['loss', 'accuracy', 'f1', 'recall', 'precision'], 
+        metrics:Iterable[str] = [
+            'loss', 
+            'accuracy', 
+            'f1', 
+            'recall', 
+            'precision',
+            'val_loss',
+            'val_accuracy',
+            'val_f1',
+            'val_precision',
+            'val_recall'
+        ], 
         logging_fn:Callable = print):
 
         super(PrintLoggerCallback, self).__init__(
@@ -121,12 +132,22 @@ class PrintLoggerCallback(PeriodicCallback):
 
         self.logging_fn(print_line)
 
+        test_metrics = self.learner.test_metrics
+        if test_metrics is not None:
+            print_line = 'TEST: '
+            for key in self.metrics:
+                if key in test_metrics:
+                    print_line += ' - %s: %.4f' % (key, test_metrics[key])
+
+            self.logging_fn(print_line)
+
+
 class TensorboardCallback(PeriodicCallback):
 
     def __init__(self, 
         log_every:int = 5, 
         log_every_batch:int = -1, 
-        metrics:Iterable[str] = ['loss', 'accuracy']):
+        metrics:Iterable[str] = ['loss', 'accuracy', 'val_loss', 'val_accuracy']):
 
         super(TensorboardCallback, self).__init__(
             every_batch=log_every_batch,
@@ -152,16 +173,25 @@ class TensorboardCallback(PeriodicCallback):
     def print_line(self, print_minibatch=False):
         self.counter += 1
         metrics = self.learner.metrics
+        test_metrics = self.learner.test_metrics
         # metrics = self.learner._batch_metrics
         if metrics is not None:
             for key in self.metrics:
                 if key in metrics:
                     # print_line += ' - %s: %.4f' % (key, metrics[key])
                     self.writer.add_scalar(
-                        '{}/{}'.format(self.class_name, key),
+                        '{} - {}/{}'.format(self.learner._phase, self.class_name, key),
                         metrics[key],
                         self.counter
                     )
+                if test_metrics is not None:
+                    if key in test_metrics:
+                        # print_line += ' - %s: %.4f' % (key, metrics[key])
+                        self.writer.add_scalar(
+                            '{} - {}/{}'.format(self.learner._phase, self.class_name, key),
+                            test_metrics[key],
+                            self.counter
+                        )
 
 class NNICallback(PeriodicCallback):
 

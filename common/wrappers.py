@@ -332,9 +332,12 @@ class ILearner(object):
         self._optimizer_fn = None
         self._optimizer = None
         self._metrics = None
+        self._test_metrics = None
+        self._phase = 'TRAIN'
         self._current_epoch = 0
         self._batch_idx = 0
         self._batch_size = 0
+        self._test_batches = 0
         self._auto_optimize = auto_optimize
         self._preprocess_batch = preprocess_batch
         self._uneven_batch_size = uneven_batch_size
@@ -651,8 +654,10 @@ class ILearner(object):
                     self._halt = False
                     break
                 
+                self._phase = 'TRAIN'
                 self._current_epoch = epoch
                 self._metrics = None
+                self._test_metrics = None
 
                 self.on_epoch_start()
 
@@ -732,6 +737,24 @@ class ILearner(object):
                     if epochs == 1 and minibatches is not None:
                         if batch_idx >= minibatches:
                             self._halt = True
+                
+                # testing phase
+                if self._val_data is not None and self.model_wrapper.is_pytorch_module():
+                    with torch.no_grad():
+                        for test_batch_idx, (X_test_batch, y_test_batch) in enumerate(test_data_loader, 0):
+                            self._test_batches = test_batch_idx
+                            test_args = to_gpu(X_test_batch), to_gpu(y_test_batch)
+                            test_kwargs = {}
+                            epoch_ret = self.on_epoch(*test_args, **test_kwargs)
+                            if 'logits' in epoch_ret:
+                                with torch.no_grad():
+                                    test_batch_metrics = self.calculate_metrics(epoch_ret['logits'], y_batch) or {}
+                            else:
+                                test_batch_metrics = {}
+                            if self._test_metrics is None:
+                                self._test_metrics = test_batch_metrics
+                            else:
+                                self._test_metrics = {k: v + test_batch_metrics[k] for k, v in self._test_metrics.items()}
 
                 self.on_epoch_end()
 
@@ -764,6 +787,10 @@ class ILearner(object):
         if self._metrics is None: return None
         return {k: v / float(self._batch_idx + 1) for k, v in self._metrics.items()}
 
+    @property
+    def test_metrics(self): 
+        if self._test_metrics is None: return None
+        return {'val_' + str(k): v / float(self._test_batches + 1) for k, v in self._test_metrics.items()}
 
 class GenericDataset(Dataset):
 

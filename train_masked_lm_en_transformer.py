@@ -19,7 +19,7 @@ if __name__ == '__main__':
     model_config = dotdict({
         'num_words': 36000,
         'hidden_size': 576,
-        'num_hidden_layers': 6, # or 6 is also fine
+        'num_hidden_layers': 7, # or 6 is also fine
         'num_attention_heads': 12,
         'intermediate_size': 1200,
         'hidden_act': 'gelu',
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     dataset = WikiTextDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 160
+    BATCH_SIZE = 128
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
-    n_epochs=3 #15
+    n_epochs=20
     t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,

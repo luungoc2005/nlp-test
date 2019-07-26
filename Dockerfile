@@ -23,12 +23,6 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8
 
-RUN git clone https://github.com/facebookresearch/fastText.git
-WORKDIR /fastText
-RUN pip install .
-
-WORKDIR /
-
 ENV PYTHONIOENCODING utf8
 
 # Can put these inside requirements.txt but... for a minimal version
