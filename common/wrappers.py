@@ -8,7 +8,15 @@ import os
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from common.utils import dotdict
-from common.torch_utils import set_trainable, children, to_gpu, USE_GPU, copy_optimizer_params_to_model, set_optimizer_params_grad, use_data_parallel
+from common.torch_utils import \
+    set_trainable, \
+    children, \
+    to_gpu, \
+    USE_GPU, \
+    copy_optimizer_params_to_model, \
+    set_optimizer_params_grad, \
+    use_data_parallel, \
+    make_variable_batch_size
 from common.quantize import quantize_model, dequantize_model
 from typing import Iterable, Union, Callable, Tuple
 import inspect
@@ -172,11 +180,20 @@ class IModel(object):
                 self.init_model()
             dequantize_model(self.model)
 
-    def export_onnx(self, dummy_input, path='', print_graph=True, preserve_state=False):
+    def export_onnx(self, 
+        dummy_input, 
+        path='', 
+        print_graph=True, 
+        preserve_state=False
+    ):
         if self.is_pytorch_module():
             if self.model is None:
                 self.init_model()
             torch.onnx.export(self.model, dummy_input, path, verbose=print_graph)
+
+            import onnx
+            # exported_model = onnx.load(path)
+
             self._onnx = path
             if not preserve_state:
                 self.model = None

@@ -77,6 +77,8 @@ data/1-billion-word-language-modeling-benchmark-r13output/
 data/imdb/
 data/binary_sst/
 data/semeval/
+data/openwebtext/
+data/stories_corpus/
 data/*.zip
 data/*.txt
 output/

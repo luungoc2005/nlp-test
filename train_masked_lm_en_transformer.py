@@ -60,21 +60,16 @@ if __name__ == '__main__':
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
             path.join(BASE_PATH, 'data/wikitext103raw/wiki.train.raw')
         ]
-        bookcorpus_path = path.join(BASE_PATH, 'data/bookcorpus')
-        if path.exists(bookcorpus_path):
-            paths.extend([
-                path.join(bookcorpus_path, filename)
-                for filename in listdir(bookcorpus_path)
-                if filename.lower().endswith('txt')
-            ])
-        
-        billionword_path = path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled')
-        if path.exists(billionword_path):
-            paths.extend([
-                path.join(billionword_path, filename)
-                for filename in listdir(billionword_path)
-                # if filename.lower().endswith('txt')
-            ])
+        def load_folder(folder_path):
+            if path.exists(folder_path):
+                paths.extend([
+                    path.join(folder_path, filename)
+                    for filename in listdir(folder_path)
+                    if filename.lower().endswith('txt')
+                ])
+        load_folder(path.join(BASE_PATH, 'data/bookcorpus'))
+        load_folder(path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled'))
+        load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
 
         dataset.initialize(model, data_path=paths)
         dataset.save(SAVE_PATH)
@@ -92,9 +87,11 @@ if __name__ == '__main__':
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
         optimizer_kwargs={
-            'lr': 1e-4,
+            'b2': 0.98,
+            'lr': 7e-4,
             'warmup': 20000 / t_total,
-            't_total':  t_total}
+            't_total':  t_total
+        }
     )
     print('Dataset: {} sentences'.format(len(dataset)))
     # lr_range = list(range(25, 35))
@@ -117,7 +114,7 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        # gradient_accumulation_steps=1,
+        gradient_accumulation_steps=20,
         fp16=True
         # optimize_on_cpu=True,
     )

@@ -122,3 +122,19 @@ def set_optimizer_params_grad(named_params_optimizer, named_params_model, test_n
         else:
             param_opti.grad = None
     return is_nan
+
+
+def make_variable_batch_size(num_inputs, onnx_model):
+    """
+    Changes the input batch dimension to a string, which makes it variable.
+    Tensorflow interpretes this as the "?" shape.
+    `num_inputs` must be specified because `onnx_model.graph.input` is a list
+    of inputs of all layers and not just model inputs.
+    :param num_inputs: int, Number of model inputs (e.g. 2 for Text and Image)
+    :param onnx_model: ONNX model instance
+    :return: ONNX model instance with variable input batch size
+    """
+    for i in range(num_inputs):
+        onnx_model.graph.input[i].type.tensor_type.\
+                                shape.dim[0].dim_param = 'batch_size'
+    return onnx_model

@@ -22,17 +22,15 @@ def read_wikitext(file_path):
             if stripped == '' or stripped.startswith('=') or stripped.startswith('~~'):
                 continue
 
-            for sent in sent_tokenize(line):
-                processed_sent = sent \
-                    .replace('<unk>', UNK_TAG) \
-                    .replace('<UNK>', UNK_TAG) \
-                    .replace('UNK', UNK_TAG)
+            processed_sent = line \
+                .replace('<unk>', UNK_TAG) \
+                .replace('<UNK>', UNK_TAG) \
+                .replace('UNK', UNK_TAG)
 
-                for pattern in PATTERNS:
-                    re.sub(pattern[0], pattern[1], processed_sent)
-                
-                if len(processed_sent) > 0:
-                    sents.append(processed_sent)
+            for pattern in PATTERNS:
+                re.sub(pattern[0], pattern[1], processed_sent)
+
+            sents.append(processed_sent)
 
     return sents
 
@@ -48,15 +46,14 @@ class ViTextDataset(Dataset):
 
         if data_path is not None:
             if isinstance(data_path, str):
-                self.raw_sents = read_wikitext(data_path)
-                print('Loaded {} sentences from {}'.format(len(self.raw_sents), data_path))
-            else:
-                self.raw_sents = []
-                for file_path in data_path:
-                    file_sents = read_wikitext(file_path)
-                    self.raw_sents.extend(file_sents)
-                    print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
-                    print('Sample sentence: {}'.format(random.choice(file_sents)))
+                data_path = [data_path]
+
+            self.raw_sents = []
+            for file_path in data_path:
+                file_sents = read_wikitext(file_path)
+                self.raw_sents.extend(file_sents)
+                print('Loaded {} sentences from {}'.format(len(file_sents), file_path))
+                print('Sample sentence: {}'.format(random.choice(file_sents)))
         else:
             self.raw_sents = data_texts
 
