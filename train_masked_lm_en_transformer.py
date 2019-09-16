@@ -1,7 +1,7 @@
 # from sent_to_vec.masked_lm.pervasive_model import PervasiveAttnLanguageModelWrapper
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
-from sent_to_vec.masked_lm.data import WikiTextDataset
+from sent_to_vec.masked_lm.corpus_data import LanguageModelCorpusDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
 from os import path, listdir
 from config import BASE_PATH
@@ -14,6 +14,14 @@ import sys
 from common.preprocessing import keras
 sys.modules['common.keras_preprocessing'] = keras
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--export_vocab", default=False, action='store_true')
+parser.add_argument("--from_vocab", default='', type=str)
+
+args = parser.parse_args()
+
 if __name__ == '__main__':
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
@@ -25,8 +33,9 @@ if __name__ == '__main__':
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.15,
         'attention_probs_dropout_prob': 0.15,
-        'max_position_embeddings': 104,
-        'featurizer_seq_len': 104, # same as above
+        'positional_embedding_type': 'sinusoid',
+        'max_position_embeddings': 256,
+        'featurizer_seq_len': 256, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.025,
         'use_adasoft': True
@@ -47,10 +56,10 @@ if __name__ == '__main__':
         # }) # large model
         model = BertLMWrapper(model_config)
 
-    dataset = WikiTextDataset()
+    dataset = LanguageModelCorpusDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 128
+    BATCH_SIZE = 64
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -67,13 +76,28 @@ if __name__ == '__main__':
                     for filename in listdir(folder_path)
                     if filename.lower().endswith('txt')
                 ])
-        load_folder(path.join(BASE_PATH, 'data/bookcorpus'))
-        load_folder(path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled'))
-        load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
+        # load_folder(path.join(BASE_PATH, 'data/bookcorpus'))
+        # load_folder(path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled'))
+        # load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
 
-        dataset.initialize(model, data_path=paths)
+        if args.from_vocab == '':
+            dataset.init_on_model(model, data_path=paths)
+        else:
+            with open(args.from_vocab, 'r') as vocab_fp:
+                dataset.init_on_model(model, data_path=paths, vocab_fp=vocab_fp)
+            import random
+            indices = list(range(len(dataset)))
+            random.shuffle(indices)
+            print('5 sample sentences:')
+            for ix in indices[:5]:
+                sent = dataset._get_raw_sent(ix)
+                print(f'- #{ix}: {sent} ({len(sent)})')
         dataset.save(SAVE_PATH)
 
+    if args.export_vocab:
+        with open('vocab.json', 'w') as vocab_file:
+            model.featurizer.tokenizer.export_vocab(vocab_file)
+            exit()
     # learner = LanguageModelLearner(model, 
     #     optimizer_fn='sgd', 
     #     optimizer_kwargs={'lr': 30, 'weight_decay': 1.2e-6}
@@ -82,7 +106,7 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
-    n_epochs=20
+    n_epochs=5
     t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
@@ -114,7 +138,7 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=20,
+        gradient_accumulation_steps=40,
         fp16=True
         # optimize_on_cpu=True,
     )

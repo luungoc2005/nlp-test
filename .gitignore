@@ -119,3 +119,7 @@ third_party/
 
 flask_app/config.cfg
 *.onnx
+
+# temporary corpus files
+corpus-*/
+corpus-*.txt

@@ -178,6 +178,51 @@ class Tokenizer(object):
         self.word_index = {}
         self.ix_to_word = {}
 
+    @classmethod
+    def from_json(cls, fp, *args, **kwargs):
+        import json
+        data = json.load(fp)
+        obj = cls(*args, **kwargs)
+
+        obj.word_counts = OrderedDict(data['word_counts'].items())
+        obj.word_docs = data['word_docs']
+        obj.index_docs = data['index_docs']
+        obj.document_count = data['document_count']
+
+        wcounts = list(obj.word_counts.items())
+        wcounts.sort(key=lambda x: x[1], reverse=True)
+        sorted_voc = [wc[0] for wc in wcounts]
+        # note that index 0 is reserved, never assigned to an existing word
+        obj.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
+        obj.ix_to_word = {v: k for k, v in obj.word_index.items()}
+
+        return obj
+
+    def _load_from_json(self, fp):
+        import json
+        data = json.load(fp)
+
+        self.word_counts = OrderedDict(data['word_counts'].items())
+        self.word_docs = data['word_docs']
+        self.index_docs = data['index_docs']
+        self.document_count = data['document_count']
+
+        wcounts = list(self.word_counts.items())
+        wcounts.sort(key=lambda x: x[1], reverse=True)
+        sorted_voc = [wc[0] for wc in wcounts]
+        # note that index 0 is reserved, never assigned to an existing word
+        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
+        self.ix_to_word = {v: k for k, v in self.word_index.items()}
+
+    def export_vocab(self, fp):
+        import json
+        json.dump({
+            'word_counts': self.word_counts,
+            'word_docs': self.word_docs,
+            'index_docs': self.index_docs,
+            'document_count': self.document_count
+        }, fp)
+
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.
         In the case where texts contains lists, we assume each entry of the lists

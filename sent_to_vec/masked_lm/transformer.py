@@ -145,7 +145,12 @@ class BertEmbeddings(nn.Module):
     def __init__(self, config):
         super(BertEmbeddings, self).__init__()
         self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
+        self.positional_embedding_type = config.get('positional_embedding_type', 'absolute')
+        assert self.positional_embedding_type in ['absolute', 'sinusoid']
+        if self.positional_embedding_type == 'absolute':
+            self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
+        else:
+            self.position_embeddings = PositionalEmbedding(config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size, padding_idx=0)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
@@ -155,15 +160,21 @@ class BertEmbeddings(nn.Module):
 
     def forward(self, input_ids, token_type_ids=None):
         seq_length = input_ids.size(1)
-        position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
-        position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
-
-        words_embeddings = self.word_embeddings(input_ids)
-        position_embeddings = self.position_embeddings(position_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
+        words_embeddings = self.word_embeddings(input_ids)
+
+        if self.positional_embedding_type == 'absolute':
+            position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+            position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+            position_embeddings = self.position_embeddings(position_ids)
+        else:
+            position_ids = torch.arange(seq_length - 1, -1, -1.0, dtype=torch.float, device=input_ids.device)
+            position_embeddings = self.position_embeddings(position_ids).permute(1, 0, 2).expand_as(words_embeddings)
+        
         embeddings = words_embeddings + position_embeddings + token_type_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
@@ -340,18 +351,34 @@ class BertPredictionHeadTransform(nn.Module):
 
 
 class BertLMPredictionHead(nn.Module):
-    def __init__(self, config, bert_model_embedding_weights):
+    def __init__(self, config, bert_model_embedding_layer):
         super(BertLMPredictionHead, self).__init__()
-        self.transform = BertPredictionHeadTransform(config)
+        self.config = config
 
+        self.transform = BertPredictionHeadTransform(config)
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(bert_model_embedding_weights.size(1),
-                                 bert_model_embedding_weights.size(0))
+        self.decoder = nn.Linear(bert_model_embedding_layer.weight.size(1),
+                                 bert_model_embedding_layer.weight.size(0))
                                 #  bias=False)
-        self.decoder.bias.data.zero_()
-        self.decoder.weight = bert_model_embedding_weights
+        self._tie_or_clone_weights(self.decoder, bert_model_embedding_layer)
         # self.bias = nn.Parameter(torch.zeros(bert_model_embedding_weights.size(0)))
+
+    def _tie_or_clone_weights(self, first_module, second_module):
+        """ Tie or clone module weights depending of weither we are using TorchScript or not
+        """
+        if self.config.torchscript:
+            first_module.weight = nn.Parameter(second_module.weight.clone())
+        else:
+            first_module.weight = second_module.weight
+
+        if hasattr(first_module, 'bias') and first_module.bias is not None:
+            first_module.bias.data = torch.nn.functional.pad(
+                first_module.bias.data,
+                (0, first_module.weight.shape[0] - first_module.bias.shape[0]),
+                'constant',
+                0
+            )
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
@@ -360,9 +387,9 @@ class BertLMPredictionHead(nn.Module):
 
 
 class BertOnlyMLMHead(nn.Module):
-    def __init__(self, config, bert_model_embedding_weights):
+    def __init__(self, config, bert_model_embedding_layer):
         super(BertOnlyMLMHead, self).__init__()
-        self.predictions = BertLMPredictionHead(config, bert_model_embedding_weights)
+        self.predictions = BertLMPredictionHead(config, bert_model_embedding_layer)
 
     def forward(self, sequence_output):
         prediction_scores = self.predictions(sequence_output)
@@ -419,7 +446,6 @@ class BertPreTrainedModel(nn.Module):
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
-
 class BertModel(BertPreTrainedModel):
     """BERT model ("Bidirectional Embedding Representations from a Transformer").
 
@@ -468,7 +494,7 @@ class BertModel(BertPreTrainedModel):
         super(BertModel, self).__init__(config)
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
-        self.pooler = BertPooler(config)
+        # self.pooler = BertPooler(config)
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True):
@@ -497,10 +523,10 @@ class BertModel(BertPreTrainedModel):
                                       extended_attention_mask,
                                       output_all_encoded_layers=output_all_encoded_layers)
         sequence_output = encoded_layers[-1]
-        pooled_output = self.pooler(sequence_output)
+        # pooled_output = self.pooler(sequence_output)
         if not output_all_encoded_layers:
             encoded_layers = encoded_layers[-1]
-        return encoded_layers, pooled_output
+        return encoded_layers, sequence_output
 
 
 class BertForPreTraining(BertPreTrainedModel):
@@ -619,7 +645,7 @@ class BertForMaskedLM(BertPreTrainedModel):
     def __init__(self, config):
         super(BertForMaskedLM, self).__init__(config)
         self.bert = BertModel(config)
-        self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings.weight)
+        self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings)
         self.apply(self.init_bert_weights)
 
         # For compatibility with QRNNLanguageModel
@@ -683,7 +709,7 @@ class BertForMaskedLM(BertPreTrainedModel):
         if not batch_first:
             sequence_output = sequence_output.permute(1, 0, 2).contiguous()
         if training:
-            return sequence_output, pooled_output, None, None
+            return sequence_output, pooled_output, torch.empty(1), torch.empty(1)
         else:
             if self.use_adasoft:
                 decoder = self.cls.predictions.decoder
@@ -698,7 +724,7 @@ class BertForMaskedLM(BertPreTrainedModel):
                     self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
                     dim=-1
                 )
-            return prediction_scores, pooled_output, sequence_output, None
+            return prediction_scores, pooled_output, sequence_output, torch.empty(1)
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):

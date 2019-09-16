@@ -34,7 +34,6 @@ def read_wikitext(file_path):
 
     return sents
 
-
 class WikiTextDataset(Dataset):
 
     def __init__(self):
