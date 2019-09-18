@@ -664,6 +664,7 @@ class ILearner(object):
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
+        self._global_step = 0
         # Main training loop
         try:
             for epoch in iterator:
@@ -685,6 +686,7 @@ class ILearner(object):
                         break
 
                     self._batch_idx = batch_idx
+                    self._global_step += 1
 
                     for callback in self.callbacks: callback.on_batch_start()
 
@@ -737,7 +739,7 @@ class ILearner(object):
                             self._metrics = {k: v + batch_metrics[k] for k, v in self._metrics.items()}
 
                     if self.model_wrapper.is_pytorch_module() and self._auto_optimize: 
-                        if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
+                        if (self._global_step + 1) % self.gradient_accumulation_steps == 0:
                             if self._optimize_on_cpu:
                                 is_nan = set_optimizer_params_grad(optim_params, model.named_parameters(), test_nan=True)
 

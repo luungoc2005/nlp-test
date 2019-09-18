@@ -120,6 +120,10 @@ third_party/
 flask_app/config.cfg
 *.onnx
 
+vi-corpus.bin
+wikitext-maskedlm-data.bin
+
 # temporary corpus files
 corpus-*/
 corpus-*.txt
+vocab.json

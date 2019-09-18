@@ -98,7 +98,7 @@ class LanguageModelCorpusDataset(Dataset):
         else:
             line_count = len(data_texts)
 
-        self.sent_indices = [None] * line_count
+        self.sent_indices = np.zeros(line_count, dtype=np.int32)
         current_idx = 0
 
         print('Caching sentence positions')
@@ -132,6 +132,7 @@ class LanguageModelCorpusDataset(Dataset):
                 with open(self.output_file, 'r') as fp:
                     self.featurizer.fit(fp.readlines())
             else:
+                FILE_BATCH_SIZE = 100000
                 for batch_ix in tqdm(range(0, self.line_count, FILE_BATCH_SIZE)):
                     batch_path = path.join(self.output_file, str(batch_ix) + '.txt')
                     with open(batch_path, 'r') as fp:
@@ -147,8 +148,8 @@ class LanguageModelCorpusDataset(Dataset):
             'featurizer': self.featurizer,
             'line_count': self.line_count,
             'output_file': self.output_file,
-            'sent_indices': self.sent_indices
-        }, save_path)
+            'sent_indices': np.array(self.sent_indices, dtype=np.int32)
+        }, save_path, pickle_protocol=4)
         print('Finished saving preprocessed dataset')
 
     def load(self, fp, model_wrapper, get_next_sent=False):
@@ -156,12 +157,12 @@ class LanguageModelCorpusDataset(Dataset):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
-        self.line_count = state['line_count']
+        self.line_count = np.array(state['line_count'], dtype=np.int32)
         self.output_file = state['output_file']
         self.sent_indices = state.get('sent_indices', [])
         self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
 
-        print('Finished loading preprocessed dataset')
+        print(f'Finished loading preprocessed dataset. Corpus size: {self.line_count.shape}')
 
     def __len__(self) -> int:
         return self.line_count

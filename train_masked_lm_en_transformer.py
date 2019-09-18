@@ -59,7 +59,7 @@ if __name__ == '__main__':
     dataset = LanguageModelCorpusDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 64
+    BATCH_SIZE = 32
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -69,29 +69,28 @@ if __name__ == '__main__':
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
             path.join(BASE_PATH, 'data/wikitext103raw/wiki.train.raw')
         ]
-        def load_folder(folder_path):
-            if path.exists(folder_path):
-                paths.extend([
-                    path.join(folder_path, filename)
-                    for filename in listdir(folder_path)
-                    if filename.lower().endswith('txt')
-                ])
+        def load_folder(folder_path, filter_txt=True):
+            paths.extend([
+                path.join(folder_path, filename)
+                for filename in listdir(folder_path)
+                if not filter_txt or filename.lower().endswith('txt')
+            ])
         # load_folder(path.join(BASE_PATH, 'data/bookcorpus'))
-        # load_folder(path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled'))
-        # load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
+        load_folder(path.join(BASE_PATH, 'data/1-billion-word-language-modeling-benchmark-r13output/training-monolingual.tokenized.shuffled'), filter_txt=False)
+        load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
 
         if args.from_vocab == '':
             dataset.init_on_model(model, data_path=paths)
         else:
             with open(args.from_vocab, 'r') as vocab_fp:
                 dataset.init_on_model(model, data_path=paths, vocab_fp=vocab_fp)
-            import random
-            indices = list(range(len(dataset)))
-            random.shuffle(indices)
-            print('5 sample sentences:')
-            for ix in indices[:5]:
-                sent = dataset._get_raw_sent(ix)
-                print(f'- #{ix}: {sent} ({len(sent)})')
+            # import random
+            # indices = list(range(len(dataset)))
+            # random.shuffle(indices)
+            # print('5 sample sentences:')
+            # for ix in indices[:5]:
+            #     sent = dataset._get_raw_sent(ix)
+            #     print(f'- #{ix}: {sent} ({len(sent)})')
         dataset.save(SAVE_PATH)
 
     if args.export_vocab:
@@ -106,7 +105,7 @@ if __name__ == '__main__':
     #     optimizer_fn='sgd',
     #     optimizer_kwargs={'lr': 10, 'weight_decay': 1.2e-6}
     # )
-    n_epochs=5
+    n_epochs=2
     t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
         optimizer_fn=BertAdam,
@@ -138,7 +137,7 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=40,
+        gradient_accumulation_steps=64,
         fp16=True
         # optimize_on_cpu=True,
     )
