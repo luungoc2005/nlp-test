@@ -27,10 +27,28 @@ import sys
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
-from common.splitcross import SplitCrossEntropyLoss
+from common.modules import AdaptiveEmbedding, ProjectedAdaptiveLogSoftmax
 from common.torch_utils import ACT2FN, to_gpu
 
 logger = logging.getLogger(__name__)
+
+def get_default_adasoft_splits(num_words: int):
+    if num_words >= 500000:
+        # One Billion
+        # This produces fairly even matrix mults for the buckets:
+        # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
+        splits = [4200, 35000, 180000]
+    elif num_words >= 75000:
+        # WikiText-103
+        splits = [2800, 20000, 76000]
+    elif num_words >= 20000:
+        splits = [2000, 4000, 10000]
+    else:
+        import math
+        cutoff_size = int(math.ceil(float(num_words) / 3 / 8) * 8)
+        splits = [cutoff_size, cutoff_size]
+    return splits
+
 
 class BertConfig(object):
     """Configuration class to store the configuration of a `BertModel`.
@@ -46,6 +64,7 @@ class BertConfig(object):
                  attention_probs_dropout_prob=0.1,
                  max_position_embeddings=512,
                  type_vocab_size=2,
+                 div_val=4,
                  initializer_range=0.02):
         """Constructs BertConfig.
 
@@ -89,6 +108,7 @@ class BertConfig(object):
             self.max_position_embeddings = max_position_embeddings
             self.type_vocab_size = type_vocab_size
             self.initializer_range = initializer_range
+            self.div_val = div_val
         else:
             raise ValueError("First argument must be either a vocabulary size (int)"
                              "or the path to a pretrained model config file (str)")
@@ -144,9 +164,26 @@ class BertEmbeddings(nn.Module):
     """
     def __init__(self, config):
         super(BertEmbeddings, self).__init__()
-        self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
+        self.config = config
+
+        # Adaptive softmax
+        self.num_words = config.num_words
+        self.use_adasoft = config.get('use_adasoft', True)
+
+        if self.use_adasoft:
+            if 'adasoft_cutoffs' in config:
+                splits = config['adasoft_cutoffs']
+            else:
+                splits = get_default_adasoft_splits(config.num_words)
+                config['adasoft_cutoffs'] = splits
+            
+            self.word_embeddings = AdaptiveEmbedding(config.num_words, config.hidden_size, config.hidden_size, cutoffs=splits, div_val=config.div_val)
+        else:
+            self.word_embeddings = nn.Embedding(config.num_words, config.hidden_size, padding_idx=0)
+        
         self.positional_embedding_type = config.get('positional_embedding_type', 'absolute')
         assert self.positional_embedding_type in ['absolute', 'sinusoid']
+        
         if self.positional_embedding_type == 'absolute':
             self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size, padding_idx=0)
         else:
@@ -173,9 +210,13 @@ class BertEmbeddings(nn.Module):
             position_embeddings = self.position_embeddings(position_ids)
         else:
             position_ids = torch.arange(seq_length - 1, -1, -1.0, dtype=torch.float, device=input_ids.device)
-            position_embeddings = self.position_embeddings(position_ids).permute(1, 0, 2).expand_as(words_embeddings)
-        
+            position_embeddings = self.position_embeddings(position_ids) \
+                .to(words_embeddings) \
+                .permute(1, 0, 2) \
+                .expand_as(words_embeddings) \
+
         embeddings = words_embeddings + position_embeddings + token_type_embeddings
+        
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -229,7 +270,8 @@ class BertSelfAttention(nn.Module):
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
-        return context_layer
+        
+        return context_layer, attention_probs
 
 
 class BertSelfOutput(nn.Module):
@@ -253,9 +295,9 @@ class BertAttention(nn.Module):
         self.output = BertSelfOutput(config)
 
     def forward(self, input_tensor, attention_mask):
-        self_output = self.self(input_tensor, attention_mask)
+        self_output, attention_probs = self.self(input_tensor, attention_mask)
         attention_output = self.output(self_output, input_tensor)
-        return attention_output
+        return attention_output, attention_probs
 
 
 class BertIntermediate(nn.Module):
@@ -295,10 +337,10 @@ class BertLayer(nn.Module):
         self.output = BertOutput(config)
 
     def forward(self, hidden_states, attention_mask):
-        attention_output = self.attention(hidden_states, attention_mask)
+        attention_output, attention_probs = self.attention(hidden_states, attention_mask)
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
-        return layer_output
+        return layer_output, attention_probs
 
 
 class BertEncoder(nn.Module):
@@ -309,13 +351,16 @@ class BertEncoder(nn.Module):
 
     def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):
         all_encoder_layers = []
+        all_attentions = []
         for layer_module in self.layer:
-            hidden_states = layer_module(hidden_states, attention_mask)
+            hidden_states, attention_probs = layer_module(hidden_states, attention_mask)
             if output_all_encoded_layers:
                 all_encoder_layers.append(hidden_states)
+                all_attentions.append(attention_probs)
         if not output_all_encoded_layers:
             all_encoder_layers.append(hidden_states)
-        return all_encoder_layers
+            all_attentions.append(attention_probs)
+        return all_encoder_layers, all_attentions
 
 
 class BertPooler(nn.Module):
@@ -358,11 +403,48 @@ class BertLMPredictionHead(nn.Module):
         self.transform = BertPredictionHeadTransform(config)
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(bert_model_embedding_layer.weight.size(1),
-                                 bert_model_embedding_layer.weight.size(0))
-                                #  bias=False)
-        self._tie_or_clone_weights(self.decoder, bert_model_embedding_layer)
-        # self.bias = nn.Parameter(torch.zeros(bert_model_embedding_weights.size(0)))
+        if not config.use_adasoft:
+            self.decoder = nn.Linear(config.hidden_size, config.num_words)
+            self._tie_or_clone_weights(self.decoder, bert_model_embedding_layer)
+            self.bias = nn.Parameter(torch.zeros(bert_model_embedding_layer.weight.size(0)))
+        else:
+            if 'adasoft_cutoffs' in config:
+                splits = config['adasoft_cutoffs']
+            else:
+                splits = get_default_adasoft_splits(config.num_words)
+                config['adasoft_cutoffs'] = splits
+
+            if config.proj_share_all_but_first:
+                self.tie_projs = [False] + [True] * len(splits)
+            else:
+                self.tie_projs = [False] + [False] * len(splits)
+            
+            self.decoder = ProjectedAdaptiveLogSoftmax(
+                config.num_words, 
+                config.hidden_size,
+                config.hidden_size,
+                cutoffs=splits, 
+                div_val=config.div_val
+            )
+            self.tie_weights(self.decoder, bert_model_embedding_layer, self.tie_projs)
+
+    def tie_weights(self, decoder, word_embeddings_layer, tie_projs):
+        for i in range(len(decoder.out_layers)):
+            self._tie_or_clone_weights(decoder.out_layers[i],
+                word_embeddings_layer.emb_layers[i])
+        
+        # tie projections
+        for i, tie_proj in enumerate(tie_projs):
+            if tie_proj and self.config.div_val == 1 and self.config.d_model != self.config.d_embed:
+                if self.config.torchscript:
+                    decoder.out_projs[i] = nn.Parameter(word_embeddings_layer.emb_projs[0].clone())
+                else:
+                    decoder.out_projs[i] = word_embeddings_layer.emb_projs[0]
+            elif tie_proj and self.config.div_val != 1:
+                if self.config.torchscript:
+                    decoder.out_projs[i] = nn.Parameter(word_embeddings_layer.emb_projs[i].clone())
+                else:
+                    decoder.out_projs[i] = word_embeddings_layer.emb_projs[i]
 
     def _tie_or_clone_weights(self, first_module, second_module):
         """ Tie or clone module weights depending of weither we are using TorchScript or not
@@ -382,7 +464,8 @@ class BertLMPredictionHead(nn.Module):
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
-        # hidden_states = self.decoder(hidden_states) + self.bias
+        if not config.use_adasoft:
+            hidden_states = self.decoder(hidden_states) + self.bias
         return hidden_states
 
 
@@ -519,14 +602,14 @@ class BertModel(BertPreTrainedModel):
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
         embedding_output = self.embeddings(input_ids, token_type_ids)
-        encoded_layers = self.encoder(embedding_output,
+        encoded_layers, attention_probs = self.encoder(embedding_output,
                                       extended_attention_mask,
                                       output_all_encoded_layers=output_all_encoded_layers)
         sequence_output = encoded_layers[-1]
         # pooled_output = self.pooler(sequence_output)
         if not output_all_encoded_layers:
             encoded_layers = encoded_layers[-1]
-        return encoded_layers, sequence_output
+        return encoded_layers, sequence_output, attention_probs
 
 
 class BertForPreTraining(BertPreTrainedModel):
@@ -586,7 +669,7 @@ class BertForPreTraining(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None, next_sentence_label=None):
-        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+        sequence_output, pooled_output, attention_probs = self.bert(input_ids, token_type_ids, attention_mask,
                                                    output_all_encoded_layers=False)
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
 
@@ -647,84 +730,46 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.cls = BertOnlyMLMHead(config, self.bert.embeddings.word_embeddings)
         self.apply(self.init_bert_weights)
-
-        # For compatibility with QRNNLanguageModel
-        # self.decoder = self.cls.predictions.decoder
-        
-        # Adaptive softmax
-        self.num_words = config.num_words
-        self.use_adasoft = config.get('use_adasoft', True)
-
-        if self.use_adasoft:
-            if 'adasoft_cutoffs' in config:
-                splits = config['adasoft_cutoffs']
-            else:
-                splits = []
-                if self.num_words >= 500000:
-                    # One Billion
-                    # This produces fairly even matrix mults for the buckets:
-                    # 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
-                    splits = [4200, 35000, 180000]
-                elif self.num_words >= 75000:
-                    # WikiText-103
-                    splits = [2800, 20000, 76000]
-                elif self.num_words >= 20000:
-                    splits = [2000, 4000, 10000]
-                else:
-                    import math
-                    cutoff_size = int(math.ceil(float(self.num_words) / 3 / 8) * 8)
-                    splits = [cutoff_size, cutoff_size]
-            
-                config['adasoft_cutoffs'] = splits
-
-            # print('Cross Entropy Splits: Using', splits)
-
-            self.adasoft = SplitCrossEntropyLoss(
-                config.hidden_size, 
-                splits,
-                ignore_index=0
-            )
-        else:
-            self.adasoft = None
+        self.loss_fct = self.cls.predictions.decoder if config.use_adasoft else nn.CrossEntropyLoss()
 
     def forward(self, 
         input_ids, 
         token_type_ids=None, 
         attention_mask=None, 
-        output_all_encoded_layers=False, 
-        batch_first=True,
-        training=False):
+        output_all_encoded_layers=False,
+        batch_first=False,
+        labels=None):
         if not batch_first:
             # Transform to batch-first format
-            input_ids = input_ids.t()
-        if attention_mask is not None: attention_mask = attention_mask.t()
-        if token_type_ids is not None: token_type_ids = token_type_ids.t()
-        sequence_output, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+            input_ids = input_ids.t().contiguous()
+            if attention_mask is not None: attention_mask = attention_mask.t().contiguous()
+            if token_type_ids is not None: token_type_ids = token_type_ids.t().contiguous()
+        
+        sequence_output, pooled_output, attention_probs = self.bert(input_ids, token_type_ids, attention_mask,
             output_all_encoded_layers=output_all_encoded_layers)
-        # if masked_lm_labels is not None:
-            # loss_fct = CrossEntropyLoss(ignore_index=-1)
-            # masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
-            # return masked_lm_loss
 
         if not batch_first:
             sequence_output = sequence_output.permute(1, 0, 2).contiguous()
-        if training:
-            return sequence_output, pooled_output, torch.empty(1), torch.empty(1)
+        if labels is not None:
+            if not batch_first:
+                labels = labels.t().contiguous()
+            # return training loss
+            return self.loss_fct(
+                self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
+                labels.view(-1)
+            )
         else:
             if self.use_adasoft:
-                decoder = self.cls.predictions.decoder
-                prediction_scores = self.adasoft.\
+                prediction_scores = self.cls.predictions.decoder.\
                     logprob(
-                        decoder.weight, 
-                        decoder.bias, 
-                        sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))
+                        self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
                     )
             else:
                 prediction_scores = torch.log_softmax(
                     self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
                     dim=-1
                 )
-            return prediction_scores, pooled_output, sequence_output, torch.empty(1)
+            return prediction_scores, pooled_output, sequence_output, attention_probs
 
 
 class BertForNextSentencePrediction(BertPreTrainedModel):
@@ -777,7 +822,7 @@ class BertForNextSentencePrediction(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, next_sentence_label=None):
-        _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask,
+        _, pooled_output, attention_probs = self.bert(input_ids, token_type_ids, attention_mask,
                                      output_all_encoded_layers=False)
         seq_relationship_score = self.cls(pooled_output)
 
@@ -843,7 +888,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        _, pooled_output, attention_probs = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
@@ -911,7 +956,7 @@ class BertForMultipleChoice(BertPreTrainedModel):
         flat_input_ids = input_ids.view(-1, input_ids.size(-1))
         flat_token_type_ids = token_type_ids.view(-1, token_type_ids.size(-1))
         flat_attention_mask = attention_mask.view(-1, attention_mask.size(-1))
-        _, pooled_output = self.bert(flat_input_ids, flat_token_type_ids, flat_attention_mask, output_all_encoded_layers=False)
+        _, pooled_output, attention_probs = self.bert(flat_input_ids, flat_token_type_ids, flat_attention_mask, output_all_encoded_layers=False)
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
         reshaped_logits = logits.view(-1, self.num_choices)
@@ -978,7 +1023,7 @@ class BertForTokenClassification(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output, _, attention_probs = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
 
@@ -1053,7 +1098,7 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, start_positions=None, end_positions=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output, _, attention_probs = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
@@ -1089,7 +1134,7 @@ class PositionalEmbedding(nn.Module):
         self.register_buffer('inv_freq', inv_freq)
 
     def forward(self, pos_seq, bsz=None):
-        sinusoid_inp = torch.ger(pos_seq, self.inv_freq)
+        sinusoid_inp = torch.ger(pos_seq, self.inv_freq.to(pos_seq))
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
 
         if bsz is not None:

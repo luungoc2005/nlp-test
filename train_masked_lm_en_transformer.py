@@ -3,10 +3,10 @@ from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.train import LanguageModelLearner
 from sent_to_vec.masked_lm.corpus_data import LanguageModelCorpusDataset
 from common.callbacks import PrintLoggerCallback, EarlyStoppingCallback, ModelCheckpointCallback, TensorboardCallback, ReduceLROnPlateau
+from common.lr_schedulers import WarmupLinearSchedule
 from os import path, listdir
 from config import BASE_PATH
-# from torch.optim import RMSprop
-from common.modules import BertAdam
+from common.modules import AdamW
 from common.utils import dotdict
 
 # alias for old path
@@ -27,18 +27,21 @@ if __name__ == '__main__':
     model_config = dotdict({
         'num_words': 36000,
         'hidden_size': 576,
-        'num_hidden_layers': 7, # or 6 is also fine
+        'num_hidden_layers': 6, # or 6 is also fine
         'num_attention_heads': 12,
         'intermediate_size': 1200,
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.15,
         'attention_probs_dropout_prob': 0.15,
-        'positional_embedding_type': 'sinusoid',
+        'positional_embedding_type': 'absolute',
         'max_position_embeddings': 256,
         'featurizer_seq_len': 256, # same as above
         'type_vocab_size': 2,
         'initializer_range': 0.025,
-        'use_adasoft': True
+        'proj_share_all_but_first': True,
+        'div_val': 1.0,
+        'use_adasoft': True,
+        'adasoft_cutoffs': [8000, 10000, 18000],
     })
     if path.exists(MODEL_PATH):
         print('Resuming from saved checkpoint')
@@ -59,7 +62,7 @@ if __name__ == '__main__':
     dataset = LanguageModelCorpusDataset()
 
     SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 32
+    BATCH_SIZE = 64
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -108,12 +111,10 @@ if __name__ == '__main__':
     n_epochs=2
     t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
-        optimizer_fn=BertAdam,
+        optimizer_fn=AdamW,
         optimizer_kwargs={
-            'b2': 0.98,
-            'lr': 7e-4,
-            'warmup': 20000 / t_total,
-            't_total':  t_total
+            'betas': (0.9, 0.98),
+            'lr': 7e-4
         }
     )
     print('Dataset: {} sentences'.format(len(dataset)))
@@ -137,7 +138,13 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=64,
-        fp16=True
+        gradient_accumulation_steps=32,
+        fp16=True,
+        lr_schedulers=[
+            (WarmupLinearSchedule, {
+                'warmup_steps': 20000,
+                't_total':  t_total
+            })
+        ]
         # optimize_on_cpu=True,
     )

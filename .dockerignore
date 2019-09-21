@@ -105,4 +105,5 @@ wikitext-maskedlm-data.bin
 # temporary corpus files
 corpus-*/
 corpus-*.txt
+index-*.txt
 vocab.json

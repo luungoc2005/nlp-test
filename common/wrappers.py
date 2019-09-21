@@ -477,7 +477,8 @@ class ILearner(object):
         fp16: bool = False,
         gradient_accumulation_steps: int = 1,
         callbacks: Iterable[object] = [],
-        clip_grad:float=0):
+        clip_grad:float = 0,
+        lr_schedulers: Iterable[Tuple[torch.optim.lr_scheduler._LRScheduler, dict]] = []):
 
         if self._uneven_batch_size: batch_size = 1
 
@@ -647,6 +648,12 @@ class ILearner(object):
                 **self._optimizer_kwargs
             )
 
+            self.lr_schedulers = [
+                scheduler_cls(self.optimizer, **scheduler_args) 
+                for (scheduler_cls, scheduler_args)
+                in lr_schedulers
+            ]
+
         if self.model_wrapper.is_pytorch_module() and not hasattr(self, 'criterion'):
             raise ValueError('Criterion must be set for the Learner class before training')
 
@@ -681,7 +688,7 @@ class ILearner(object):
 
                 for callback in self._callbacks: callback.on_epoch_start()
                 
-                for batch_idx, (X_batch, y_batch) in enumerate(data_loader, 0):
+                for batch_idx, data in enumerate(data_loader, 0):
                     if self._halt: # For early stopping / skipping batches
                         break
 
@@ -692,7 +699,7 @@ class ILearner(object):
 
                     if model is not None and self.model_wrapper.is_pytorch_module(): model.train()
 
-                    args = to_gpu(X_batch), to_gpu(y_batch)
+                    args = (to_gpu(item) for item in data)
                     kwargs = {}
                     if gradient_accumulation_steps > 1:
                         kwargs['gradient_accumulation_steps'] = self.gradient_accumulation_steps
@@ -749,7 +756,10 @@ class ILearner(object):
                             else:
                                 self.optimizer.step()
 
-                            model.zero_grad()
+                            for scheduler in self.lr_schedulers:
+                                scheduler.step()
+
+                            self.optimizer.zero_grad()
                     
                     for callback in self.callbacks: callback.on_batch_end()
 
@@ -760,9 +770,9 @@ class ILearner(object):
                 # testing phase
                 if self._val_data is not None and self.model_wrapper.is_pytorch_module():
                     with torch.no_grad():
-                        for test_batch_idx, (X_test_batch, y_test_batch) in enumerate(test_data_loader, 0):
+                        for test_batch_idx, test_data in enumerate(test_data_loader, 0):
                             self._test_batches = test_batch_idx
-                            test_args = to_gpu(X_test_batch), to_gpu(y_test_batch)
+                            test_args = (to_gpu(item) for item in test_data)
                             test_kwargs = {}
                             epoch_ret = self.on_epoch(*test_args, **test_kwargs)
                             if 'logits' in epoch_ret:

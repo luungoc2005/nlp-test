@@ -114,11 +114,14 @@ class WikiTextDataset(Dataset):
         if len(raw_sent) > self.max_seq_len:
             raw_sent = raw_sent[:self.max_seq_len]
 
-        output_label = torch.LongTensor(len(raw_sent))
+        sent_length = raw_sent.size(0)
+        output_label = torch.zeros(sent_length, dtype=torch.long)
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
 
-        for ix in range(raw_sent.size(0)):
+        mask = torch.zeros(sent_length, dtype=torch.long)
+        mask[:sent_length] = 1
+        for ix in range(sent_length):
             prob = random.random()
             if prob < 0.15:
                 output_label[ix] = raw_sent[ix]
@@ -134,7 +137,7 @@ class WikiTextDataset(Dataset):
                 # else no change
             else:
                 output_label[ix] = 0 # ignore idx
-        return raw_sent, output_label
+        return raw_sent, output_label, mask
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],
@@ -169,19 +172,20 @@ def collate_sent_batch_first(data):
 def collate_sent_target(data):
     X_data = [item[0] for item in data]
     y_data = [item[1] for item in data]
+    mask_data = [item[2] for item in data]
 
     max_len_X = max([len(item) for item in X_data])
     max_len_y = max([len(item) for item in y_data])
     max_len = max(max_len_X, max_len_y)
     max_len = int(math.floor(float(max_len) / 8) * 8)
     # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
-    return collate_sent(X_data, max_len), collate_sent(y_data, max_len)
+    return collate_sent(X_data, max_len), collate_sent(y_data, max_len), collate_sent(mask_data, max_len)
 
 def collate_seq_lm_fn(data) -> Iterable:
-    if len(data[0]) == 2: # first task
-        return collate_sent_target(data)
-    else: # second task
-        first_batch, second_batch = collate_sent_target([(item[0], item[1]) for item in data])
-        is_next = [item[2] for item in data]
-        return first_batch, second_batch, torch.LongTensor(is_next)
+    return collate_sent_target(data)
+    
+    # NSP task?
+    # first_batch, second_batch = collate_sent_target([(item[0], item[1]) for item in data])
+    # is_next = [item[2] for item in data]
+    # return first_batch, second_batch, torch.LongTensor(is_next)
     

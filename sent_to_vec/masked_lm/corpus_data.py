@@ -3,6 +3,8 @@ import random
 import re
 import numpy as np
 import math
+import array
+from torch.multiprocessing import Lock
 # from common.torch_utils import to_gpu
 from common.wrappers import IModel
 from config import BASE_PATH, START_TAG, STOP_TAG, UNK_TAG, MASK_TAG, LM_SEQ_LEN
@@ -32,8 +34,8 @@ def read_wikitext(input_file, output_file, max_length=128):
             for sent_line in sent_tokenize(line):
                 processed_sent = sent_line \
                     .replace('<unk>', UNK_TAG) \
-                    .replace('<UNK>', UNK_TAG) \
                     .replace('UNK', UNK_TAG)
+                    # .replace('<UNK>', UNK_TAG) \
 
                 for pattern in PATTERNS:
                     re.sub(pattern[0], pattern[1], processed_sent)
@@ -81,10 +83,13 @@ class LanguageModelCorpusDataset(Dataset):
 
         if not hasattr(self, 'output_file') or not self.output_file:
             output_file = path.join(BASE_PATH, f'corpus-{uuid1()}.txt')
+            sent_indices_file = path.join(BASE_PATH, f'index-{uuid1()}.txt')
             self.output_file = output_file
+            self.sent_indices_file = sent_indices_file
         else:
             output_file = self.output_file
-
+            sent_indices_file = self.sent_indices_file
+        
         line_count = 0
 
         if data_path is not None:
@@ -98,15 +103,19 @@ class LanguageModelCorpusDataset(Dataset):
         else:
             line_count = len(data_texts)
 
-        self.sent_indices = np.zeros(line_count, dtype=np.int32)
+        self.sent_indices = array.array('Q', [0] * line_count)
         current_idx = 0
 
         print('Caching sentence positions')
-        with open(self.output_file, 'r') as output_file:
-            for ix in tqdm(range(line_count)):
-                output_file.readline()
-                self.sent_indices[ix] = current_idx
-                current_idx = output_file.tell()
+        with open(self.output_file, 'r') as output_fp:
+            with open(self.sent_indices_file, 'w') as index_fp:
+                for ix in tqdm(range(line_count)):
+                    output_fp.readline()
+                    
+                    self.sent_indices[ix] = current_idx
+                    index_fp.write(str(current_idx) + '\n')
+
+                    current_idx = output_fp.tell()
 
         return line_count
 
@@ -142,14 +151,17 @@ class LanguageModelCorpusDataset(Dataset):
             print('Featurizer previously fitted, continuing')
 
         print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
+        
+        self._input_file = open(self.output_file, 'r')
+        self._read_lock = Lock()
 
     def save(self, save_path = 'wikitext-maskedlm-data.bin'):
         torch.save({
             'featurizer': self.featurizer,
             'line_count': self.line_count,
             'output_file': self.output_file,
-            'sent_indices': np.array(self.sent_indices, dtype=np.int32)
-        }, save_path, pickle_protocol=4)
+            'sent_indices': self.sent_indices_file
+        }, save_path)
         print('Finished saving preprocessed dataset')
 
     def load(self, fp, model_wrapper, get_next_sent=False):
@@ -157,12 +169,26 @@ class LanguageModelCorpusDataset(Dataset):
         state = torch.load(fp)
         self.featurizer = state['featurizer']
         model_wrapper.featurizer = state['featurizer']
-        self.line_count = np.array(state['line_count'], dtype=np.int32)
+        self.line_count = state['line_count']
         self.output_file = state['output_file']
-        self.sent_indices = state.get('sent_indices', [])
+        self.sent_indices_file = state.get('sent_indices', None)
         self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
 
-        print(f'Finished loading preprocessed dataset. Corpus size: {self.line_count.shape}')
+        if self.sent_indices_file is not None:
+            with open(self.sent_indices_file, 'r') as index_fp:
+                self.sent_indices = array.array('Q', [0] * self.line_count)
+                current_idx = 0
+                while True:
+                    line = index_fp.readline()
+                    if not line:
+                        break
+                    else:
+                        self.sent_indices[current_idx] = int(line)
+                        current_idx += 1
+
+        print(f'Finished loading preprocessed dataset. Corpus size: {len(self.sent_indices)}')
+        self._input_file = open(self.output_file, 'r')
+        self._read_lock = Lock()
 
     def __len__(self) -> int:
         return self.line_count
@@ -174,12 +200,15 @@ class LanguageModelCorpusDataset(Dataset):
 
         if len(raw_sent) > self.max_seq_len:
             raw_sent = raw_sent[:self.max_seq_len]
-
-        output_label = torch.LongTensor(len(raw_sent))
+        
+        sent_length = raw_sent.size(0)
+        output_label = torch.zeros(sent_length, dtype=torch.long)
         num_words = self.featurizer.tokenizer.num_words
         word_index = self.featurizer.tokenizer.word_index
 
-        for ix in range(raw_sent.size(0)):
+        mask = torch.zeros(sent_length, dtype=torch.long)
+        mask[:sent_length] = 1
+        for ix in range(sent_length):
             prob = random.random()
             if prob < 0.15:
                 output_label[ix] = raw_sent[ix]
@@ -195,15 +224,23 @@ class LanguageModelCorpusDataset(Dataset):
                 # else no change
             else:
                 output_label[ix] = 0 # ignore idx
-        return raw_sent, output_label
-
-    def _get_raw_sent(self, index: int) -> str:
-        with open(self.output_file) as input_file:
-            input_file.seek(self.sent_indices[index])
-            return input_file.readline().strip()
+        return raw_sent, output_label, mask
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],
             Tuple[torch.Tensor, torch.Tensor, bool]
         ]:
-        return self.get_sent(self._get_raw_sent(index))
+        try:
+            self._read_lock.acquire()
+            self._input_file.seek(self.sent_indices[index])
+            
+            if index == self.line_count - 1:
+                text = self._input_file.read()
+            else:
+                text = self._input_file.read(self.sent_indices[index + 1] - self.sent_indices[index])
+
+            self._read_lock.release()
+            return self.get_sent(text.strip())
+        except ValueError:
+            print(f'Value error at {index}, file position: {self.sent_indices[index]}')
+            raise ValueError

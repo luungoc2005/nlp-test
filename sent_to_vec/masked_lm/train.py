@@ -6,7 +6,7 @@ from common.wrappers import ILearner
 from common.metrics import accuracy, recall, precision, f1
 from common.utils import to_categorical
 from config import LM_VOCAB_SIZE, LM_HIDDEN_DIM, LM_SEQ_LEN, LM_EMBEDDING_DIM
-from common.splitcross import SplitCrossEntropyLoss
+from common.modules import ProjectedAdaptiveLogSoftmax
 from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from typing import Union, Tuple, Iterable
@@ -50,34 +50,40 @@ class LanguageModelLearner(ILearner):
     def on_model_init(self):
         print(self.model_wrapper.model)
 
-    def on_epoch(self, X, y, gradient_accumulation_steps:int = 1.):
+    def on_epoch(self, X, y, mask=None, gradient_accumulation_steps:int = 1.):
         bert_mode = hasattr(self, 'bert_mode') and self.bert_mode
-        # TODO: implement masking for BERT
-        #     X, bert_mask = X
-            
+
         batch_size = X.size(1)
 
         model = self.model_wrapper.model
 
-        if hasattr(model, 'init_hidden'):
-            hidden = model.init_hidden(batch_size)
-            logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
-
-        else:
-            hidden = None
-            logits, hidden, _, _ = model(X, training=True, batch_first=False)
-
-        if bert_mode:
-            decoder = model.cls.predictions.decoder
-        else:
-            decoder = model.decoder
         if self.use_adasoft:
-            loss = model.adasoft(
-                decoder.weight,
-                decoder.bias,
-                logits.view(logits.size(0) * logits.size(1), logits.size(2)),
-                y.view(-1)
-            )
+            if bert_mode:
+                if mask is None:
+                    loss = model(X, labels=y, batch_first=False)
+                else:
+                    loss = model(X, labels=y, attention_mask=mask, batch_first=False)
+
+            else:
+                if hasattr(model, 'init_hidden'):
+                    hidden = model.init_hidden(batch_size)
+
+                    logits, hidden, rnn_hs, dropped_rnn_hs = model(X, hidden, training=True)
+
+                else:
+                    hidden = None
+
+                    if mask is None:
+                        logits, hidden, _, _ = model(X, training=True, batch_first=False)
+                    else:
+                        logits, hidden, _, _ = model(X, attention_mask=mask, training=True)
+
+                loss = model.adasoft(
+                    decoder.weight,
+                    decoder.bias,
+                    logits.view(logits.size(0) * logits.size(1), logits.size(2)),
+                    y.view(-1)
+                )
         else:
             decoded = decoder(logits.view(logits.size(0) * logits.size(1), logits.size(2)))
             loss = self.criterion(

@@ -72,6 +72,9 @@ def use_data_parallel():
     #     print('Using data parallel, number of GPUs: %s, devices: "%s"' % (str(torch.cuda.device_count()), str(USE_GPU)))
     # return result
 
+def cuda_seed(seed):
+    if USE_GPU: torch.cuda.manual_seed_all(seed)
+
 device = None
 def to_gpu(x, *args, **kwargs):
     global device

@@ -119,18 +119,19 @@ class ViTextDataset(Dataset):
         
         if raw_sent.size(0) > self.max_seq_len:
             raw_sent = raw_sent[:self.max_seq_len]
-        
-        output_label = torch.LongTensor(len(raw_sent))
-        num_words = self.featurizer.tokenizer.num_words
-        word_index = self.featurizer.tokenizer.word_index
-        ix_to_word = self.featurizer.tokenizer.ix_to_word
 
         MASK_ID = word_index[MASK_TAG]
         UNK_ID = word_index[UNK_TAG]
 
-        seq_len = raw_sent.size(0)
+        sent_length = raw_sent.size(0)
+        output_label = torch.zeros(sent_length, dtype=torch.long)
+        num_words = self.featurizer.tokenizer.num_words
+        word_index = self.featurizer.tokenizer.word_index
+        ix_to_word = self.featurizer.tokenizer.ix_to_word
 
-        for ix in range(seq_len):
+        mask = torch.zeros(sent_length, dtype=torch.long)
+        mask[:sent_length] = 1
+        for ix in range(sent_length):
             prob = random.random()
 
             if prob < 0.15:
@@ -157,7 +158,7 @@ class ViTextDataset(Dataset):
 
         # print(self.featurizer.inverse_transform(torch.LongTensor(raw_sent).unsqueeze(0)))
         # print(self.featurizer.inverse_transform(torch.LongTensor(output_label).unsqueeze(0)))
-        return raw_sent, output_label
+        return raw_sent, output_label, mask
 
     def __getitem__(self, index) -> Union[
             Tuple[torch.Tensor, torch.Tensor],
@@ -171,37 +172,3 @@ class ViTextDataset(Dataset):
                 return first_sent, self.get_sent(random.randrange(0, len(self.raw_sents) - 1)), False
             else:
                 return first_sent, self.get_sent(index + 1), True
-
-def collate_sent(data):
-    max_seq_len = max([len(item) for item in data])
-    print('max: {}'.format(max_seq_len))
-    ret_val = torch.zeros(len(data), max_seq_len)
-    for ix, seq in enumerate(data):
-        seq_len = min(max_seq_len, len(seq))
-        ret_val[ix, :seq_len] = seq
-    return ret_val.long().t().contiguous()
-
-def collate_sent_batch_first(data):
-    max_seq_len = max([len(item) for item in data])
-    print('max: {}'.format(max_seq_len))
-    ret_val = torch.zeros(len(data), max_seq_len)
-    for ix, seq in enumerate(data):
-        seq_len = min(max_seq_len, len(seq))
-        ret_val[ix, :seq_len] = seq
-    return ret_val.long().contiguous()
-
-def collate_sent_target(data):
-    X_data = [item[0] for item in data]
-    y_data = [item[1] for item in data]
-    # return torch.stack(X_data, 0).long().t().contiguous(), torch.stack(y_data, 0).long().t().contiguous().view(-1)
-    return collate_sent(X_data), collate_sent(y_data)
-
-def collate_seq_lm_fn(data) -> Iterable:
-    if len(data[0]) == 2: # first task
-        return collate_sent_target(data)
-    else: # second task
-        first_sent = [item[0] for item in data]
-        second_sent = [item[1] for item in data]
-        is_next = [item[2] for item in data]
-        return collate_sent_target(first_sent), collate_sent_target(second_sent), torch.LongTensor(is_next)
-    

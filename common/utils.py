@@ -1,5 +1,4 @@
 import torch
-import torch.autograd as autograd
 import numpy as np
 from common.langs.vi_VN.utils import remove_tone_marks
 from config import EMBEDDING_DIM  # FASTTEXT_BIN
@@ -87,14 +86,14 @@ def to_categorical(y, num_classes):
     """ 1-hot encodes a tensor """
     arr = np.eye(num_classes)[y]
     tensor = torch.LongTensor(arr)
-    return autograd.Variable(tensor)
+    return tensor
 
 
 def prepare_sequence(seq, to_ix):
     unk_token = 0
     idxs = [to_ix.get(w, unk_token) for w in seq]
     tensor = torch.LongTensor(idxs)
-    return autograd.Variable(tensor, requires_grad=False)
+    return tensor
 
 
 def prepare_vec_sequence(seq, to_vec, maxlen=None, output='tensor'):
@@ -110,10 +109,6 @@ def prepare_vec_sequence(seq, to_vec, maxlen=None, output='tensor'):
         tensor = torch.from_numpy(idxs).float()  # Forcefully convert to Float tensor
         tensor.requires_grad = False
         return tensor
-
-
-def to_variable(array, tensor_type=torch.LongTensor):
-    return autograd.Variable(tensor_type(array))
 
 
 # def log_sum_exp(vec):
@@ -279,6 +274,15 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
         else:
             raise ValueError('Padding type "%s" not understood' % padding)
     return x
+
+def set_seed(seed):
+    import random
+    from common.torch_utils import cuda_seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    cuda_seed(seed)
+    
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
