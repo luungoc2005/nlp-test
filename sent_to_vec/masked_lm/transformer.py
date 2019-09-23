@@ -424,7 +424,8 @@ class BertLMPredictionHead(nn.Module):
                 config.hidden_size,
                 config.hidden_size,
                 cutoffs=splits, 
-                div_val=config.div_val
+                div_val=config.div_val,
+                ignore_index=0
             )
             self.tie_weights(self.decoder, bert_model_embedding_layer, self.tie_projs)
 
@@ -464,7 +465,7 @@ class BertLMPredictionHead(nn.Module):
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
-        if not config.use_adasoft:
+        if not self.config.use_adasoft:
             hidden_states = self.decoder(hidden_states) + self.bias
         return hidden_states
 
@@ -674,7 +675,7 @@ class BertForPreTraining(BertPreTrainedModel):
         prediction_scores, seq_relationship_score = self.cls(sequence_output, pooled_output)
 
         if masked_lm_labels is not None and next_sentence_label is not None:
-            loss_fct = CrossEntropyLoss(ignore_index=-1)
+            loss_fct = CrossEntropyLoss(ignore_index=0)
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.num_words), masked_lm_labels.view(-1))
             next_sentence_loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_label.view(-1))
             total_loss = masked_lm_loss + next_sentence_loss
@@ -732,6 +733,8 @@ class BertForMaskedLM(BertPreTrainedModel):
         self.apply(self.init_bert_weights)
         self.loss_fct = self.cls.predictions.decoder if config.use_adasoft else nn.CrossEntropyLoss()
 
+        self.use_adasoft = config.get('use_adasoft', True)
+
     def forward(self, 
         input_ids, 
         token_type_ids=None, 
@@ -748,6 +751,7 @@ class BertForMaskedLM(BertPreTrainedModel):
         sequence_output, pooled_output, attention_probs = self.bert(input_ids, token_type_ids, attention_mask,
             output_all_encoded_layers=output_all_encoded_layers)
 
+        cls_output = self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2)))
         if not batch_first:
             sequence_output = sequence_output.permute(1, 0, 2).contiguous()
         if labels is not None:
@@ -755,18 +759,16 @@ class BertForMaskedLM(BertPreTrainedModel):
                 labels = labels.t().contiguous()
             # return training loss
             return self.loss_fct(
-                self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
+                cls_output,
                 labels.view(-1)
             )
         else:
             if self.use_adasoft:
                 prediction_scores = self.cls.predictions.decoder.\
-                    logprob(
-                        self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
-                    )
+                    log_prob(cls_output)
             else:
                 prediction_scores = torch.log_softmax(
-                    self.cls(sequence_output.view(sequence_output.size(0) * sequence_output.size(1), sequence_output.size(2))),
+                    cls_output,
                     dim=-1
                 )
             return prediction_scores, pooled_output, sequence_output, attention_probs

@@ -22,8 +22,8 @@ PATTERNS = [
 
 def read_wikitext(input_file, output_file, max_length=128):
     assert path.exists(input_file), '{} does not exist'.format(input_file)
-    out_f = open(output_file, 'a+')
     count = 0
+    lines = []
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
             stripped = line.strip()
@@ -45,7 +45,7 @@ def read_wikitext(input_file, output_file, max_length=128):
             for ix, sent in enumerate(sent_batch):
                 if ix == len(sent_batch) - 1:
                     count += 1
-                    out_f.write(sent.strip() + '\n')
+                    lines.append(sent.strip())
                 else:
                     remaining_batch = sent_batch[ix:]
                     running_length = 0
@@ -54,13 +54,13 @@ def read_wikitext(input_file, output_file, max_length=128):
                         if batch_ix == len(remaining_batch) - 1:
                             if len(running_sent) > 0:
                                 count += 1
-                                out_f.write(running_sent.strip() + '\n')
+                                lines.append(running_sent.strip())
                             running_length = 0
                             running_sent = ''
                         elif running_length + len(minibatch_sent) > max_length:
                             if len(running_sent) > 0:
                                 count += 1
-                                out_f.write(running_sent.strip() + '\n')
+                                lines.append(running_sent.strip())
                             running_length = 0
                             running_sent = ''
                             break
@@ -68,7 +68,9 @@ def read_wikitext(input_file, output_file, max_length=128):
                             running_sent += minibatch_sent if len(running_sent) == 0 else ' . ' + minibatch_sent
                             running_length += len(minibatch_sent) + 3
 
-    out_f.close()
+    with open(output_file, 'a+') as out_f:
+        for line in lines:
+            out_f.write(line + '\n')
     return count
 
 class LanguageModelCorpusDataset(Dataset):
@@ -76,19 +78,20 @@ class LanguageModelCorpusDataset(Dataset):
     def __init__(self):
         super(LanguageModelCorpusDataset, self).__init__()
 
-    def init_on_corpus(self, 
+    def init_on_corpus(self,
         data_path: Union[str, List[str]] = None, 
         data_texts: str = None,
-        reset_path: bool = True):
+        reset_path: bool = True,
+        base_dir: str = BASE_PATH):
 
         if not hasattr(self, 'output_file') or not self.output_file:
-            output_file = path.join(BASE_PATH, f'corpus-{uuid1()}.txt')
-            sent_indices_file = path.join(BASE_PATH, f'index-{uuid1()}.txt')
-            self.output_file = output_file
-            self.sent_indices_file = sent_indices_file
+            self.output_file = f'corpus-{uuid1()}.txt'
+            self.sent_indices_file = f'index-{uuid1()}.txt'
+            output_file = path.join(base_dir, self.output_file)
+            sent_indices_file = path.join(base_dir, self.sent_indices_file)
         else:
-            output_file = self.output_file
-            sent_indices_file = self.sent_indices_file
+            output_file = path.join(base_dir, self.output_file)
+            sent_indices_file = path.join(base_dir, self.sent_indices_file)
         
         line_count = 0
 
@@ -107,8 +110,8 @@ class LanguageModelCorpusDataset(Dataset):
         current_idx = 0
 
         print('Caching sentence positions')
-        with open(self.output_file, 'r') as output_fp:
-            with open(self.sent_indices_file, 'w') as index_fp:
+        with open(output_file, 'r') as output_fp:
+            with open(sent_indices_file, 'w') as index_fp:
                 for ix in tqdm(range(line_count)):
                     output_fp.readline()
                     
@@ -125,8 +128,9 @@ class LanguageModelCorpusDataset(Dataset):
         data_path: Union[str, List[str]] = None, 
         data_texts: str = None,
         vocab_fp = None,
+        base_dir: str = BASE_PATH
     ):
-        self.line_count = self.init_on_corpus(data_path, data_texts)
+        self.line_count = self.init_on_corpus(data_path, data_texts, base_dir=base_dir)
         self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
         self.featurizer = model_wrapper.featurizer
         assert self.featurizer is not None
@@ -155,7 +159,7 @@ class LanguageModelCorpusDataset(Dataset):
         self._input_file = open(self.output_file, 'r')
         self._read_lock = Lock()
 
-    def save(self, save_path = 'wikitext-maskedlm-data.bin'):
+    def save(self, save_path = 'maskedlm-data.bin'):
         torch.save({
             'featurizer': self.featurizer,
             'line_count': self.line_count,
@@ -164,7 +168,7 @@ class LanguageModelCorpusDataset(Dataset):
         }, save_path)
         print('Finished saving preprocessed dataset')
 
-    def load(self, fp, model_wrapper, get_next_sent=False):
+    def load(self, fp, model_wrapper, get_next_sent=False, base_dir: str = BASE_PATH):
         self.get_next_sent = get_next_sent
         state = torch.load(fp)
         self.featurizer = state['featurizer']
@@ -175,7 +179,7 @@ class LanguageModelCorpusDataset(Dataset):
         self.max_seq_len = model_wrapper.config.get('max_position_embeddings')
 
         if self.sent_indices_file is not None:
-            with open(self.sent_indices_file, 'r') as index_fp:
+            with open(path.join(base_dir, self.sent_indices_file), 'r') as index_fp:
                 self.sent_indices = array.array('Q', [0] * self.line_count)
                 current_idx = 0
                 while True:
@@ -187,7 +191,7 @@ class LanguageModelCorpusDataset(Dataset):
                         current_idx += 1
 
         print(f'Finished loading preprocessed dataset. Corpus size: {len(self.sent_indices)}')
-        self._input_file = open(self.output_file, 'r')
+        self._input_file = open(path.join(base_dir, self.output_file), 'r')
         self._read_lock = Lock()
 
     def __len__(self) -> int:

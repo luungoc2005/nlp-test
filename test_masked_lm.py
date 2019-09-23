@@ -1,6 +1,6 @@
 
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
-from sent_to_vec.masked_lm.data import WikiTextDataset, collate_seq_lm_fn
+from sent_to_vec.masked_lm.corpus_data import WikiTextDataset, collate_seq_lm_fn
 from torch.utils.data import DataLoader
 from common.torch_utils import to_gpu
 from common.metrics import accuracy

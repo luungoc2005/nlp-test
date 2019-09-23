@@ -48,7 +48,8 @@ class LanguageModelLearner(ILearner):
         self.batch_size = 0
 
     def on_model_init(self):
-        print(self.model_wrapper.model)
+        pass
+        # print(self.model_wrapper.model)
 
     def on_epoch(self, X, y, mask=None, gradient_accumulation_steps:int = 1.):
         bert_mode = hasattr(self, 'bert_mode') and self.bert_mode

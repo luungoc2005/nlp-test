@@ -164,7 +164,7 @@ class IModel(object):
 
     def load_state_dict(self, state_dict:dict, *args, **kwargs): pass
 
-    def infer_predict(self, logits: Union[object, torch.Tensor]): return logits
+    def infer_predict(self, logits: Union[object, torch.Tensor], *args, **kwargs): return logits
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module) and self._onnx is None
 
@@ -662,6 +662,11 @@ class ILearner(object):
             try:
                 from apex import amp, optimizers
                 from apex.multi_tensor_apply import multi_tensor_applier
+
+                # model, self.optimizer = amp.initialize(model, self.optimizer, 
+                #     opt_level="O1",
+                #     loss_scale="dynamic"
+                # )
 
                 model, self.optimizer = amp.initialize(model, self.optimizer, 
                     opt_level="O1",

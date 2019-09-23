@@ -1,7 +1,9 @@
 
 from sent_to_vec.masked_lm.bert_model import BertLMWrapper
 from sent_to_vec.masked_lm.model import BiLanguageModelWrapper
-from sent_to_vec.masked_lm.vi_data import ViTextDataset, collate_seq_lm_fn
+# from sent_to_vec.masked_lm.vi_data import ViTextDataset, collate_seq_lm_fn
+from sent_to_vec.masked_lm.corpus_data import LanguageModelCorpusDataset
+from sent_to_vec.masked_lm.data import collate_seq_lm_fn
 from torch.utils.data import DataLoader
 from common.torch_utils import to_gpu
 from common.metrics import accuracy
@@ -53,7 +55,7 @@ if __name__ == '__main__':
     # model = BiLanguageModelWrapper()
     # model.save('bert-vi-fixed.bin')
 
-    print(model)
+    # print(model)
 
     EXPORT_SIZE = (50, 1)
 
@@ -66,12 +68,12 @@ if __name__ == '__main__':
         model.export_onnx(dummy_input, 'masked-lm-vi.onnx')
         exit()
 
-    SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    # SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
+    # SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
+    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
 
-    dataset = ViTextDataset()
+    dataset = LanguageModelCorpusDataset()
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file at %s' % SAVE_PATH)
@@ -88,7 +90,7 @@ if __name__ == '__main__':
     loader = DataLoader(
         dataset, 
         batch_size=BATCH_SIZE, 
-        shuffle=True, 
+        shuffle=False, 
         collate_fn=collate_seq_lm_fn,
         num_workers=0
     )
@@ -102,23 +104,26 @@ if __name__ == '__main__':
     for epoch in range(TEST_EPOCHS) if args.disable_tqdm else trange(TEST_EPOCHS):
         if args.disable_tqdm:
             print('Running epoch %s' % str(epoch))
-        inputs, outputs = next(iter(loader))
+        inputs, outputs, masks = next(iter(loader))
 
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
         if model._onnx is not None:
             padded_input = torch.zeros(EXPORT_SIZE).long()
             padded_output = torch.zeros(EXPORT_SIZE).long()
+            padded_masks = torch.zeros(EXPORT_SIZE).long()
 
             padded_input[:inputs.size(0)] = inputs
             padded_output[:outputs.size(0)] = outputs
+            padded_masks[:masks.size(0)] = masks
 
             inputs = padded_input
             outputs = padded_output
+            masks = padded_masks
 
-        # print(inputs.size())
         inputs, outputs = to_gpu(inputs), to_gpu(outputs)
-        result, hidden = model(inputs)
+        results = model(inputs, attention_mask=masks)
+        result = results[0]
         result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
         
         mask = (outputs != 0)

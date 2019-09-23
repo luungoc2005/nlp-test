@@ -7,6 +7,7 @@ from common.lr_schedulers import WarmupLinearSchedule
 from os import path, listdir
 from config import BASE_PATH
 from common.modules import AdamW
+from apex.optimizers import FusedAdam
 from common.utils import dotdict
 
 # alias for old path
@@ -19,10 +20,15 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--export_vocab", default=False, action='store_true')
 parser.add_argument("--from_vocab", default='', type=str)
+parser.add_argument("--base_dir", default=BASE_PATH, type=str)
 
 args = parser.parse_args()
 
 if __name__ == '__main__':
+
+    from common.utils import set_seed
+    set_seed(42)
+
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
         'num_words': 36000,
@@ -33,7 +39,7 @@ if __name__ == '__main__':
         'hidden_act': 'gelu',
         'hidden_dropout_prob': 0.15,
         'attention_probs_dropout_prob': 0.15,
-        'positional_embedding_type': 'absolute',
+        'positional_embedding_type': 'sinusoid',
         'max_position_embeddings': 256,
         'featurizer_seq_len': 256, # same as above
         'type_vocab_size': 2,
@@ -61,8 +67,8 @@ if __name__ == '__main__':
 
     dataset = LanguageModelCorpusDataset()
 
-    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
-    BATCH_SIZE = 64
+    SAVE_PATH = path.join(args.base_dir, 'maskedlm-data.bin')
+    BATCH_SIZE = 48
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
@@ -83,10 +89,10 @@ if __name__ == '__main__':
         load_folder(path.join(BASE_PATH, 'data/stories_corpus'))
 
         if args.from_vocab == '':
-            dataset.init_on_model(model, data_path=paths)
+            dataset.init_on_model(model, data_path=paths, base_dir=args.base_dir)
         else:
             with open(args.from_vocab, 'r') as vocab_fp:
-                dataset.init_on_model(model, data_path=paths, vocab_fp=vocab_fp)
+                dataset.init_on_model(model, data_path=paths, vocab_fp=vocab_fp, base_dir=args.base_dir)
             # import random
             # indices = list(range(len(dataset)))
             # random.shuffle(indices)
@@ -111,7 +117,7 @@ if __name__ == '__main__':
     n_epochs=2
     t_total = n_epochs * (len(dataset) // BATCH_SIZE)
     learner = LanguageModelLearner(model,
-        optimizer_fn=AdamW,
+        optimizer_fn=FusedAdam,
         optimizer_kwargs={
             'betas': (0.9, 0.98),
             'lr': 7e-4
@@ -131,6 +137,7 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
+        shuffle=False,
         epochs=n_epochs,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
@@ -138,7 +145,7 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=32,
+        gradient_accumulation_steps=42,
         fp16=True,
         lr_schedulers=[
             (WarmupLinearSchedule, {

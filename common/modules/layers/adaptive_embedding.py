@@ -36,8 +36,6 @@ class AdaptiveEmbedding(nn.Module):
                 d_emb_i = int(d_embed // (div_val ** i))
                 self.emb_layers.append(nn.Embedding(r_idx-l_idx, d_emb_i))
                 self.emb_projs.append(nn.Parameter(torch.FloatTensor(d_proj, d_emb_i)))
-        print(self.emb_layers)
-        print(self.emb_projs)
 
     def forward(self, inp):
         if self.div_val == 1:

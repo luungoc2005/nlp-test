@@ -8,8 +8,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ProjectedAdaptiveLogSoftmax(nn.Module):
-    def __init__(self, n_token, d_embed, d_proj, cutoffs, div_val=1,
-                 keep_order=False):
+    def __init__(self, 
+        n_token, 
+        d_embed, 
+        d_proj, 
+        cutoffs, 
+        div_val=1,
+        ignore_index=None,
+        keep_order=False):
         super(ProjectedAdaptiveLogSoftmax, self).__init__()
 
         self.n_token = n_token
@@ -19,6 +25,8 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         self.cutoffs = cutoffs + [n_token]
         self.cutoff_ends = [0] + self.cutoffs
         self.div_val = div_val
+        
+        self.ignore_index = ignore_index
 
         self.shortlist_size = self.cutoffs[0]
         self.n_clusters = len(self.cutoffs) - 1
@@ -53,8 +61,6 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 self.out_layers.append(nn.Linear(d_emb_i, r_idx-l_idx))
 
         self.keep_order = keep_order
-        print(self.emb_layers)
-        print(self.emb_projs)
 
     def _compute_logit(self, hidden, weight, bias, proj):
         if proj is None:
@@ -173,7 +179,13 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                         out[offset:offset+logprob_i.size(0)].copy_(-logprob_i)
                     offset += logprob_i.size(0)
 
-        return out
+        if labels is None:
+            return out
+        else:
+            if self.ignore_index is None:
+                return (out.sum() / len(labels)).float()
+            else:
+                return (out.sum() / ((labels != self.ignore_index).float().sum() + 1e-8))
 
 
     def log_prob(self, hidden):
@@ -232,7 +244,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                     tail_logit_i = self._compute_logit(hidden, weight_i, bias_i, proj_i)
                     tail_logprob_i = F.log_softmax(tail_logit_i, dim=1)
 
-                    logprob_i = head_logprob[:, -i] + tail_logprob_i
-                    out[:, start_idx, stop_idx] = logprob_i
+                    logprob_i = tail_logprob_i + head_logprob[:, -i].unsqueeze(1)
+                    out[:, start_idx:stop_idx] = logprob_i
 
             return out
