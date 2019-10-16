@@ -156,7 +156,7 @@ class LanguageModelCorpusDataset(Dataset):
 
         print('Found {} tokens'.format(len(self.featurizer.tokenizer.word_index.keys())))
         
-        self._input_file = open(self.output_file, 'r')
+        self._input_file = open(path.join(base_dir, self.output_file), 'r')
         self._read_lock = Lock()
 
     def save(self, save_path = 'maskedlm-data.bin'):

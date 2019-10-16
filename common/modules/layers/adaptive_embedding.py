@@ -6,65 +6,66 @@ import numpy as np
 from typing import Optional, List, Union
 from common.torch_utils import to_gpu
 
-class AdaptiveEmbedding(nn.Module):
-    def __init__(self, n_token, d_embed, d_proj, cutoffs, div_val=1,
-                 sample_softmax=False):
-        super(AdaptiveEmbedding, self).__init__()
+from typing import List
 
-        self.n_token = n_token
-        self.d_embed = d_embed
+class AdaptiveInput(nn.Module):
 
-        self.cutoffs = cutoffs + [n_token]
-        self.div_val = div_val
-        self.d_proj = d_proj
+    def __init__(
+        self,
+        vocab_size: int,
+        padding_idx: int,
+        initial_dim: int,
+        factor: float,
+        output_dim: int,
+        cutoff: List[int],
+    ):
+        super().__init__()
 
-        self.emb_scale = d_proj ** 0.5
+        if vocab_size > cutoff[-1]:
+            cutoff = cutoff + [vocab_size]
+        else:
+            assert vocab_size == cutoff[
+                -1], 'cannot specify cutoff larger than vocab size'
 
-        self.cutoff_ends = [0] + self.cutoffs
+        self.cutoff = cutoff
+        self.embedding_dim = output_dim
+        self.padding_idx = padding_idx
 
-        self.emb_layers = nn.ModuleList()
-        self.emb_projs = nn.ParameterList()
-        if div_val == 1:
-            self.emb_layers.append(
-                nn.Embedding(n_token, d_embed, sparse=sample_softmax>0)
+        self.embeddings = nn.ModuleList()
+        for i in range(len(self.cutoff)):
+            prev = self.cutoff[i - 1] if i > 0 else 0
+            size = self.cutoff[i] - prev
+            dim = int(initial_dim // (factor ** i))
+            seq = nn.Sequential(
+                nn.Embedding(size, dim, padding_idx),
+                nn.Linear(dim, output_dim, bias=False)
             )
-            if d_proj != d_embed:
-                self.emb_projs.append(nn.Parameter(torch.FloatTensor(d_proj, d_embed)))
-        else:
-            for i in range(len(self.cutoffs)):
-                l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i+1]
-                d_emb_i = int(d_embed // (div_val ** i))
-                self.emb_layers.append(nn.Embedding(r_idx-l_idx, d_emb_i))
-                self.emb_projs.append(nn.Parameter(torch.FloatTensor(d_proj, d_emb_i)))
+            self.embeddings.append(seq)
 
-    def forward(self, inp):
-        if self.div_val == 1:
-            embed = self.emb_layers[0](inp)
-            if self.d_proj != self.d_embed:
-                embed  = F.linear(embed, self.emb_projs[0])
-        else:
-            param = next(self.parameters())
-            inp_flat = inp.view(-1)
-            emb_flat = torch.zeros([inp_flat.size(0), self.d_proj],
-                dtype=param.dtype, device=param.device)
-            for i in range(len(self.cutoffs)):
-                l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
+        def init_weights(m):
+            if isinstance(m, nn.Embedding):
+                nn.init.normal_(m.weight, mean=0, std=m.weight.shape[1] ** -0.5)
+                nn.init.constant_(m.weight[padding_idx], 0)
+            elif hasattr(m, 'weight'):
+                nn.init.xavier_uniform_(m.weight)
 
-                mask_i = (inp_flat >= l_idx) & (inp_flat < r_idx)
-                indices_i = mask_i.nonzero().squeeze()
+        self.apply(init_weights)
 
-                if indices_i.numel() == 0:
-                    continue
+        self.register_buffer('_float_tensor', torch.FloatTensor(1))
 
-                inp_i = inp_flat.index_select(0, indices_i) - l_idx
-                emb_i = self.emb_layers[i](inp_i)
-                emb_i = F.linear(emb_i, self.emb_projs[i]).to(param.dtype)
+    def weights_for_band(self, band: int):
+        return self.embeddings[band][0].weight, self.embeddings[band][1].weight
 
-                emb_flat.index_copy_(0, indices_i, emb_i)
+    def forward(self, input: torch.Tensor):
+        result = self._float_tensor.new(input.shape + (self.embedding_dim,))
 
-            embed_shape = inp.size() + (self.d_proj,)
-            embed = emb_flat.view(embed_shape)
-
-        embed.mul_(self.emb_scale)
-
-        return embed
+        for i in range(len(self.cutoff)):
+            mask = input.lt(self.cutoff[i])
+            if i > 0:
+                mask.mul_(input.ge(self.cutoff[i - 1]))
+                chunk_input = input[mask] - self.cutoff[i - 1]
+            else:
+                chunk_input = input[mask]
+            if mask.any():
+                result[mask] = self.embeddings[i](chunk_input).to(result) # fp16 fix
+        return result

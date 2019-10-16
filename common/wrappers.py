@@ -168,6 +168,20 @@ class IModel(object):
 
     def is_pytorch_module(self) -> bool: return self._model_class is not None and issubclass(self._model_class, nn.Module) and self._onnx is None
 
+    @property
+    def parameters_count(self) -> int:
+        if self.is_pytorch_module():
+            return sum(p.numel() for p in self.model.parameters())
+        else:
+            return 0
+
+    @property
+    def trainable_parameters_count(self) -> int:
+        if self.is_pytorch_module():
+            return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        else:
+            return 0
+
     def quantize(self):
         if self.is_pytorch_module():
             if self.model is None:
@@ -677,6 +691,7 @@ class ILearner(object):
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
         self._global_step = 0
+        self._total_steps = max(len(data_loader) * len(iterator), 1)
         # Main training loop
         try:
             for epoch in iterator:

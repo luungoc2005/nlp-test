@@ -32,17 +32,18 @@ if __name__ == '__main__':
     MODEL_PATH = 'en-masked-lm-test.bin'
     model_config = dotdict({
         'num_words': 36000,
+        'embedding_size': 128,
         'hidden_size': 576,
-        'num_hidden_layers': 6, # or 6 is also fine
+        'num_hidden_layers': 7, # or 6 is also fine
         'num_attention_heads': 12,
         'intermediate_size': 1200,
         'hidden_act': 'gelu',
-        'hidden_dropout_prob': 0.15,
-        'attention_probs_dropout_prob': 0.15,
-        'positional_embedding_type': 'sinusoid',
+        'hidden_dropout_prob': 0,
+        'attention_probs_dropout_prob': 0,
+        'positional_embedding_type': 'absolute',
         'max_position_embeddings': 256,
         'featurizer_seq_len': 256, # same as above
-        'type_vocab_size': 2,
+        'type_vocab_size': 1,
         'initializer_range': 0.025,
         'proj_share_all_but_first': True,
         'div_val': 1.0,
@@ -68,11 +69,11 @@ if __name__ == '__main__':
     dataset = LanguageModelCorpusDataset()
 
     SAVE_PATH = path.join(args.base_dir, 'maskedlm-data.bin')
-    BATCH_SIZE = 48
+    BATCH_SIZE = 200
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file')
-        dataset.load(SAVE_PATH, model)
+        dataset.load(SAVE_PATH, model, base_dir=args.base_dir)
     else:
         paths = [
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
@@ -137,7 +138,7 @@ if __name__ == '__main__':
     learner.fit(
         training_data=dataset,
         batch_size=BATCH_SIZE,
-        shuffle=False,
+        shuffle=True,
         epochs=n_epochs,
         callbacks=[
             PrintLoggerCallback(log_every_batch=1000, log_every=1, metrics=['loss']),
@@ -145,7 +146,7 @@ if __name__ == '__main__':
             ModelCheckpointCallback(metrics=['loss']),
             # ReduceLROnPlateau(reduce_factor=4, patience=2)
         ],
-        gradient_accumulation_steps=42,
+        gradient_accumulation_steps=10,
         fp16=True,
         lr_schedulers=[
             (WarmupLinearSchedule, {

@@ -24,6 +24,8 @@ parser.add_argument("--show_raws", action='store_true')
 parser.add_argument("--quantize", action='store_true')
 parser.add_argument("--export_onnx", action='store_true')
 parser.add_argument("--disable_tqdm", action='store_true')
+parser.add_argument("--base_dir", default=BASE_PATH, type=str)
+parser.add_argument("--epochs", default=10000, type=int)
 
 args = parser.parse_args()
 
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         exit()
 
     # SAVE_PATH = path.join(BASE_PATH, 'vi-corpus.bin')
-    SAVE_PATH = path.join(BASE_PATH, 'wikitext-maskedlm-data.bin')
+    SAVE_PATH = path.join(args.base_dir, 'maskedlm-data.bin')
     if not path.exists(SAVE_PATH):
         SAVE_PATH = path.join(BASE_PATH, dataset.get_save_name(model.config['num_words']))
 
@@ -77,16 +79,16 @@ if __name__ == '__main__':
 
     if path.exists(SAVE_PATH):
         print('Loading from previously saved file at %s' % SAVE_PATH)
-        dataset.load(SAVE_PATH, model)
+        dataset.load(SAVE_PATH, model, base_dir=args.base_dir)
     else:
-        dataset.initialize(model, data_path=[
+        dataset.init_on_model(model, data_path=[
             # path.join(BASE_PATH, 'data/wikitext2/wiki.train.tokens'),
             path.join(BASE_PATH, 'data/wikitext103/wiki.train.tokens')
         ])
         dataset.save()
 
     # print(dataset.get_sent(4))
-    BATCH_SIZE = 16 if model._onnx is None else 1
+    BATCH_SIZE = 20 if model._onnx is None else 1
     loader = DataLoader(
         dataset, 
         batch_size=BATCH_SIZE, 
@@ -94,9 +96,10 @@ if __name__ == '__main__':
         collate_fn=collate_seq_lm_fn,
         num_workers=0
     )
+    data_iter = iter(loader)
     # print(next(iter(loader)))
 
-    TEST_EPOCHS = 100 if model._onnx is None else 1600
+    TEST_EPOCHS = args.epochs
     # total_accuracy = 0.
     total_correct = 0
     total_count = 0
@@ -104,7 +107,7 @@ if __name__ == '__main__':
     for epoch in range(TEST_EPOCHS) if args.disable_tqdm else trange(TEST_EPOCHS):
         if args.disable_tqdm:
             print('Running epoch %s' % str(epoch))
-        inputs, outputs, masks = next(iter(loader))
+        inputs, outputs, masks = next(data_iter)
 
         outputs = outputs.view(inputs.size(0), inputs.size(1))
 
@@ -124,8 +127,8 @@ if __name__ == '__main__':
         inputs, outputs = to_gpu(inputs), to_gpu(outputs)
         results = model(inputs, attention_mask=masks)
         result = results[0]
-        result = torch.max(result, dim=1)[1].view(inputs.size(0), inputs.size(1))
-        
+        result = torch.max(result, dim=-1)[1]
+
         mask = (outputs != 0)
         total_count += mask.sum().item()
         total_correct += (result.masked_select(mask) == outputs.masked_select(mask)).sum().item()
@@ -133,10 +136,6 @@ if __name__ == '__main__':
     
     # total_accuracy /= TEST_EPOCHS
     total_accuracy = total_correct / total_count
-    print('Accuracy over %s test sentences: %4f' % (
-        TEST_EPOCHS * BATCH_SIZE,
-        total_accuracy * 100
-    ))
 
     X_decoded = model.featurizer.inverse_transform(inputs.cpu().t().contiguous())
     y_t_decoded = model.featurizer.inverse_transform(outputs.cpu().t().contiguous())
@@ -154,3 +153,8 @@ if __name__ == '__main__':
         print('GT: {}'.format(' '.join(y_t)))
         print('RT: {}'.format(' '.join(y)))
         print('---')
+        
+    print('Accuracy over %s test sentences: %4f' % (
+        TEST_EPOCHS * BATCH_SIZE,
+        total_accuracy * 100
+    ))

@@ -1,6 +1,7 @@
 import time
 import warnings
 import torch.nn as nn
+import math
 from common.utils import timeSince, asMinutes
 from abc import ABCMeta, abstractmethod
 from os import path, remove
@@ -103,24 +104,16 @@ class PrintLoggerCallback(PeriodicCallback):
         self.last_log_batch_idx = 0
 
     def print_line(self, print_minibatch=False):
+        progress = float(self._learner._global_step + 1) / float(self._learner._total_steps)
         if print_minibatch == False:
-            progress = float(self._learner._current_epoch + 1) / float(self._learner._n_epochs)
-            print_line = '%s (%d %d%%)' % (
-                timeSince(self.start, progress), 
-                self._learner._current_epoch + 1,
-                progress * 100
-            )
+            print_line = f'\repoch #{self._learner._current_epoch + 1} | {timeSince(self.start, progress)} | {round(progress * 100, 2)}%'
         else:
-            progress = float(self._learner._current_epoch + 1) / float(self._learner._n_epochs)
-            print_line = '%s (%d-%d %d%%)' % (
-                timeSince(self.start, progress),
-                self._learner._batch_idx + 1,
-                self._learner._current_epoch + 1,
-                progress * 100
-            )
-            print_line += ' - %.2f it/s' % (
-                (self._learner._batch_idx - self.last_log_batch_idx) / (time.time() - self.last_log_at)
-            )
+            print_line = f'\repoch #{self._learner._current_epoch + 1} | {timeSince(self.start, progress)} | {round(progress * 100, 2)}%'
+            speed = round(
+                (self._learner._batch_idx - self.last_log_batch_idx) / 
+                (time.time() - self.last_log_at)
+            , 2)
+            print_line += f' | {speed} it/s'
             self.last_log_at = time.time()
             self.last_log_batch_idx = self._learner._batch_idx
         metrics = self.learner.metrics
@@ -128,9 +121,7 @@ class PrintLoggerCallback(PeriodicCallback):
         if metrics is not None:
             for key in self.metrics:
                 if key in metrics:
-                    print_line += ' - %s: %.4f' % (key, metrics[key])
-
-        self.logging_fn(print_line)
+                    print_line += ' | %s: %.4f' % (key, metrics[key])
 
         test_metrics = self.learner.test_metrics
         if test_metrics is not None:
@@ -139,7 +130,7 @@ class PrintLoggerCallback(PeriodicCallback):
                 if key in test_metrics:
                     print_line += ' - %s: %.4f' % (key, test_metrics[key])
 
-            self.logging_fn(print_line)
+        self.logging_fn(print_line, end='')
 
 
 class TensorboardCallback(PeriodicCallback):
@@ -353,19 +344,14 @@ class ModelCheckpointCallback(PeriodicCallback):
         now = time.time()
         s = now - self.start
 
-        file_name = '{} {} _epoch {}_{}'.format(
-            self.prefix,
-            asMinutes(s),
-            self._learner._current_epoch + 1,
-            self._learner._batch_idx + 1
-        )
+        file_name = f'{self.prefix}_epoch_{self._learner._current_epoch + 1}_{asMinutes(s)}_{self._learner._batch_idx + 1}'
 
         metrics = self.learner.metrics
         # metrics = self.learner._batch_metrics
         if metrics is not None:
             for key in self.metrics:
                 if key in metrics:
-                    file_name += (' %s_%.4f' % (key, metrics[key])).replace('.', '_')
+                    file_name += ('_%s_%.4f' % (key, metrics[key])).replace('.', '_')
         file_name += '.bin'
         return file_name
 
