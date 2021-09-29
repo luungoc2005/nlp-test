@@ -10,7 +10,7 @@ lz4==2.0.2
 mkl-fft==1.0.0
 mkl-random==1.0.1
 monotonic==1.5
-nltk==3.3
+nltk==3.6.3
 numpy==1.14.5
 olefile==0.45.1
 Pillow==5.1.0
