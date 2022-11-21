@@ -49,7 +49,7 @@ scipy==1.0.0
 Send2Trash==1.4.2
 simplegeneric==0.8.1
 six==1.10.0
-tensorflow-gpu==1.5.0
+tensorflow-gpu==2.9.3
 tensorflow-tensorboard==1.5.0
 terminado==0.8.1
 testpath==0.3
